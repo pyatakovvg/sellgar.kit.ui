@@ -39,3 +39,25 @@
   padding: var(--numbers-12);
   white-space: nowrap;
 }
+
+.focusExample {
+  display: grid;
+  gap: var(--numbers-12);
+}
+
+.focusButton {
+  justify-self: start;
+  padding: var(--numbers-8) var(--numbers-12);
+  border: var(--numbers-1) solid #d1d5db;
+  border-radius: var(--numbers-8);
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.focusInput {
+  width: 100%;
+  margin-top: var(--numbers-8);
+  padding: var(--numbers-8) var(--numbers-10);
+  border: var(--numbers-1) solid #d1d5db;
+  border-radius: var(--numbers-8);
+}

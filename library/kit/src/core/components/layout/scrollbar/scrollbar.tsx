@@ -135,8 +135,34 @@ const setScrollPosition = (viewport: HTMLDivElement, axis: IDragState['axis'], v
   viewport.scrollLeft = value;
 };
 
+const scrollFocusedElementIntoViewport = (viewport: HTMLDivElement, element: HTMLElement): boolean => {
+  const viewportRect = viewport.getBoundingClientRect();
+  const elementRect = element.getBoundingClientRect();
+  const previousScrollTop = viewport.scrollTop;
+  const previousScrollLeft = viewport.scrollLeft;
+  let nextScrollTop = viewport.scrollTop;
+  let nextScrollLeft = viewport.scrollLeft;
+
+  if (elementRect.top < viewportRect.top) {
+    nextScrollTop -= viewportRect.top - elementRect.top;
+  } else if (elementRect.bottom > viewportRect.bottom) {
+    nextScrollTop += elementRect.bottom - viewportRect.bottom;
+  }
+
+  if (elementRect.left < viewportRect.left) {
+    nextScrollLeft -= viewportRect.left - elementRect.left;
+  } else if (elementRect.right > viewportRect.right) {
+    nextScrollLeft += elementRect.right - viewportRect.right;
+  }
+
+  viewport.scrollTop = nextScrollTop;
+  viewport.scrollLeft = nextScrollLeft;
+
+  return viewport.scrollTop !== previousScrollTop || viewport.scrollLeft !== previousScrollLeft;
+};
+
 export const Scrollbar = React.forwardRef<HTMLDivElement, React.PropsWithChildren<TScrollbarProps>>(
-  ({ children, className, onMouseEnter, onMouseLeave, onPointerDown, onScroll, ...props }, ref) => {
+  ({ children, className, onFocusCapture, onMouseEnter, onMouseLeave, onPointerDown, onScroll, ...props }, ref) => {
     const rootRef = React.useRef<HTMLDivElement>(null);
     const viewportRef = React.useRef<HTMLDivElement>(null);
     const contentRef = React.useRef<HTMLDivElement>(null);
@@ -144,6 +170,7 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, React.PropsWithChildre
     const horizontalTrackRef = React.useRef<HTMLDivElement>(null);
     const hideTimerRef = React.useRef<number | null>(null);
     const frameRef = React.useRef<number | null>(null);
+    const focusFrameRef = React.useRef<number | null>(null);
     const dragStateRef = React.useRef<IDragState | null>(null);
     const [state, setState] = React.useState<IScrollbarState>(initialState);
 
@@ -237,6 +264,10 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, React.PropsWithChildre
         if (frameRef.current != null) {
           window.cancelAnimationFrame(frameRef.current);
         }
+
+        if (focusFrameRef.current != null) {
+          window.cancelAnimationFrame(focusFrameRef.current);
+        }
       };
     }, [clearHideTimer]);
 
@@ -307,6 +338,34 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, React.PropsWithChildre
       wake();
     };
 
+    const handleFocusCapture = (event: React.FocusEvent<HTMLDivElement>) => {
+      onFocusCapture?.(event);
+
+      const viewport = viewportRef.current;
+      const target = event.target;
+
+      if (!viewport || !(target instanceof HTMLElement) || !viewport.contains(target)) {
+        return;
+      }
+
+      if (focusFrameRef.current != null) {
+        window.cancelAnimationFrame(focusFrameRef.current);
+      }
+
+      focusFrameRef.current = window.requestAnimationFrame(() => {
+        focusFrameRef.current = null;
+
+        if (!viewport.isConnected || !target.isConnected || !viewport.contains(target)) {
+          return;
+        }
+
+        if (scrollFocusedElementIntoViewport(viewport, target)) {
+          updateState(true);
+          scheduleHide();
+        }
+      });
+    };
+
     const handleThumbPointerDown = (event: React.PointerEvent<HTMLDivElement>, axis: IDragState['axis']) => {
       const viewport = viewportRef.current;
       const track = axis === 'vertical' ? verticalTrackRef.current : horizontalTrackRef.current;
@@ -370,6 +429,7 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, React.PropsWithChildre
         className={rootClassName}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onFocusCapture={handleFocusCapture}
         onPointerDown={handlePointerDown}
       >
         <div ref={viewportRef} className={s.viewport} onScroll={handleScroll}>
