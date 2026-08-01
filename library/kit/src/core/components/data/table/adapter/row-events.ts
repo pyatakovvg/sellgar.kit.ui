@@ -1,36 +1,14 @@
 import React from 'react';
 
-import type { TableDataLineSnapshot, TableNodeId, TableNodeModel } from '../runtime/types.ts';
+import type { TableDataLineSnapshot } from '../runtime/types.ts';
 
 export type TableRowEventTrigger = 'click' | 'doubleClick' | 'contextMenu';
 
-export interface TableRowEventContext {
-  expansion?: {
-    expanded: boolean;
-    toggle(): void;
-  };
-  tree?: {
-    expanded: boolean;
-    hasChildren: boolean;
-    depth: number;
-    parentNodeId: TableNodeId | null;
-    toggle(): void;
-  };
-  selection?: {
-    selected: boolean;
-    indeterminate: boolean;
-    toggle(): void;
-  };
-}
-
 export interface TableRowEventPayload<T> {
   row: T;
-  node: TableNodeModel<T>;
-  nodeId: TableNodeId;
   rowIndex: number;
   trigger: TableRowEventTrigger;
   nativeEvent: React.MouseEvent<HTMLDivElement>;
-  context: TableRowEventContext;
 }
 
 export interface TableRowHandlers<T> {
@@ -49,11 +27,7 @@ interface TableRowLineEventHandler<T> {
   (event: React.MouseEvent<HTMLDivElement>, line: TableDataLineSnapshot<T>): void;
 }
 
-interface TableRowEventContextSource<T> {
-  getContext?(line: TableDataLineSnapshot<T>): TableRowEventContext;
-}
-
-interface TableRowEventsAdapter<T> {
+export interface TableRowEventsAdapter<T> {
   isRowInteractive: boolean;
   onRowClick: TableRowLineEventHandler<T>;
   onRowDoubleClick: TableRowLineEventHandler<T>;
@@ -68,10 +42,7 @@ const isDefaultInteractiveTarget = (target: EventTarget | null): boolean => {
   return Boolean(target.closest('button, a, input, select, textarea, [role="button"], [data-row-event-ignore]'));
 };
 
-export const useTableRowEvents = <T>(
-  config: TableRowConfig<T> | undefined,
-  contextSource: TableRowEventContextSource<T> = {},
-): TableRowEventsAdapter<T> => {
+export const useTableRowEvents = <T>(config: TableRowConfig<T> | undefined): TableRowEventsAdapter<T> => {
   const clickTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearPendingClick = React.useCallback(() => {
@@ -106,15 +77,12 @@ export const useTableRowEvents = <T>(
 
       handler({
         row: line.node.data,
-        node: line.node,
-        nodeId: line.node.nodeId,
         rowIndex: line.node.index,
         trigger,
         nativeEvent: event,
-        context: contextSource.getContext?.(line) ?? {},
       });
     },
-    [config, contextSource],
+    [config],
   );
 
   const onRowClick = React.useCallback<TableRowLineEventHandler<T>>(

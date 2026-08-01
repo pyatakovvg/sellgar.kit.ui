@@ -1,1 +1,1 @@
-export { TableView } from './table';
+export { TableView } from './table-view.tsx';

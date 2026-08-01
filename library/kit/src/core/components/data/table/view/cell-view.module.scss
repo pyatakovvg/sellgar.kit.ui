@@ -1,0 +1,104 @@
+.cell {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  justify-content: center;
+  padding: 0 var(--numbers-12);
+  color: var(--text-base-primary);
+  font-size: var(--numbers-14);
+  background: var(--background-surface-default);
+  transition: background var(--measurements-transition);
+}
+
+.size--lg {
+  min-height: var(--numbers-64);
+}
+
+.size--md {
+  min-height: var(--numbers-54);
+}
+
+.size--sm {
+  min-height: var(--numbers-40);
+}
+
+.cellSeparated {
+  border-top: var(--numbers-1) solid var(--border-base-divider);
+}
+
+.selectionCell {
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.treeCell {
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.treeTrigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--numbers-24);
+  height: var(--numbers-24);
+  padding: 0;
+  border: 0;
+  color: var(--icon-base-secondary);
+  font: inherit;
+  line-height: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.selectedCell {
+  background: var(--background-surface-primary-subtle);
+}
+
+.cell.pinnedCell {
+  background: var(--background-surface-default);
+}
+
+.pinnedCell.selectedCell {
+  background: var(--background-surface-primary-subtle);
+}
+
+.cellInteractive {
+  cursor: pointer;
+}
+
+.cellLineHovered {
+  background: var(--background-surface-neutral);
+}
+
+.cellLineHovered.selectedCell {
+  background: var(--background-surface-primary-subtle);
+}
+
+.cellLineHovered.pinnedCell {
+  background: var(--background-surface-neutral);
+}
+
+.cellLineHovered.pinnedCell.selectedCell {
+  background: var(--background-surface-primary-subtle);
+}
+
+.pinnedLeftBoundary {
+  border-right: var(--numbers-3) solid var(--border-base-divider);
+}
+
+.pinnedRightBoundary {
+  border-left: var(--numbers-3) solid var(--border-base-divider);
+}
+
+.alignRight {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.alignCenter {
+  align-items: center;
+  text-align: center;
+}

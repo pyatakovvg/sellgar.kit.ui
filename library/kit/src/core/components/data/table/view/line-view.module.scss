@@ -1,0 +1,36 @@
+.line {
+  display: contents;
+}
+
+.emptyLine {
+  display: contents;
+}
+
+.expandedLine {
+  display: contents;
+}
+
+.emptyCell {
+  padding: var(--numbers-16);
+  color: var(--text-base-tertiary);
+  background: var(--background-surface-default);
+}
+
+.size--lg {
+  min-height: var(--numbers-64);
+}
+
+.size--md {
+  min-height: var(--numbers-54);
+}
+
+.size--sm {
+  min-height: var(--numbers-40);
+}
+
+.expandedContainer {
+  min-height: var(--numbers-64);
+  border-top: var(--numbers-1) solid var(--border-base-divider);
+  color: var(--text-base-primary);
+  background: var(--background-surface-default);
+}

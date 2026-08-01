@@ -37,6 +37,10 @@ cells являются доменными сущностями, а React выс�
 
 - `Table` экспортируется через `index.ts`.
 - Compound API MVP: `Table.Column`, `Table.Head`, `Table.Cell`, `Table.Empty`.
+- `Table.ControllerProvider` создаёт controller scope для внешних controls
+  таблицы.
+- `useTableControllerSelection<T>()` возвращает reactive selection snapshot и
+  внешние команды выбора из ближайшего `Table.ControllerProvider`.
 - Основной typed API: layered render-scope.
   - root scope: `Column`, `Empty`, `Expand`;
   - column scope: `Head`, `Actions`, `Cell`;
@@ -51,6 +55,9 @@ cells являются доменными сущностями, а React выс�
   а children render отвечает только за визуальное содержимое.
 - `Table.select` включает selection column и отдаёт наружу выбранные data
   objects через `onSelect(rows)`.
+- Selection controller не меняет ownership выбора: state остаётся внутри
+  Table, а provider/hook только прокидывают наружу текущий snapshot и команды
+  `clear`, `selectAll`, `toggleAll`.
 - `Table.tree` включает tree projection по accessor и service tree column.
 - `Table.surface` задаёт режим размещения таблицы: самостоятельная поверхность
   `standalone` или встраиваемый вариант `embedded`.
@@ -58,7 +65,7 @@ cells являются доменными сущностями, а React выс�
   sticky header offset.
 - `Table.style` задаёт visual style таблицы: `primary` или `secondary`.
 - `Table.size` задаёт высоту body/empty cells: `sm`, `md` или `lg`.
-- Допустимый consumer import: `import { Table } from '@sellgar/kit'`.
+- Допустимый consumer import: `import { Table } from '@tiyn/kit'`.
 - Public type facade экспортирует только props/config/render-scope типы, которые
   уже участвуют в consumer contract.
 - `configuration` и `runtime` являются implementation details.
@@ -100,6 +107,8 @@ cells являются доменными сущностями, а React выс�
   render адаптации конкретной `node + column` пары.
 - Public selection API не отдаёт наружу `nodeId`; consumer получает выбранные
   исходные data objects.
+- Внешний selection controller повторяет штатное поведение Table selection и не
+  принимает пользовательские `nodeId` или business ids.
 - Columns компилируются из JSX children в column definitions.
 - Runtime не использует React и DOM.
 
@@ -116,6 +125,8 @@ cells являются доменными сущностями, а React выс�
 - Новые compound schema parts держать внутри `table/configuration`.
 - Новые React render adapters держать внутри `table/view`.
 - Новые browser/React behavior adapters держать внутри `table/adapter`.
+- Controller provider/hooks держать в `table/adapter`, потому что это
+  React-level bridge к adapter state, а не runtime-сущность.
 - Новые view styles держать рядом с конкретным view-владельцем в
   `table/view/*.module.scss`, а не в общем stylesheet на уровне компонента.
 - Browser-only features вроде `IntersectionObserver` держать в adapter/view
@@ -128,6 +139,9 @@ cells являются доменными сущностями, а React выс�
 - Sort state хранить по `columnId`, не по visual/source index колонки.
 - Selection state хранить в adapter-слое по `nodeId`, не по data object
   identity и не по primary key данных.
+- Внешние controller-команды должны вызывать тот же selection pipeline, что и
+  view controls, включая `select.onSelect(rows)`.
+- Один `Table.ControllerProvider` поддерживает один активный `Table`.
 - Expand state хранить по `nodeId`, не по data object identity и не по primary
   key данных.
 - Tree expanded/collapsed state хранить по `nodeId`, но не отдавать `nodeId`
@@ -163,7 +177,8 @@ cells являются доменными сущностями, а React выс�
 
 ## Риски и точки внимания
 
-- Public export `Table` расширяет `@sellgar/kit` core API.
+- Public export `Table` расширяет `@tiyn/kit` core API.
+- Public export `useTableControllerSelection` расширяет controller API таблицы.
 - Row object identity нестабильна при refetch, если consumer каждый раз
   создаёт новые object instances.
 - Дальнейшие feature-срезы требуют отдельных Storybook-сценариев.

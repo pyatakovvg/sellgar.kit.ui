@@ -2,17 +2,17 @@
 
 ## Назначение
 
-`Table` — экспериментальная версия `Table`, построенная вокруг
+`Table` — основной data-компонент `@tiyn/kit`, построенный вокруг
 runtime-модели, а не вокруг React view-композиции.
 
-Цель первого среза — доказать базовую архитектуру:
+Базовая архитектура:
 
 ```text
 JSX schema -> column definitions -> table runtime -> render snapshot -> React view
 ```
 
-Текущий `Table` не меняется и остаётся рабочим компонентом. `Table`
-развивается параллельно как новый public API.
+Компонент находится в `src/core/components/data/table` и экспортируется через
+core entrypoint `@tiyn/kit`.
 
 ## Базовый контракт MVP
 
@@ -260,6 +260,8 @@ selection state во view.
 - `select.onSelect(rows)`;
 - `toggleNodeSelection`.
 - service selection column с checkbox в header/body.
+- `Table.ControllerProvider`;
+- `useTableControllerSelection<T>()`.
 
 Selection не хранит исходные row objects и не сравнивает строки по business
 primary key. Snapshot помечает `line.selected`, содержит retained
@@ -267,6 +269,28 @@ primary key. Snapshot помечает `line.selected`, содержит retaine
 
 Внутренний `nodeId` не выходит наружу как public selection contract. Consumer
 получает выбранные исходные data objects, как в старой `Table`.
+
+Selection controller не является controlled selection contract. Он не владеет
+state и не принимает внешний список выбранных строк. Controller только
+прокидывает наружу reactive snapshot текущего выбора и команды:
+
+- `clear`;
+- `selectAll`;
+- `toggleAll`.
+
+Команды controller-а должны повторять штатное поведение selection внутри Table.
+`toggleAll` эквивалентен header checkbox. `selectAll` выбирает тот же scope,
+который runtime использует для текущего selection режима. `clear` очищает
+текущий внутренний выбор. Все команды должны проходить через тот же adapter
+pipeline и вызывать `select.onSelect(rows)` при изменении выбора.
+
+Один `Table.ControllerProvider` поддерживает один активный `Table`. Если
+внешним controls нужно управлять несколькими таблицами, каждая таблица должна
+получить собственный provider scope.
+
+Хуки controller-а вне provider считаются ошибкой композиции и должны падать с
+понятной ошибкой. `Table` без provider продолжает работать в обычном локальном
+режиме.
 
 Selection не должен занимать row click. Выбор строки происходит через checkbox
 в service column. Row click, double click и context menu считаются отдельной
@@ -418,9 +442,9 @@ TypeScript не протаскивает generic parent JSX component из
 `Expand.render`, но schema parts не превращаются в общий мешок доступных
 компонентов.
 
-## Команды
+## Команды и controller bridge
 
-В первом срезе явная command-шина не реализована. React adapter собирает единый
+Runtime command bus не реализован. React adapter собирает единый
 `TableRuntimeInput`, а runtime синхронизируется через методы:
 
 - `sync`;
@@ -428,6 +452,12 @@ TypeScript не протаскивает generic parent JSX component из
 - `toggleNodeSelection`;
 - `toggleAllNodesSelection`;
 - `snapshot`.
+
+Controller bridge живёт в React adapter-слое и не становится частью runtime.
+Он используется для внешних UI controls, которые находятся вне DOM-ветки Table,
+например header, bulk actions panel или footer модуля. Для reactive snapshot
+controller должен использовать subscription-модель, совместимую с
+`useSyncExternalStore`.
 
 Будущие фичи должны добавляться как команды runtime, например:
 

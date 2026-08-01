@@ -5,20 +5,24 @@ import { retainTableNodeIdSet } from './node-id-set.ts';
 import type { TableNodeId } from '../runtime/types.ts';
 
 export interface TableExpansionAdapter {
-  toggledNodeIds: ReadonlySet<TableNodeId>;
+  expandedNodeIds: ReadonlySet<TableNodeId>;
+  isNodeExpanded(nodeId: TableNodeId): boolean;
   toggleNodeExpanded(nodeId: TableNodeId): void;
-  retainToggledNodeIds(nodeIds: readonly TableNodeId[]): void;
+  retainExpandedNodeIds(nodeIds: readonly TableNodeId[]): void;
 }
 
 export const useTableExpansion = (): TableExpansionAdapter => {
-  const [toggledNodeIds, setToggledNodeIds] = React.useState<ReadonlySet<TableNodeId>>(() => new Set());
+  const [expandedNodeIds, setExpandedNodeIds] = React.useState<ReadonlySet<TableNodeId>>(() => new Set());
 
-  const retainToggledNodeIds = React.useCallback((nodeIds: readonly TableNodeId[]) => {
-    setToggledNodeIds((prevNodeIds) => retainTableNodeIdSet(prevNodeIds, nodeIds));
-  }, []);
+  const isNodeExpanded = React.useCallback(
+    (nodeId: TableNodeId): boolean => {
+      return expandedNodeIds.has(nodeId);
+    },
+    [expandedNodeIds],
+  );
 
   const toggleNodeExpanded = React.useCallback((nodeId: TableNodeId) => {
-    setToggledNodeIds((prevNodeIds) => {
+    setExpandedNodeIds((prevNodeIds) => {
       const nextNodeIds = new Set(prevNodeIds);
 
       if (nextNodeIds.has(nodeId)) {
@@ -30,10 +34,14 @@ export const useTableExpansion = (): TableExpansionAdapter => {
       return nextNodeIds;
     });
   }, []);
+  const retainExpandedNodeIds = React.useCallback((nodeIds: readonly TableNodeId[]) => {
+    setExpandedNodeIds((prevNodeIds) => retainTableNodeIdSet(prevNodeIds, nodeIds));
+  }, []);
 
   return {
-    toggledNodeIds,
+    expandedNodeIds,
+    isNodeExpanded,
     toggleNodeExpanded,
-    retainToggledNodeIds,
+    retainExpandedNodeIds,
   };
 };

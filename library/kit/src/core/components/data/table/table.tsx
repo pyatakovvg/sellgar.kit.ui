@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { useTableColumnWidths } from './adapter/column-widths.ts';
+import { TableControllerProvider, useTableControllerOptional } from './adapter/controller';
 import { useTableExpansion } from './adapter/expansion.ts';
 import { useTableRowEvents } from './adapter/row-events.ts';
 import { useTableSelection } from './adapter/selection.ts';
@@ -18,6 +19,7 @@ import { TableRuntime } from './runtime/table-runtime.ts';
 import { TableView } from './view';
 
 import type { TableRowConfig } from './adapter/row-events.ts';
+import type { TableControllerSelectionCommands, TableControllerSelectionSnapshot } from './adapter/controller';
 import type { TableLastRowTriggerConfig } from './adapter/last-row-trigger.ts';
 import type { TableColumnProps } from './configuration/column.tsx';
 import type { TableExpandProps } from './configuration/expand.tsx';
@@ -31,7 +33,6 @@ import type {
 
 export type {
   TableRowConfig,
-  TableRowEventContext,
   TableRowEventPayload,
   TableRowEventTrigger,
   TableRowHandlers,
@@ -94,8 +95,7 @@ export interface TableRootScope<T extends object = object> {
 }
 
 export type TableChildren<T extends object = object> =
-  | React.ReactNode
-  | ((scope: TableRootScope<T>) => React.ReactNode);
+  React.ReactNode | ((scope: TableRootScope<T>) => React.ReactNode);
 
 export interface TableComponentProps<T extends object> extends TableProps<T> {
   children?: TableChildren<T>;
@@ -149,6 +149,8 @@ const isTreeNodeExpanded = (
 export const TableComponent = <T extends object>(props: TableComponentProps<T>) => {
   const runtimeRef = React.useRef<TableRuntime<T, React.ReactNode, React.ReactNode> | null>(null);
   const cellRuntimeRef = React.useRef<CellRuntime<T, React.ReactNode, React.ReactNode> | null>(null);
+  const tableController = useTableControllerOptional();
+  const tableControllerOwnerId = React.useId();
 
   if (!runtimeRef.current) {
     runtimeRef.current = new TableRuntime<T, React.ReactNode, React.ReactNode>();
@@ -165,15 +167,12 @@ export const TableComponent = <T extends object>(props: TableComponentProps<T>) 
   const isTreeEnabled = Boolean(props.tree?.isUse);
   const treeAccessor = props.tree?.accessor;
   const treeDefaultExpanded = props.tree?.defaultExpanded;
+  const rowEvents = useTableRowEvents(props.row);
   const layout = React.useMemo(() => resolveTableLayout(props.layout), [props.layout]);
   const { columnWidths, setColumnElement } = useTableColumnWidths();
   const { selectedNodeIds, setSelectedNodeIds, retainSelectedNodeIds } = useTableSelection();
   const sort = useTableSort(schema.columns);
-  const {
-    toggledNodeIds: expandedToggledNodeIds,
-    toggleNodeExpanded,
-    retainToggledNodeIds: retainExpandedToggledNodeIds,
-  } = useTableExpansion();
+  const { expandedNodeIds, isNodeExpanded, toggleNodeExpanded, retainExpandedNodeIds } = useTableExpansion();
   const { toggledNodeIds, toggleNode, retainToggledNodeIds } = useTableTree();
 
   const runtimeInput = React.useMemo(
@@ -184,8 +183,7 @@ export const TableComponent = <T extends object>(props: TableComponentProps<T>) 
       selectedNodeIds,
       emptyLineEnabled: schema.hasEmpty,
       expandedLineEnabled: schema.hasExpand,
-      expandedDefaultExpanded: schema.renderRegistry.getExpandDefaultExpanded(),
-      expandedToggledNodeIds,
+      expandedNodeIds,
       columnWidths,
       tree:
         isTreeEnabled && treeAccessor !== undefined
@@ -199,7 +197,7 @@ export const TableComponent = <T extends object>(props: TableComponentProps<T>) 
       sort: sort.snapshot,
     }),
     [
-      expandedToggledNodeIds,
+      expandedNodeIds,
       columnWidths,
       isSelectionEnabled,
       isTreeEnabled,
@@ -207,7 +205,6 @@ export const TableComponent = <T extends object>(props: TableComponentProps<T>) 
       schema.columns,
       schema.hasEmpty,
       schema.hasExpand,
-      schema.renderRegistry,
       selectedNodeIds,
       sort.snapshot,
       treeAccessor,
@@ -230,9 +227,6 @@ export const TableComponent = <T extends object>(props: TableComponentProps<T>) 
           indeterminate: false,
           selectedNodeIds: [],
         },
-        expansion: {
-          expandedNodeIds: [],
-        },
         lines: [],
       };
     }
@@ -240,27 +234,35 @@ export const TableComponent = <T extends object>(props: TableComponentProps<T>) 
     return runtime.createSnapshot(runtimeInput);
   }, [runtimeInput]);
 
+  const selectedRows = React.useMemo((): T[] => {
+    const runtime = runtimeRef.current;
+
+    if (!runtime || !isSelectionEnabled) return [];
+
+    return runtime.getSelectedRows(snapshot.selection.selectedNodeIds);
+  }, [isSelectionEnabled, snapshot.selection.selectedNodeIds]);
+
+  React.useEffect(() => {
+    if (!tableController) return void 0;
+
+    tableController.connectTable(tableControllerOwnerId);
+
+    return () => {
+      tableController.disconnectTable(tableControllerOwnerId);
+    };
+  }, [tableController, tableControllerOwnerId]);
+
   React.useEffect(() => {
     retainSelectedNodeIds(snapshot.selection.selectedNodeIds);
-    retainExpandedToggledNodeIds(snapshot.nodeIds);
+    retainExpandedNodeIds(snapshot.nodeIds);
     retainToggledNodeIds(snapshot.nodeIds);
   }, [
-    retainExpandedToggledNodeIds,
+    retainExpandedNodeIds,
     retainSelectedNodeIds,
     retainToggledNodeIds,
     snapshot.nodeIds,
     snapshot.selection.selectedNodeIds,
   ]);
-
-  const expandedNodeIdSet = React.useMemo(
-    () => new Set(snapshot.expansion.expandedNodeIds),
-    [snapshot.expansion.expandedNodeIds],
-  );
-
-  const isNodeExpanded = React.useCallback(
-    (nodeId: TableNodeId): boolean => expandedNodeIdSet.has(nodeId),
-    [expandedNodeIdSet],
-  );
 
   const handleRowToggle = React.useCallback(
     (nodeId: TableNodeId) => {
@@ -280,6 +282,28 @@ export const TableComponent = <T extends object>(props: TableComponentProps<T>) 
     },
     [isSelectionEnabled, runtimeInput, selectionOnSelect, setSelectedNodeIds],
   );
+
+  const handleSelectionClear = React.useCallback(() => {
+    if (!isSelectionEnabled || runtimeInput.selectedNodeIds.length === 0) return;
+
+    setSelectedNodeIds([]);
+    selectionOnSelect?.([]);
+  }, [isSelectionEnabled, runtimeInput.selectedNodeIds, selectionOnSelect, setSelectedNodeIds]);
+
+  const handleSelectionSelectAll = React.useCallback(() => {
+    const runtime = runtimeRef.current;
+
+    if (!runtime || !isSelectionEnabled || snapshot.selection.allSelected) return;
+
+    const nextSelectedNodeIds = runtime.toggleAllNodesSelection([], runtimeInput.tree);
+
+    if (nextSelectedNodeIds.length === 0) return;
+
+    const selectedRows = runtime.getSelectedRows(nextSelectedNodeIds);
+
+    setSelectedNodeIds(nextSelectedNodeIds);
+    selectionOnSelect?.(selectedRows);
+  }, [isSelectionEnabled, runtimeInput.tree, selectionOnSelect, setSelectedNodeIds, snapshot.selection.allSelected]);
 
   const handleAllRowsToggle = React.useCallback(() => {
     const runtime = runtimeRef.current;
@@ -325,47 +349,43 @@ export const TableComponent = <T extends object>(props: TableComponentProps<T>) 
     ],
   );
 
-  const rowEventContext = React.useMemo(
+  const tableControllerSelectionCommands = React.useMemo<TableControllerSelectionCommands>(
     () => ({
-      getContext: (line: TableDataLineSnapshot<T>) => ({
-        expansion: schema.hasExpand
-          ? {
-              expanded: isNodeExpanded(line.node.nodeId),
-              toggle: () => toggleNodeExpanded(line.node.nodeId),
-            }
-          : undefined,
-        tree:
-          isTreeEnabled && line.node.hasChildren
-            ? {
-                expanded: isTreeNodeExpanded(line.node.nodeId, treeDefaultExpanded, toggledNodeIds),
-                hasChildren: line.node.hasChildren,
-                depth: line.node.depth,
-                parentNodeId: line.node.parentNodeId,
-                toggle: () => handleTreeNodeToggle(line.node.nodeId),
-              }
-            : undefined,
-        selection: isSelectionEnabled
-          ? {
-              selected: line.selected,
-              indeterminate: line.selectionIndeterminate,
-              toggle: () => handleRowToggle(line.node.nodeId),
-            }
-          : undefined,
-      }),
+      clear: handleSelectionClear,
+      selectAll: handleSelectionSelectAll,
+      toggleAll: handleAllRowsToggle,
+    }),
+    [handleAllRowsToggle, handleSelectionClear, handleSelectionSelectAll],
+  );
+  const tableControllerSelectionSnapshot = React.useMemo<TableControllerSelectionSnapshot<T>>(
+    () => ({
+      ready: true,
+      enabled: isSelectionEnabled,
+      rows: selectedRows,
+      selectedCount: selectedRows.length,
+      allSelected: snapshot.selection.allSelected,
+      indeterminate: snapshot.selection.indeterminate,
+      canClear: isSelectionEnabled && selectedRows.length > 0,
+      canSelectAll: isSelectionEnabled && !snapshot.selection.allSelected && snapshot.nodeIds.length > 0,
     }),
     [
-      handleRowToggle,
-      handleTreeNodeToggle,
-      isNodeExpanded,
       isSelectionEnabled,
-      isTreeEnabled,
-      schema.hasExpand,
-      toggleNodeExpanded,
-      toggledNodeIds,
-      treeDefaultExpanded,
+      selectedRows,
+      snapshot.nodeIds.length,
+      snapshot.selection.allSelected,
+      snapshot.selection.indeterminate,
     ],
   );
-  const rowEvents = useTableRowEvents(props.row, rowEventContext);
+
+  React.useEffect(() => {
+    if (!tableController) return void 0;
+
+    tableController.setSelection(
+      tableControllerOwnerId,
+      tableControllerSelectionSnapshot,
+      tableControllerSelectionCommands,
+    );
+  }, [tableController, tableControllerOwnerId, tableControllerSelectionCommands, tableControllerSelectionSnapshot]);
 
   const renderCell = React.useCallback(
     (cell: TableCellSnapshot<T>): React.ReactNode => {
@@ -434,6 +454,7 @@ export const TableComponent = <T extends object>(props: TableComponentProps<T>) 
 };
 
 type TableCompound = typeof TableComponent & {
+  ControllerProvider: typeof TableControllerProvider;
   Column: typeof Column;
   Head: typeof Head;
   Cell: typeof Cell;
@@ -443,6 +464,7 @@ type TableCompound = typeof TableComponent & {
 };
 
 export const Table: TableCompound = Object.assign(TableComponent, {
+  ControllerProvider: TableControllerProvider,
   Column,
   Head,
   Cell,

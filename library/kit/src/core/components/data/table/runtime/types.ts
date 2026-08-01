@@ -133,17 +133,6 @@ export interface TableExpandedRenderContext<T> {
   lineId: TableLineId;
 }
 
-export interface TableExpandDefaultExpandedContext<T = unknown> {
-  row: T;
-  node: TableNodeModel<T>;
-  nodeId: TableNodeId;
-  rowIndex: number;
-}
-
-export type TableExpandDefaultExpanded<T = unknown> =
-  | boolean
-  | ((context: TableExpandDefaultExpandedContext<T>) => boolean);
-
 export interface TableExpandedLineSnapshot<T> {
   id: TableLineId;
   kind: 'expanded';
@@ -161,16 +150,11 @@ export interface TableSelectionSnapshot {
   selectedNodeIds: TableNodeId[];
 }
 
-export interface TableExpansionSnapshot {
-  expandedNodeIds: TableNodeId[];
-}
-
 export interface TableSnapshot<T, THeader = unknown, TActionContent = unknown> {
   nodeIds: TableNodeId[];
   columns: TableColumnModel<THeader, TActionContent>[];
   columnLayouts: TableColumnLayoutSnapshot<THeader, TActionContent>[];
   gridTemplateColumns: string;
   selection: TableSelectionSnapshot;
-  expansion: TableExpansionSnapshot;
   lines: TableLineSnapshot<T>[];
 }

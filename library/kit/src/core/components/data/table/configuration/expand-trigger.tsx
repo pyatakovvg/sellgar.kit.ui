@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { useTableExpandTriggerContext } from '../view/context';
+import { useTableExpandTriggerContext } from '../view/expand-trigger-context.ts';
 
 export interface TableExpandTriggerRenderState {
   expanded: boolean;

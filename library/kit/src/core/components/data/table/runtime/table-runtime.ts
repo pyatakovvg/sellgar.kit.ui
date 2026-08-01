@@ -10,7 +10,6 @@ import type {
   TableColumnId,
   TableColumnModel,
   TableColumnWidths,
-  TableExpandDefaultExpanded,
   TableNodeId,
   TableNodeModel,
   TableSnapshot,
@@ -34,8 +33,6 @@ export interface TableSnapshotOptions<T extends object> {
   emptyLineEnabled?: boolean;
   expandedLineEnabled?: boolean;
   expandedNodeIds?: ReadonlySet<TableNodeId>;
-  expandedDefaultExpanded?: TableExpandDefaultExpanded<T>;
-  expandedToggledNodeIds?: ReadonlySet<TableNodeId>;
   columnWidths?: TableColumnWidths;
   tree?: TableTreeInput<T>;
   sort?: TableSortSnapshot;
@@ -149,8 +146,6 @@ export class TableRuntime<T extends object, THeader = unknown, TActionContent = 
       emptyLineEnabled: input.emptyLineEnabled,
       expandedLineEnabled: input.expandedLineEnabled,
       expandedNodeIds: input.expandedNodeIds,
-      expandedDefaultExpanded: input.expandedDefaultExpanded,
-      expandedToggledNodeIds: input.expandedToggledNodeIds,
       columnWidths: input.columnWidths,
       tree: input.tree,
       sort: input.sort,
@@ -185,8 +180,6 @@ export class TableRuntime<T extends object, THeader = unknown, TActionContent = 
     const selectionScopeNodeIds = options.tree?.enabled ? allNodeIds : nodeIds;
     const selectionStatus = this.selection.getStatus(selectedNodeIds, selectionScopeNodeIds);
     const selectionStatusByNodeId = this.selection.getNodeStatuses(this.nodes.getNodes(), selectedNodeIds);
-    const expandedNodeIds = this.getExpandedNodeIds(nodes, options);
-    const expandedNodeIdSet = new Set(expandedNodeIds);
 
     return {
       nodeIds: allNodeIds,
@@ -198,13 +191,10 @@ export class TableRuntime<T extends object, THeader = unknown, TActionContent = 
         indeterminate: selectionStatus.indeterminate,
         selectedNodeIds,
       },
-      expansion: {
-        expandedNodeIds,
-      },
       lines: this.lines.createLines(nodes, visibleColumns, selectedNodeIds, {
         emptyLineEnabled: options.emptyLineEnabled,
         expandedLineEnabled: options.expandedLineEnabled,
-        expandedNodeIds: expandedNodeIdSet,
+        expandedNodeIds: options.expandedNodeIds,
         selectionStatusByNodeId,
       }),
     };
@@ -228,44 +218,6 @@ export class TableRuntime<T extends object, THeader = unknown, TActionContent = 
     return {
       accessor: tree.accessor,
     };
-  }
-
-  private getExpandedNodeIds(
-    nodes: readonly TableNodeModel<T>[],
-    options: TableSnapshotOptions<T>,
-  ): TableNodeId[] {
-    if (!options.expandedLineEnabled) return [];
-
-    const expandedNodeIds = new Set(options.expandedNodeIds ?? []);
-    const toggledNodeIds = options.expandedToggledNodeIds ?? new Set<TableNodeId>();
-    const hasDefaultExpanded = options.expandedDefaultExpanded !== undefined;
-
-    if (!hasDefaultExpanded && toggledNodeIds.size === 0) {
-      return [...expandedNodeIds];
-    }
-
-    for (const node of nodes) {
-      const defaultExpanded =
-        typeof options.expandedDefaultExpanded === 'function'
-          ? options.expandedDefaultExpanded({
-              row: node.data,
-              node,
-              nodeId: node.nodeId,
-              rowIndex: node.index,
-            })
-          : Boolean(options.expandedDefaultExpanded);
-
-      const isToggled = toggledNodeIds.has(node.nodeId);
-      const isExpanded = defaultExpanded ? !isToggled : isToggled;
-
-      if (isExpanded) {
-        expandedNodeIds.add(node.nodeId);
-      } else {
-        expandedNodeIds.delete(node.nodeId);
-      }
-    }
-
-    return [...expandedNodeIds];
   }
 
   private getAncestorSubtreeNodeIds(nodeId: TableNodeId): TableNodeId[][] {

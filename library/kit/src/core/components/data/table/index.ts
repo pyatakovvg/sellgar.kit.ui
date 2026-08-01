@@ -1,10 +1,15 @@
 export { Table } from './table.tsx';
-export { useCellData, useRowExpanded } from './view/context';
+export { useTableControllerSelection } from './adapter/controller';
+export { useCellData, useRowExpanded } from './view/cell-data-context.ts';
 
+export type {
+  TableControllerSelection,
+  TableControllerSelectionCommands,
+  TableControllerSelectionSnapshot,
+} from './adapter/controller';
 export type { TableLastRowTriggerConfig } from './adapter/last-row-trigger.ts';
 export type {
   TableRowConfig,
-  TableRowEventContext,
   TableRowEventPayload,
   TableRowEventTrigger,
   TableRowHandlers,
@@ -19,11 +24,7 @@ export type {
 export type { TableCellProps, TableCellRenderScope } from './configuration/cell.tsx';
 export type { TableColumnChildren, TableColumnProps, TableColumnScope } from './configuration/column.tsx';
 export type { TableEmptyProps } from './configuration/empty.tsx';
-export type {
-  TableExpandDefaultExpanded,
-  TableExpandDefaultExpandedContext,
-  TableExpandProps,
-} from './configuration/expand.tsx';
+export type { TableExpandProps } from './configuration/expand.tsx';
 export type { TableExpandTriggerProps, TableExpandTriggerRenderState } from './configuration/expand-trigger.tsx';
 export type { TableHeadProps } from './configuration/head.tsx';
 export type {

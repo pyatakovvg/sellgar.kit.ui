@@ -1,0 +1,167 @@
+.headerCell {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: var(--numbers-12);
+  align-items: center;
+  height: var(--numbers-40);
+  padding: 0 var(--numbers-12);
+  border-bottom: var(--numbers-1) solid var(--border-base-divider);
+  background: var(--background-surface-default);
+  transition: background-color var(--measurements-transition);
+}
+
+.headerCellStylePrimary {
+  background: var(--background-surface-neutral);
+}
+
+.headerCellStylePrimary.headerCellInteractive:hover {
+  background: var(--background-surface-neutral-subtle);
+}
+
+.headerCellStyleSecondary {
+  background: var(--background-surface-neutral-subtle);
+}
+
+.headerCellStyleSecondary.headerCellInteractive:hover {
+  background: var(--background-surface-neutral-strong);
+}
+
+.headerCellSortable {
+  cursor: pointer;
+}
+
+.headerContent {
+  display: flex;
+  flex-direction: row;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  gap: var(--numbers-12);
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.headerContent.alignRight {
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.headerContent.alignCenter {
+  align-items: center;
+  justify-content: center;
+}
+
+.headerText {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: row;
+  gap: var(--numbers-2);
+  align-items: center;
+  min-width: 0;
+}
+
+.headerContentWithControls .headerText {
+  flex: 1 1 auto;
+}
+
+.headerContentWithControls:not(.alignRight):not(.alignCenter) .headerText {
+  justify-content: flex-start;
+}
+
+.headerContentWithControls.alignCenter .headerText {
+  justify-content: center;
+}
+
+.headerContentWithControls.alignRight .headerText {
+  justify-content: flex-end;
+}
+
+.headerControls {
+  display: inline-flex;
+  flex: 0 0 auto;
+  flex-direction: row;
+  gap: var(--numbers-8);
+  align-items: center;
+}
+
+.headerLabel {
+  margin: 0;
+  color: var(--text-base-secondary);
+}
+
+.selectionCell {
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+}
+
+.sortIcon {
+  display: block;
+  flex: 0 0 auto;
+  color: var(--icon-base-secondary);
+  font-size: var(--numbers-14);
+  line-height: 0;
+}
+
+.headerSortIcon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--numbers-20);
+  height: var(--numbers-20);
+}
+
+.headerCellSortable:hover .sortIcon,
+.headerCellSortable:focus-visible .sortIcon {
+  color: var(--icon-base-primary);
+}
+
+.headerActionsTriggerGuard {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.headerActionsTrigger {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--numbers-20);
+  height: var(--numbers-20);
+  color: var(--icon-base-secondary);
+  font-size: var(--numbers-16);
+  line-height: 0;
+}
+
+.headerActionsMenu {
+  display: flex;
+  flex-direction: column;
+  width: var(--numbers-240);
+}
+
+.headerAction {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  text-align: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.headerAction:disabled {
+  cursor: not-allowed;
+}
+
+.pinnedLeftBoundary {
+  border-right: var(--numbers-3) solid var(--border-base-divider);
+}
+
+.pinnedRightBoundary {
+  border-left: var(--numbers-3) solid var(--border-base-divider);
+}
