@@ -1,0 +1,61 @@
+@use '../../../../shared/styles/shadow/shadow-size.scss' as utils;
+
+.size {
+  &--sm {
+    height: var(--numbers-4);
+  }
+
+  &--md {
+    height: var(--numbers-8);
+  }
+
+  &--lg {
+    height: var(--numbers-12);
+  }
+}
+
+.color {
+  &--green {
+    --progress-color: var(--background-accent-green-accent);
+  }
+
+  &--blue {
+    --progress-color: var(--background-accent-blue-accent);
+  }
+
+  &--red {
+    --progress-color: var(--background-accent-red-accent);
+  }
+
+  &--orange {
+    --progress-color: var(--background-accent-orange-accent);
+  }
+}
+
+.progress[value] {
+  -webkit-appearance: none;
+  appearance: none;
+
+  width: 100%;
+  border: none;
+  border-radius: var(--measurements-radius-full);
+  background-color: var(--background-surface-neutral-subtle);
+  overflow: hidden;
+}
+
+.progress[value]::-webkit-progress-bar {
+  background-color: var(--background-surface-neutral-subtle);
+  border-radius: var(--measurements-radius-full);
+  overflow: hidden;
+}
+
+.progress[value]::-webkit-progress-value {
+  border-radius: var(--measurements-radius-full);
+  background-color: var(--progress-color);
+  transition: width 0.5s ease;
+}
+
+.progress[value]::-moz-progress-bar {
+  border-radius: var(--measurements-radius-full);
+  background-color: var(--progress-color);
+}

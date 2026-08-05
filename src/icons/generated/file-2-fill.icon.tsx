@@ -1,0 +1,7 @@
+import React from 'react';
+
+export const File2FillIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg {...props} viewBox="0 0 32 32" width="1em" height="1em" fill="currentColor" aria-hidden="true">
+    <path d="M4 12h8c0.354 0 0.693-0.14 0.943-0.391s0.39-0.589 0.39-0.943v-8h13.336c0.735 0 1.331 0.607 1.331 1.323v24.021c-0 0.351-0.14 0.687-0.388 0.935s-0.585 0.387-0.936 0.387h-21.352c-0.175-0.001-0.348-0.037-0.51-0.105s-0.308-0.167-0.431-0.292c-0.123-0.125-0.22-0.272-0.286-0.435s-0.099-0.336-0.098-0.511v-15.991zM4 9.333l6.667-6.663v6.663h-6.667z" />
+  </svg>
+);

@@ -1,0 +1,25 @@
+.wrapper {
+  display: flex;
+  flex-direction: row;
+  flex: 1 0;
+  align-items: center;
+}
+
+.content {
+  display: block;
+  overflow: auto;
+}
+
+.text {
+  color: var(--text-base-primary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.badge {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  margin: 0 0 0 var(--numbers-8);
+}

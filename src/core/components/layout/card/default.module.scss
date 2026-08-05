@@ -1,0 +1,80 @@
+@use '../../../../shared/styles/shadow/shadow-size.scss' as utils;
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  min-width: var(--numbers-320);
+  background: var(--background-surface-default);
+  overflow: hidden;
+}
+
+.image {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+  height: var(--numbers-260);
+  background: linear-gradient(180deg, #ff39df 0%, #faa0a0 100%);
+  overflow: hidden;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+}
+
+.type {
+  &--custom {
+    padding: var(--numbers-24);
+    border-radius: var(--measurements-radius-xxl);
+    border: var(--numbers-1) solid var(--border-action-normal);
+    @include utils.shadow-xs(rgba(20, 21, 26, 0.05));
+  }
+
+  &--elevated {
+    border-radius: var(--measurements-radius-xxl);
+    border: var(--numbers-1) solid var(--border-action-normal);
+    @include utils.shadow-xs(rgba(20, 21, 26, 0.05));
+
+    .content {
+      padding: var(--numbers-24);
+    }
+  }
+
+  &--flat {
+    .image {
+      border-radius: var(--measurements-radius-xxl);
+    }
+  }
+}
+
+.alignment {
+  &--image-first {
+    &.type {
+      &--flat {
+        .content {
+          margin: var(--numbers-24) 0 0;
+        }
+      }
+    }
+  }
+
+  &--content-first {
+    flex-direction: column-reverse;
+
+    &.type {
+      &--flat {
+        .content {
+          margin: 0 0 var(--numbers-24);
+        }
+      }
+    }
+  }
+}
+
+.target {
+  &--inverted {
+    background: var(--background-surface-neutral);
+  }
+}

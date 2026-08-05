@@ -1,0 +1,22 @@
+@use '../../../../../shared/styles/shadow/shadow-size.scss' as utils;
+
+.wrapper {
+  display: inline-flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  max-width: var(--numbers-232);
+  border-radius: var(--measurements-radius-sm);
+  border: var(--numbers-1) solid var(--border-action-normal);
+  background: var(--background-surface-default);
+  @include utils.shadow-lg(rgba(20, 21, 26, 0.08));
+}
+
+.size {
+  &--sm {
+    padding: var(--numbers-4) var(--numbers-8);
+  }
+
+  &--md {
+    padding: var(--numbers-8) var(--numbers-12);
+  }
+}

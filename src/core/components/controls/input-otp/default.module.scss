@@ -1,0 +1,38 @@
+.container {
+  display: flex;
+  justify-content: center;
+  gap: var(--numbers-8);
+}
+
+.input {
+  width: var(--numbers-52);
+  height: var(--numbers-52);
+  background-color: var(--background-surface-neutral);
+  border-radius: var(--measurements-radius-sm);
+  border: var(--numbers-1) solid var(--border-action-normal);
+  font-size: var(--typography-size-h5);
+  text-align: center;
+  outline: none;
+
+  &:focus {
+    border-color: var(--border-accent-blue-accent);
+    color: var(--border-accent-blue-accent);
+  }
+
+  &.error {
+    background: var(--background-surface-destructive);
+    border-color: var(--background-surface-destructive);
+    color: var(--text-status-destructive);
+
+    &:focus {
+      border-color: var(--border-action-focus-destructive);
+      color: var(--text-status-destructive);
+    }
+  }
+
+  &:disabled {
+    background: var(--background-surface-neutral-subtle);
+    border-color: var(--background-surface-neutral-subtle);
+    color: var(--text-base-tertiary);
+  }
+}

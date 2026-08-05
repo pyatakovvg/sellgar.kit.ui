@@ -1,0 +1,75 @@
+.wrapper {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: var(--numbers-10) var(--numbers-12);
+  border-radius: var(--measurements-radius-lg);
+  cursor: pointer;
+  transition: var(--measurements-transition);
+
+  &:hover {
+    background: var(--background-overlay-active-normal);
+  }
+}
+
+.wrapper-only-icon {
+  padding: var(--numbers-10) var(--numbers-12);
+}
+
+.lead-icon,
+.tail-icon {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--icon-base-secondary);
+  width: var(--numbers-20);
+  height: var(--numbers-20);
+  font-size: var(--numbers-16);
+}
+
+.lead-icon {
+  margin: 0 var(--numbers-4) 0 0;
+}
+
+.tail-icon {
+  margin: 0 0 0 var(--numbers-4);
+}
+
+.content {
+  display: flex;
+  flex-direction: row;
+  flex: 1 0;
+  align-items: center;
+  padding: 0 var(--numbers-4);
+}
+
+.caption {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  color: var(--text-base-primary);
+}
+
+.badge {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  margin: 0 0 0 var(--numbers-8);
+}
+
+.spinner {
+  color: var(--icon-status-primary);
+}
+
+.active,
+.active:hover {
+  background: var(--background-overlay-active-normal);
+
+  .caption,
+  .lead-icon,
+  .tail-icon {
+    color: var(--text-accent-primary-accent);
+  }
+}

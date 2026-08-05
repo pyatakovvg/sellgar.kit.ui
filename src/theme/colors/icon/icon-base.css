@@ -1,0 +1,43 @@
+:root {
+  --icon-base-primary: var(--colors-gray-13);
+  --icon-base-secondary: var(--colors-gray-9a);
+  --icon-base-tertiary: var(--colors-gray-7a);
+  --icon-base-quaternary: var(--colors-gray-5a);
+
+  --icon-base-inverted: var(--colors-base-white);
+  --icon-base-inverted-secondary: var(--colors-white-9);
+  --icon-base-inverted-tertiary: var(--colors-white-7);
+  --icon-base-inverted-quaternary: var(--colors-white-6);
+
+  --icon-base-static-dark: var(--colors-gray-13);
+  --icon-base-static-dark-secondary: var(--colors-gray-9a);
+  --icon-base-static-dark-tertiary: var(--colors-gray-7a);
+  --icon-base-static-dark-quaternary: var(--colors-gray-5a);
+
+  --icon-base-static-white: var(--colors-base-white);
+  --icon-base-static-white--secondary: var(--colors-white-9);
+  --icon-base-static-white--tertiary: var(--colors-white-7);
+  --icon-base-static-white--quaternary: var(--colors-white-6);
+}
+
+:root[data-theme='dark'] {
+  --icon-base-primary: var(--colors-base-white);
+  --icon-base-secondary: var(--colors-white-9);
+  --icon-base-tertiary: var(--colors-white-7);
+  --icon-base-quaternary: var(--colors-white-5);
+
+  --icon-base-inverted: var(--colors-base-dark-1);
+  --icon-base-inverted-secondary: var(--colors-gray-9a);
+  --icon-base-inverted-tertiary: var(--colors-gray-7a);
+  --icon-base-inverted-quaternary: var(--colors-gray-5a);
+
+  --icon-base-static-dark: var(--colors-gray-13);
+  --icon-base-static-dark-secondary: var(--colors-gray-9a);
+  --icon-base-static-dark-tertiary: var(--colors-gray-7a);
+  --icon-base-static-dark-quaternary: var(--colors-gray-5a);
+
+  --icon-base-static-white: var(--colors-base-white);
+  --icon-base-static-white--secondary: var(--colors-white-9);
+  --icon-base-static-white--tertiary: var(--colors-white-7);
+  --icon-base-static-white--quaternary: var(--colors-white-6);
+}

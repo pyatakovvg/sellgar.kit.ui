@@ -1,0 +1,13 @@
+.wrapper {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--numbers-24);
+}
+
+.size {
+  &--sm {
+    gap: var(--numbers-16);
+  }
+}

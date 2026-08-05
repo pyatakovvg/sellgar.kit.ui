@@ -1,0 +1,10 @@
+.expandedLine {
+  display: contents;
+}
+
+.expandedContainer {
+  min-height: var(--numbers-64);
+  border-top: var(--numbers-1) solid var(--border-base-divider);
+  color: var(--text-base-primary);
+  background: var(--background-surface-default);
+}

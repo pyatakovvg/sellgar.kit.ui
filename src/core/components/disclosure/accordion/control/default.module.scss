@@ -1,0 +1,29 @@
+.wrapper {
+  display: flex;
+  flex-direction: row;
+  flex: 1 0;
+  align-items: center;
+  min-width: 0;
+}
+
+.content {
+  display: inline-flex;
+  flex-direction: row;
+  flex: 1 0;
+  align-items: center;
+  color: var(--text-base-primary);
+  min-width: 0;
+}
+
+.expand-icon {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--numbers-24);
+  height: var(--numbers-24);
+  margin: 0 0 0 var(--numbers-8);
+  color: var(--text-base-primary);
+  font-size: var(--numbers-24);
+}

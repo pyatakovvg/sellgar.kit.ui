@@ -1,0 +1,54 @@
+@import './reset.css';
+
+@import './sizes/typography/typography-size.css';
+@import './sizes/typography/typography-line-height.css';
+@import './sizes/typography/typography-letter-spacing.css';
+@import './sizes/typography/typography-weight.css';
+
+@import './sizes/meansurements/meansurements-radius.css';
+@import './sizes/meansurements/meansurements-shadow.css';
+@import './sizes/meansurements/meansurements-transition.css';
+
+@import './palette/palette-base.css';
+@import './palette/palette-neutral.css';
+@import './palette/palette-brand.css';
+@import './palette/palette-informative.css';
+@import './palette/palette-negative.css';
+@import './palette/palette-positive.css';
+@import './palette/palette-warning.css';
+@import './palette/palette-additional.css';
+
+@import './colors/background/background-accent.css';
+@import './colors/background/background-badge.css';
+@import './colors/background/background-button.css';
+@import './colors/background/background-checkbox.css';
+@import './colors/background/background-chip.css';
+@import './colors/background/background-input.css';
+@import './colors/background/background-modal.css';
+@import './colors/background/background-overlay.css';
+@import './colors/background/background-surface.css';
+@import './colors/background/background-toggle.css';
+
+@import './colors/border/border-accent.css';
+@import './colors/border/border-action.css';
+@import './colors/border/border-base.css';
+@import './colors/border/border-select.css';
+
+@import './colors/text/text-accent.css';
+@import './colors/text/text-base.css';
+@import './colors/text/text-status.css';
+
+@import './colors/icon/icon-accent.css';
+@import './colors/icon/icon-base.css';
+@import './colors/icon/icon-status.css';
+
+html,
+body {
+  font-family: 'Geologica', serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+}
+
+* {
+  -webkit-tap-highlight-color: var(--border-action-normal);
+}

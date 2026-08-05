@@ -1,0 +1,116 @@
+@use '../../../../../shared/styles/shadow/shadow-size.scss' as utils;
+
+.wrapper {
+  display: flex;
+  flex-direction: row;
+  flex: 0 0 auto;
+  gap: var(--numbers-12);
+  padding: var(--numbers-16);
+  border-radius: var(--measurements-radius-xl);
+  border: var(--numbers-1) solid var(--border-action-normal);
+  background: var(--background-surface-default);
+  @include utils.shadow-lg(rgba(20, 21, 26, 0.05));
+  pointer-events: auto;
+}
+
+.aside {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+}
+
+.icon {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  align-items: center;
+  width: var(--numbers-20);
+  padding: var(--numbers-2) 0;
+  font-size: var(--numbers-20);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  gap: var(--numbers-12);
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--numbers-4);
+}
+
+.title {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+
+  .text {
+    white-space: pre-line;
+    color: var(--text-base-primary);
+  }
+}
+
+.description {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+
+  .text {
+    white-space: pre-line;
+    color: var(--text-base-secondary);
+  }
+}
+
+.close {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  align-items: center;
+  width: var(--numbers-20);
+  padding: var(--numbers-2) 0;
+  font-size: var(--numbers-20);
+  color: var(--text-base-secondary);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text-base-primary);
+  }
+}
+
+.slot {
+  display: flex;
+  flex-direction: row;
+  flex: 0 0 auto;
+}
+
+.status {
+  &--info {
+    .icon {
+      color: var(--icon-status-info);
+    }
+  }
+
+  &--warning {
+    .icon {
+      color: var(--icon-status-warning);
+    }
+  }
+
+  &--success {
+    .icon {
+      color: var(--icon-status-success);
+    }
+  }
+
+  &--destructive {
+    .icon {
+      color: var(--icon-status-destructive);
+    }
+  }
+}

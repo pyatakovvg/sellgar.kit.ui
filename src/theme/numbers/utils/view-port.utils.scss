@@ -1,0 +1,15 @@
+@use 'sass:math';
+
+/**
+*  Функция для перевода пикселей в viewport width
+*/
+@function pxToVW($px, $viewport-width) {
+  @return math.div($px, $viewport-width) * 100 + vw;
+}
+
+/**
+*  Функция для перевода пикселей в vh
+*/
+@function pxToVH($px, $viewport-height) {
+  @return math.div($px, $viewport-height) * 100 + vh;
+}

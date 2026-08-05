@@ -1,0 +1,12 @@
+@use '../../../../shared/styles/shadow/shadow-size.scss' as utils;
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  border-radius: var(--measurements-radius-xl);
+  border: var(--numbers-1) solid var(--border-action-normal);
+  background: var(--background-modal-default);
+  @include utils.shadow-lg(rgba(20, 21, 26, 0.08));
+  z-index: 100;
+}

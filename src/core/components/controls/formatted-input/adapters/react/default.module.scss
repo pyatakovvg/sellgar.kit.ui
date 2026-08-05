@@ -1,0 +1,50 @@
+.root {
+  position: relative;
+  display: inline-block;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  outline: none;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  cursor: text;
+  user-select: text;
+  caret-color: currentColor;
+}
+
+.root[data-formatted-input-disabled='true'] {
+  cursor: default;
+}
+
+.display {
+  position: relative;
+  display: block;
+  flex: 1 1 auto;
+  overflow: hidden;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  white-space: pre;
+}
+
+.symbolLayer {
+  position: relative;
+  display: inline-block;
+  white-space: pre;
+  will-change: transform;
+}
+
+.line {
+  display: inline;
+}
+
+.token {
+  font: inherit;
+}
+
+.placeholder {
+  color: var(--formatted-input-placeholder-color, color-mix(in srgb, currentColor 45%, transparent));
+}

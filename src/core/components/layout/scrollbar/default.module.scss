@@ -1,0 +1,79 @@
+.root {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.viewport {
+  position: relative;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  max-height: inherit;
+  overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
+.content {
+  height: 100%;
+  width: 100%;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+.track {
+  position: absolute;
+  z-index: 1;
+  border-radius: var(--measurements-radius-full);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease-out;
+  user-select: none;
+  touch-action: none;
+}
+
+.trackAwake.trackAvailable,
+.trackAvailable:hover {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.trackVertical {
+  top: var(--numbers-6);
+  right: var(--numbers-6);
+  bottom: var(--numbers-6);
+  width: var(--numbers-4);
+}
+
+.trackHorizontal {
+  right: var(--numbers-6);
+  bottom: var(--numbers-6);
+  left: var(--numbers-6);
+  height: var(--numbers-4);
+}
+
+.thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: var(--measurements-radius-full);
+  background: var(--background-surface-neutral-subtle);
+  opacity: 0.8;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.thumbVertical {
+  width: 100%;
+}
+
+.thumbHorizontal {
+  height: 100%;
+}

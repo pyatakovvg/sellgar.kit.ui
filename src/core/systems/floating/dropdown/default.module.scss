@@ -1,0 +1,15 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  overflow: auto;
+}
+
+.option {
+  display: flex;
+  flex-direction: row;
+  flex: 1 0;
+  padding: var(--numbers-2) var(--numbers-6);
+  cursor: pointer;
+  overflow: auto;
+}

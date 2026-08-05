@@ -1,0 +1,31 @@
+.option {
+  display: flex;
+  flex-direction: row;
+  flex: 1 0;
+  padding: var(--numbers-2) var(--numbers-6);
+  cursor: pointer;
+  outline: none;
+  overflow: auto;
+}
+
+.container {
+  display: flex;
+  flex-direction: row;
+  flex: 1 0;
+  padding: var(--numbers-6);
+  border-radius: var(--measurements-radius-sm);
+  overflow: auto;
+  transition: var(--measurements-transition);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  overflow: auto;
+}
+
+.active,
+.selected {
+  background: var(--background-overlay-active-normal);
+}

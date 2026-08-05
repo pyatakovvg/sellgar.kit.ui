@@ -1,0 +1,15 @@
+:root {
+  --border-select-primary: var(--colors-blue-8);
+  --border-select-secondary: var(--colors-blue-4);
+
+  --border-select-destructive: var(--colors-red-8);
+  --border-select-destructive-secondary: var(--colors-red-4);
+}
+
+:root[data-theme='dark'] {
+  --border-select-primary: var(--colors-blue-8);
+  --border-select-secondary: var(--colors-blue-4a);
+
+  --border-select-destructive: var(--colors-red-8);
+  --border-select-destructive-secondary: var(--colors-red-4a);
+}

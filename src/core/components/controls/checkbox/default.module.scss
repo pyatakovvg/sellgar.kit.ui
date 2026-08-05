@@ -1,0 +1,45 @@
+.wrapper {
+  display: inline-flex;
+  flex-direction: row;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.element {
+  display: block;
+}
+
+.content {
+  display: block;
+}
+
+.label {
+  color: var(--text-base-primary);
+}
+
+.caption {
+  color: var(--text-base-secondary);
+  margin: var(--numbers-4) 0 0;
+}
+
+.size {
+  &--medium {
+    &.with-label .element {
+      padding: var(--numbers-2) 0 0;
+    }
+
+    .content {
+      margin: 0 0 0 var(--numbers-12);
+    }
+  }
+
+  &--small {
+    &.with-label .element {
+      padding: var(--numbers-1) 0 0;
+    }
+
+    .content {
+      margin: 0 0 0 var(--numbers-8);
+    }
+  }
+}

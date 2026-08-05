@@ -1,0 +1,25 @@
+.wrapper {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  width: 100%;
+  padding: var(--numbers-2);
+  gap: var(--numbers-2);
+  border-radius: var(--measurements-radius-xl);
+  background: var(--background-overlay-custom);
+}
+
+.size {
+  &--sm {
+    border-radius: var(--measurements-radius-lg);
+  }
+}
+
+.shape {
+  &--pill {
+    border-radius: var(--measurements-radius-full);
+  }
+}

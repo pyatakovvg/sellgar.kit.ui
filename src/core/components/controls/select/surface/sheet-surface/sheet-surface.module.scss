@@ -1,0 +1,92 @@
+.positioner {
+  width: 100%;
+}
+
+.wrapper {
+  width: 100%;
+  max-height: 100dvh;
+  min-height: max-content;
+  min-width: var(--numbers-10);
+  border-radius: var(--measurements-radius-xxxl) var(--measurements-radius-xxxl) 0 0;
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  max-height: 100dvh;
+}
+
+.heading {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--numbers-56);
+  padding: var(--numbers-16) var(--numbers-12) var(--numbers-12) var(--numbers-16);
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: var(--numbers-8);
+    left: 50%;
+    display: block;
+    width: var(--numbers-36);
+    height: var(--numbers-5);
+    border-radius: var(--numbers-5);
+    background: rgba(60, 60, 67, 0.3);
+    transform: translateX(-50%);
+  }
+}
+
+.header {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.close {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--numbers-24);
+  height: var(--numbers-24);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--icon-base-secondary);
+  cursor: pointer;
+  transition: var(--measurements-transition);
+
+  &:hover {
+    color: var(--icon-base-primary);
+  }
+}
+
+.content {
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
+.control {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  padding: var(--numbers-16);
+  margin-top: var(--numbers-10);
+  border-top: var(--numbers-1) solid var(--border-base-divider);
+  border-right: var(--numbers-1) solid var(--border-base-divider);
+  border-left: var(--numbers-1) solid var(--border-base-divider);
+  border-radius: var(--measurements-radius-xxl) var(--measurements-radius-xxl) 0 0;
+  background: var(--background-surface-default);
+}
+
+.overlay {
+  display: flex;
+  flex: 1 0;
+  flex-direction: column;
+  align-items: flex-end;
+  overflow: auto;
+  background: var(--colors-gray-6a);
+  backdrop-filter: blur(var(--numbers-1));
+}

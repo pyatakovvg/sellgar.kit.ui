@@ -1,0 +1,16 @@
+:root {
+  --typography-letter-spacing-h1: calc(var(--numbers-2_2) * -1);
+  --typography-letter-spacing-h2: calc(var(--numbers-1_7) * -1);
+  --typography-letter-spacing-h3: calc(var(--numbers-1) * -1);
+  --typography-letter-spacing-h4: calc(var(--numbers-0_6) * -1);
+  --typography-letter-spacing-h5: calc(var(--numbers-0_5) * -1);
+  --typography-letter-spacing-h6: calc(var(--numbers-0_3) * -1);
+
+  --typography-letter-spacing-body-l: calc(var(--numbers-0_2) * -1);
+  --typography-letter-spacing-body-m: calc(var(--numbers-0_2) * -1);
+  --typography-letter-spacing-body-s: calc(var(--numbers-0_2) * -1);
+
+  --typography-letter-spacing-caption-l: calc(var(--numbers-0_1) * -1);
+  --typography-letter-spacing-caption-m: 0;
+  --typography-letter-spacing-caption-s: 0;
+}

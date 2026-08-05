@@ -1,0 +1,45 @@
+.wrapper {
+  display: inline-flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.icon {
+  display: inline-flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--icon-base-quaternary);
+
+  &:hover {
+    color: var(--icon-base-secondary);
+  }
+}
+
+.active,
+.active:hover {
+  color: var(--icon-base-primary);
+}
+
+.arrow {
+  fill: var(--border-action-normal);
+  z-index: 10;
+}
+
+.arrow2 {
+  fill: var(--background-surface-default);
+  z-index: 20;
+}
+
+.label {
+  display: block;
+  color: var(--text-base-primary);
+}
+
+.caption {
+  display: block;
+  color: var(--text-base-secondary);
+  margin: var(--numbers-4) 0 0;
+}

@@ -1,0 +1,51 @@
+:root {
+  --border-accent-blue: var(--colors-blue-5);
+  --border-accent-blue-accent: var(--colors-blue-8);
+  --border-accent-blue-inverted: var(--colors-blue-11);
+
+  --border-accent-green: var(--colors-green-5);
+  --border-accent-green-accent: var(--colors-green-8);
+  --border-accent-green-inverted: var(--colors-green-11);
+
+  --border-accent-orange: var(--colors-orange-5);
+  --border-accent-orange-accent: var(--colors-orange-8);
+  --border-accent-orange-inverted: var(--colors-orange-11);
+
+  --border-accent-red: var(--colors-red-5);
+  --border-accent-red-accent: var(--colors-red-8);
+  --border-accent-red-inverted: var(--colors-red-11);
+
+  --border-accent-purple: var(--colors-purple-5);
+  --border-accent-purple-accent: var(--colors-purple-8);
+  --border-accent-purple-inverted: var(--colors-purple-11);
+
+  --border-accent-primary: var(--additional-tiyn-5);
+  --border-accent-primary-accent: var(--additional-tiyn-8);
+  --border-accent-primary-inverted: var(--additional-tiyn-11);
+}
+
+:root[data-theme='dark'] {
+  --border-accent-blue: var(--colors-blue-5a);
+  --border-accent-blue-accent: var(--colors-blue-8);
+  --border-accent-blue-inverted: var(--colors-base-white);
+
+  --border-accent-green: var(--colors-green-5a);
+  --border-accent-green-accent: var(--colors-green-8);
+  --border-accent-green-inverted: var(--colors-base-white);
+
+  --border-accent-orange: var(--colors-orange-5a);
+  --border-accent-orange-accent: var(--colors-orange-8);
+  --border-accent-orange-inverted: var(--colors-base-white);
+
+  --border-accent-red: var(--colors-red-5a);
+  --border-accent-red-accent: var(--colors-red-8);
+  --border-accent-red-inverted: var(--colors-base-white);
+
+  --border-accent-purple: var(--colors-purple-5a);
+  --border-accent-purple-accent: var(--colors-purple-8);
+  --border-accent-purple-inverted: var(--colors-base-white);
+
+  --border-accent-primary: var(--additional-tiyn-5a);
+  --border-accent-primary-accent: var(--additional-tiyn-8);
+  --border-accent-primary-inverted: var(--additional-tiyn-8);
+}

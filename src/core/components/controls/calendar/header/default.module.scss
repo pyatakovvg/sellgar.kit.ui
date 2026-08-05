@@ -1,0 +1,47 @@
+@use '../../../../../shared/styles/shadow/shadow-size.scss' as utils;
+
+.wrapper {
+  display: flex;
+  flex-direction: row;
+  flex: 1 0;
+  align-items: center;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  color: var(--text-base-primary);
+}
+
+.controls {
+  display: flex;
+  flex-direction: row;
+  flex: 0 0 auto;
+  margin: 0 0 0 var(--numbers-12);
+}
+
+.icon {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--numbers-20);
+  color: var(--icon-base-secondary);
+  appearance: none;
+  border: none;
+  border-radius: var(--measurements-radius-md);
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+
+  &:focus-visible {
+    @include utils.shadow-focus(rgba(73, 133, 253, 0.25));
+  }
+
+  & + & {
+    margin: 0 0 0 var(--numbers-8);
+  }
+}

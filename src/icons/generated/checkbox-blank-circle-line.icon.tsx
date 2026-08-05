@@ -1,0 +1,7 @@
+import React from 'react';
+
+export const CheckboxBlankCircleLineIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg {...props} viewBox="0 0 32 32" width="1em" height="1em" fill="currentColor" aria-hidden="true">
+    <path d="M16 29.333c-7.364 0-13.333-5.969-13.333-13.333s5.969-13.333 13.333-13.333c7.364 0 13.333 5.969 13.333 13.333s-5.969 13.333-13.333 13.333zM16 26.667c2.829 0 5.542-1.124 7.543-3.124s3.124-4.714 3.124-7.543c0-2.829-1.124-5.542-3.124-7.542s-4.714-3.124-7.543-3.124c-2.829 0-5.542 1.124-7.542 3.124s-3.124 4.713-3.124 7.542c0 2.829 1.124 5.542 3.124 7.543s4.713 3.124 7.542 3.124z" />
+  </svg>
+);

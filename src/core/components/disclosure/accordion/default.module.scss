@@ -1,0 +1,118 @@
+@use '../../../../shared/styles/shadow/shadow-size.scss' as utils;
+
+.wrapper {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  flex: 0 0 auto;
+  align-items: center;
+  column-gap: var(--numbers-12);
+  position: relative;
+  padding: var(--numbers-16) var(--numbers-20);
+  border: var(--numbers-1) solid var(--border-base-alpha);
+  background: var(--background-surface-default);
+  cursor: pointer;
+  transition: var(--measurements-transition);
+
+  &:hover {
+    border-color: var(--border-base-alpha);
+    background: var(--background-surface-neutral);
+  }
+
+  &:focus-visible {
+    @include utils.shadow-focus(rgba(73, 133, 253, 0.25));
+    border: var(--numbers-1) solid var(--border-action-focus-light);
+    outline: none;
+  }
+}
+
+.has-lead-slots {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.expanded {
+  border: var(--numbers-1) solid var(--border-base-alpha);
+  background: var(--background-surface-neutral);
+  @include utils.shadow-xs(rgba(20, 21, 26, 0.05));
+
+  &:hover {
+    background: var(--background-surface-neutral-subtle);
+  }
+}
+
+.lead-slots {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: row;
+  flex: 0 0 auto;
+  align-items: center;
+  align-self: center;
+  gap: var(--numbers-12);
+}
+
+.lead-slot {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+}
+
+.header {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex: 1 0;
+  min-width: 0;
+}
+
+.has-lead-slots {
+  .header,
+  .description,
+  .slot {
+    grid-column: 2;
+  }
+}
+
+.description {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  margin: var(--numbers-4) 0 0;
+  color: var(--text-base-secondary);
+}
+
+.slot {
+  grid-column: 1;
+  grid-row: 3;
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  padding: var(--numbers-12) 0 0;
+}
+
+.radius {
+  &--large {
+    border-radius: var(--measurements-radius-lg);
+  }
+
+  &--extra-large {
+    border-radius: var(--measurements-radius-xxl);
+  }
+}
+
+.size {
+  &--large {
+    .lead-slots {
+      padding: var(--numbers-3) 0;
+    }
+  }
+
+  &--medium {
+    .lead-slots {
+      padding: var(--numbers-2) 0;
+    }
+  }
+}

@@ -1,0 +1,26 @@
+.wrapper {
+  display: inline-flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  cursor: pointer;
+  outline: none;
+}
+
+.icon {
+  display: inline-flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--icon-base-quaternary);
+  transition: color var(--measurements-transition);
+
+  &:hover {
+    color: var(--icon-base-secondary);
+  }
+}
+
+.active,
+.active:hover {
+  color: var(--icon-base-primary);
+}

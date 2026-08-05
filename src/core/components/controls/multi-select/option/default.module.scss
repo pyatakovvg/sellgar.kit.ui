@@ -1,0 +1,23 @@
+.wrapper {
+  display: flex;
+  flex-direction: row;
+  flex: 1 0;
+  align-items: center;
+  gap: var(--numbers-8);
+  color: var(--text-base-primary);
+  overflow: hidden;
+}
+
+.text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.disabled {
+  color: var(--text-base-quaternary);
+}
+
+.checked {
+  background-color: var(--text-base-quaternary);
+}

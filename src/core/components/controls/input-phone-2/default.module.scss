@@ -1,0 +1,189 @@
+@use '../../../../shared/styles/shadow/shadow-size.scss' as utils;
+
+.container {
+  display: flex;
+  flex-direction: row;
+  flex: 1 0;
+  align-items: center;
+}
+
+.wrapper {
+  display: flex;
+  flex-direction: row;
+  flex: 1 0;
+  align-items: center;
+  border-radius: var(--measurements-radius-xl);
+  transition: var(--measurements-transition);
+  z-index: 10;
+}
+
+.wrapper:hover {
+  border-color: var(--border-action-hover);
+  background: var(--background-input-hover);
+}
+
+.lead-icon,
+.tail-icon {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--numbers-20);
+  height: var(--numbers-20);
+  font-size: var(--numbers-16);
+  color: var(--text-base-tertiary);
+}
+
+.lead-icon {
+  margin: 0 var(--numbers-4) 0 0;
+}
+
+.tail-icon {
+  margin: 0 0 0 var(--numbers-4);
+}
+
+.content {
+  display: flex;
+  flex-direction: row;
+  flex: 1 0;
+  padding: 0 var(--numbers-4);
+}
+
+.input {
+  display: block;
+  border: none;
+  outline: none;
+  width: 100%;
+  font-family: inherit;
+  background: transparent;
+  color: var(--text-base-primary);
+}
+
+.input::placeholder {
+  color: var(--text-base-tertiary);
+}
+
+.input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 var(--numbers-1000) var(--background-input-normal) inset;
+  box-shadow: 0 0 0 var(--numbers-1000) var(--background-input-normal) inset;
+  -webkit-text-fill-color: var(--text-base-primary);
+}
+
+.badge {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 0 var(--numbers-4);
+}
+
+.type {
+  &--default {
+    border: var(--numbers-1) solid var(--border-action-normal);
+    background: var(--background-input-normal);
+    @include utils.shadow-xs(rgba(20, 21, 26, 0.05));
+
+    .input {
+      font-size: var(--typography-size-caption-l);
+      font-weight: var(--typography-weight-regular);
+      line-height: var(--typography-line-height-caption-l);
+      letter-spacing: var(--typography-letter-spacing-caption-l);
+    }
+  }
+
+  &--borderless {
+    .input {
+      font-size: var(--typography-size-h6);
+      font-weight: var(--typography-weight-medium);
+      line-height: var(--typography-line-height-h6);
+      letter-spacing: var(--typography-letter-spacing-h6);
+    }
+
+    &.destructive,
+    &.destructive:hover {
+      border-color: transparent;
+      background: transparent;
+
+      .input {
+        color: var(--text-status-destructive);
+      }
+    }
+
+    &.focused.destructive {
+      border-color: transparent;
+      background: transparent;
+      box-shadow: none;
+    }
+  }
+}
+
+.size {
+  &--medium {
+    height: var(--numbers-40);
+    padding: var(--numbers-10) var(--numbers-12);
+  }
+
+  &--extra-small {
+    height: var(--numbers-32);
+    padding: var(--numbers-6) var(--numbers-8);
+  }
+}
+
+.destructive {
+  border-color: var(--border-action-destructive);
+  background: var(--background-input-normal);
+
+  &:hover {
+    border-color: var(--border-action-destructive-hover);
+    background: var(--background-input-normal);
+  }
+}
+
+.focused,
+.focused:hover {
+  border-color: var(--border-action-hover);
+  background: var(--background-input-hover);
+}
+
+.focused.destructive {
+  border-color: var(--border-action-destructive-hover);
+  background: var(--background-input-normal);
+}
+
+.keyboard-focused,
+.keyboard-focused:hover {
+  border: var(--numbers-1) solid var(--border-action-focus-light);
+  background: var(--background-input-focus);
+  @include utils.shadow-focus(rgba(73, 133, 253, 0.25));
+}
+
+.keyboard-focused.destructive,
+.keyboard-focused.destructive:hover {
+  border-color: var(--border-action-destructive-hover);
+  background: var(--background-input-normal);
+  @include utils.shadow-focus(rgba(255, 178, 178, 0.6));
+}
+
+.disabled,
+.disabled:hover {
+  border-color: var(--border-action-disabled);
+  background: var(--background-input-disabled);
+
+  .lead-icon,
+  .tail-icon {
+    color: var(--icon-base-quaternary);
+  }
+
+  .input {
+    color: var(--icon-base-quaternary);
+  }
+}
+
+.with-button {
+  border-radius: var(--measurements-radius-xl) 0 0 var(--measurements-radius-xl);
+}
+
+.placeholder {
+  color: var(--text-base-quaternary);
+}

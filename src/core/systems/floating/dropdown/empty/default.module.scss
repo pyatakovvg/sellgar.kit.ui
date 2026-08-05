@@ -1,0 +1,14 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  color: var(--text-base-secondary);
+  padding: var(--numbers-8) var(--numbers-10);
+  overflow: hidden;
+}
+
+.text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

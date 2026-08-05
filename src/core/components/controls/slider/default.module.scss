@@ -1,0 +1,43 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  width: var(--numbers-100);
+  border-radius: var(--measurements-radius-full);
+  border: var(--numbers-2) solid var(--border-base-surface);
+  cursor: pointer;
+}
+
+.slider {
+  height: var(--numbers-20);
+}
+
+.thumb {
+  display: block;
+  width: var(--numbers-20);
+  height: var(--numbers-20);
+  border-radius: var(--measurements-radius-full);
+  border: var(--numbers-1) solid var(--border-action-normal);
+  background: var(--icon-base-static-white);
+  box-shadow:
+    0 var(--numbers-36) var(--numbers-80) 0 rgba(0, 0, 0, 0.05),
+    0 var(--numbers-14) var(--numbers-28) 0 rgba(0, 0, 0, 0.03),
+    0 var(--numbers-6) var(--numbers-14) 0 rgba(0, 0, 0, 0.03),
+    0 var(--numbers-3) var(--numbers-6) 0 rgba(0, 0, 0, 0.02),
+    0 var(--numbers-1) var(--numbers-3) 0 rgba(0, 0, 0, 0.02);
+
+  &:hover {
+    border: var(--numbers-1) solid var(--border-action-hover);
+  }
+}
+
+.track {
+  top: var(--numbers-6);
+  height: var(--numbers-8);
+  border-radius: var(--measurements-radius-full);
+  background: var(--background-badge-purple-accent);
+
+  & + & {
+    background: var(--background-surface-neutral-subtle);
+  }
+}

@@ -1,0 +1,388 @@
+.wrapper {
+  display: inline-flex;
+  flex-direction: row;
+  flex: 0 0 auto;
+  align-items: center;
+  transition:
+    background-color var(--measurements-transition),
+    border var(--measurements-transition);
+
+  .label,
+  .lead-icon,
+  .tail-icon {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--measurements-transition);
+  }
+}
+
+.color {
+  &--gray {
+    color: var(--text-base-secondary);
+    background: var(--background-badge-gray);
+  }
+
+  &--blue {
+    color: var(--text-accent-blue-inverted);
+    background: var(--background-badge-blue);
+  }
+
+  &--green {
+    color: var(--text-accent-green-inverted);
+    background: var(--background-badge-green);
+  }
+
+  &--orange {
+    color: var(--text-accent-orange-inverted);
+    background: var(--background-badge-orange);
+  }
+
+  &--red {
+    color: var(--text-accent-red-inverted);
+    background: var(--background-badge-red);
+  }
+
+  &--purple {
+    color: var(--text-accent-purple-inverted);
+    background: var(--background-badge-purple);
+  }
+
+  &--white {
+    color: var(--icon-base-static-dark-secondary);
+    background: var(--background-badge-white);
+  }
+
+  &--surface {
+    color: var(--icon-base-secondary);
+    background: var(--background-badge-surface);
+  }
+
+  &--white-destructive {
+    color: var(--icon-status-destructive-secondary);
+    background: var(--background-badge-white);
+
+    .label {
+      color: var(--text-status-destructive);
+    }
+  }
+
+  &--surface-destructive {
+    color: var(--icon-status-destructive-secondary);
+    background: var(--background-badge-surface);
+
+    .label {
+      color: var(--text-status-destructive);
+    }
+  }
+
+  &--white-info {
+    color: var(--icon-status-info-secondary);
+    background: var(--background-badge-white);
+
+    .label {
+      color: var(--text-status-info);
+    }
+  }
+
+  &--surface-info {
+    color: var(--icon-status-info-secondary);
+    background: var(--background-badge-surface);
+
+    .label {
+      color: var(--text-status-info);
+    }
+  }
+
+  &--white-success {
+    color: var(--icon-status-success-secondary);
+    background: var(--background-badge-white);
+
+    .label {
+      color: var(--text-status-success);
+    }
+  }
+
+  &--surface-success {
+    color: var(--icon-status-success-secondary);
+    background: var(--background-badge-surface);
+
+    .label {
+      color: var(--text-status-success);
+    }
+  }
+
+  &--brand {
+    color: var(--icon-status-primary);
+    background: var(--background-badge-primary);
+
+    .label {
+      color: var(--text-status-primary);
+    }
+  }
+}
+
+.size {
+  &--lg {
+    height: var(--numbers-28);
+    font-weight: var(--typography-weight-semi-bold);
+    font-size: var(--typography-size-caption-l);
+    line-height: var(--typography-line-height-caption-l);
+    letter-spacing: var(--typography-letter-spacing-caption-l);
+    padding: var(--numbers-4) var(--numbers-6);
+
+    .label {
+      padding: 0 var(--numbers-4);
+    }
+
+    .lead-icon,
+    .tail-icon {
+      width: var(--numbers-16);
+      height: var(--numbers-16);
+      font-size: var(--numbers-14);
+    }
+  }
+
+  &--md {
+    height: var(--numbers-24);
+    font-weight: var(--typography-weight-semi-bold);
+    font-size: var(--typography-size-caption-l);
+    line-height: var(--typography-line-height-caption-l);
+    letter-spacing: var(--typography-letter-spacing-caption-l);
+    padding: var(--numbers-2) var(--numbers-4);
+
+    .label {
+      padding: 0 var(--numbers-4);
+    }
+
+    .lead-icon,
+    .tail-icon {
+      width: var(--numbers-16);
+      height: var(--numbers-16);
+      font-size: var(--numbers-14);
+    }
+  }
+
+  &--sm {
+    height: var(--numbers-20);
+    font-weight: var(--typography-weight-semi-bold);
+    font-size: var(--typography-size-caption-m);
+    line-height: var(--typography-line-height-caption-m);
+    letter-spacing: var(--typography-letter-spacing-caption-m);
+    padding: var(--numbers-2) var(--numbers-3);
+
+    .label {
+      padding: 0 var(--numbers-2);
+    }
+
+    .lead-icon,
+    .tail-icon {
+      width: var(--numbers-14);
+      height: var(--numbers-14);
+      font-size: var(--numbers-12);
+    }
+  }
+
+  &--xs {
+    height: var(--numbers-16);
+    font-weight: var(--typography-weight-semi-bold);
+    font-size: var(--typography-size-caption-m);
+    line-height: var(--typography-line-height-caption-m);
+    letter-spacing: var(--typography-letter-spacing-caption-m);
+    padding: 0 var(--numbers-2);
+
+    .lead-icon,
+    .tail-icon {
+      width: var(--numbers-12);
+      height: var(--numbers-12);
+      font-size: var(--numbers-10);
+    }
+  }
+}
+
+.shape {
+  &--rounded {
+    &.size {
+      &--lg {
+        border-radius: var(--measurements-radius-md);
+      }
+
+      &--md {
+        border-radius: var(--measurements-radius-md);
+      }
+
+      &--sm {
+        border-radius: var(--measurements-radius-sm);
+      }
+
+      &--xs {
+        border-radius: var(--measurements-radius-xs);
+      }
+    }
+  }
+
+  &--pill {
+    border-radius: var(--measurements-radius-full);
+  }
+}
+
+.stroke {
+  border: var(--numbers-1) solid var(--border-base-alpha);
+}
+
+.state {
+  &--hover {
+    &.color {
+      &--red {
+        background: var(--background-accent-red);
+      }
+    }
+  }
+
+  &--on-click {
+    &.color {
+      &--red {
+        background: var(--background-accent-red-subtle);
+      }
+    }
+  }
+}
+
+.outlined {
+  background: transparent;
+  border: var(--numbers-1) solid currentColor;
+
+  &.color {
+    &--blue {
+      border-color: var(--border-accent-blue-inverted);
+    }
+
+    &--green {
+      border-color: var(--border-accent-green-inverted);
+    }
+
+    &--orange {
+      border-color: var(--border-accent-orange-inverted);
+    }
+
+    &--red {
+      border-color: var(--border-accent-red-inverted);
+    }
+
+    &--purple {
+      border-color: var(--border-accent-purple-inverted);
+    }
+
+    &--brand {
+      border-color: var(--border-accent-primary-inverted);
+    }
+  }
+}
+
+.disabled {
+  &.color {
+    &--gray {
+      color: var(--text-base-quaternary);
+    }
+
+    &--blue {
+      color: var(--text-accent-blue-secondary);
+    }
+
+    &--green {
+      color: var(--text-accent-green-secondary);
+    }
+
+    &--orange {
+      color: var(--text-accent-orange-secondary);
+    }
+
+    &--red {
+      color: var(--text-accent-red-secondary);
+    }
+
+    &--purple {
+      color: var(--text-accent-purple-secondary);
+    }
+
+    &--white {
+      color: var(--text-base-quaternary);
+      background: var(--background-badge-white-disabled);
+    }
+
+    &--surface {
+      color: var(--text-base-quaternary);
+    }
+
+    &--white-destructive {
+      color: var(--icon-status-destructive-tertiary);
+      background: var(--background-badge-white-disabled);
+
+      .label {
+        color: var(--icon-status-destructive-tertiary);
+      }
+    }
+
+    &--surface-destructive {
+      color: var(--icon-status-destructive-tertiary);
+      background: var(--background-badge-surface);
+
+      .label {
+        color: var(--icon-status-destructive-tertiary);
+      }
+    }
+
+    &--white-info {
+      color: var(--icon-status-info-tertiary);
+      background: var(--background-badge-white-disabled);
+
+      .label {
+        color: var(--icon-status-info-tertiary);
+      }
+    }
+
+    &--surface-info {
+      color: var(--icon-status-info-tertiary);
+      background: var(--background-badge-surface);
+
+      .label {
+        color: var(--icon-status-info-tertiary);
+      }
+    }
+
+    &--white-success {
+      color: var(--icon-status-success-tertiary);
+      background: var(--background-badge-white-disabled);
+
+      .label {
+        color: var(--icon-status-success-tertiary);
+      }
+    }
+
+    &--surface-success {
+      color: var(--icon-status-success-tertiary);
+      background: var(--background-badge-surface);
+
+      .label {
+        color: var(--icon-status-success-tertiary);
+      }
+    }
+
+    &--brand {
+      color: var(--icon-status-primary-tertiary);
+      background: var(--background-badge-primary-desabled);
+
+      .label {
+        color: var(--icon-status-primary-tertiary);
+      }
+    }
+  }
+}
+
+.outlined {
+  &.disabled {
+    background: transparent;
+  }
+}

@@ -1,0 +1,68 @@
+.wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  border-radius: var(--measurements-radius-full);
+  border: var(--numbers-2) solid var(--border-base-surface);
+  box-sizing: border-box;
+}
+
+.size {
+  &--2xl {
+    width: var(--numbers-16);
+    height: var(--numbers-16);
+  }
+
+  &--xl {
+    width: var(--numbers-14);
+    height: var(--numbers-14);
+  }
+
+  &--lg {
+    width: var(--numbers-12);
+    height: var(--numbers-12);
+  }
+
+  &--md {
+    width: var(--numbers-10);
+    height: var(--numbers-10);
+  }
+
+  &--sm {
+    width: var(--numbers-8);
+    height: var(--numbers-8);
+  }
+
+  &--xs {
+    width: var(--numbers-6);
+    height: var(--numbers-6);
+    border-width: var(--numbers-1_5);
+  }
+}
+
+.color {
+  &--gray {
+    background: var(--background-accent-gray-accent);
+  }
+
+  &--green {
+    background: var(--background-accent-green-accent);
+  }
+
+  &--blue {
+    background: var(--background-accent-blue-accent);
+  }
+
+  &--orange {
+    background: var(--background-accent-orange-accent);
+  }
+
+  &--red {
+    background: var(--background-accent-red-accent);
+  }
+
+  &--purple {
+    background: var(--background-accent-purple-accent);
+  }
+}

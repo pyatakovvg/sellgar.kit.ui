@@ -1,0 +1,7 @@
+import React from 'react';
+
+export const Filter3FillIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg {...props} viewBox="0 0 32 32" width="1em" height="1em" fill="currentColor" aria-hidden="true">
+    <path d="M13.333 24h5.333v-2.667h-5.333v2.667zM4 8v2.667h24v-2.667h-24zM8 17.333h16v-2.667h-16v2.667z" />
+  </svg>
+);

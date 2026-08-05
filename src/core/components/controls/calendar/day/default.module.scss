@@ -1,0 +1,57 @@
+@use '../../../../../shared/styles/shadow/shadow-size.scss' as utils;
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  padding: var(--numbers-2);
+  box-sizing: border-box;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+  width: 100%;
+
+  &:focus-visible .container {
+    @include utils.shadow-focus(rgba(73, 133, 253, 0.25));
+  }
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  height: var(--numbers-32);
+  color: var(--text-base-secondary);
+  border-radius: var(--measurements-radius-md);
+  background: var(--background-button-ghost);
+  cursor: pointer;
+  transition: var(--measurements-transition);
+
+  &:hover {
+    background: var(--background-button-ghost-hover);
+  }
+}
+
+.is-active {
+  color: var(--text-base-primary);
+  border: var(--numbers-1) solid var(--border-action-focus-light);
+}
+
+.is-today {
+  color: var(--text-accent-purple-accent);
+  text-shadow: 0 0 var(--numbers-6) var(--text-accent-purple-accent);
+}
+
+.is-weekday {
+  color: var(--text-base-secondary);
+}
+
+.is-prev-week-day,
+.is-next-week-day {
+  color: var(--text-base-quaternary);
+}

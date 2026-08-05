@@ -1,0 +1,20 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  padding: var(--numbers-2);
+  box-sizing: border-box;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  height: var(--numbers-32);
+  color: var(--text-base-quaternary);
+  border-radius: var(--measurements-radius-md);
+  background: var(--background-button-ghost);
+  transition: var(--measurements-transition);
+}

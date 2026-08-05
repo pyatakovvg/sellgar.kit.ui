@@ -1,0 +1,16 @@
+:root {
+  --typography-line-height-h1: var(--numbers-80);
+  --typography-line-height-h2: var(--numbers-72);
+  --typography-line-height-h3: var(--numbers-56);
+  --typography-line-height-h4: var(--numbers-44);
+  --typography-line-height-h5: var(--numbers-36);
+  --typography-line-height-h6: var(--numbers-32);
+
+  --typography-line-height-body-l: var(--numbers-28);
+  --typography-line-height-body-m: var(--numbers-26);
+  --typography-line-height-body-s: var(--numbers-24);
+
+  --typography-line-height-caption-l: var(--numbers-20);
+  --typography-line-height-caption-m: var(--numbers-16);
+  --typography-line-height-caption-s: var(--numbers-14);
+}

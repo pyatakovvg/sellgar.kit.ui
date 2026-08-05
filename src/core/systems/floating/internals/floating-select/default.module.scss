@@ -1,0 +1,152 @@
+@use '../../../../../shared/styles/shadow/shadow-size.scss' as utils;
+
+.mainWrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  border-radius: var(--measurements-radius-xl);
+  background: var(--background-surface-default);
+  border: var(--numbers-1) solid var(--border-action-normal);
+  @include utils.shadow-lg(rgba(20, 21, 26, 0.08));
+
+  &.mobile {
+    max-height: 100dvh;
+    min-height: max-content;
+    min-width: var(--numbers-10);
+    bottom: 0;
+    border-radius: var(--measurements-radius-xxxl);
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+
+  &.desktop {
+    position: absolute;
+
+    bottom: auto;
+    max-height: var(--numbers-288);
+    min-height: var(--numbers-10);
+    min-width: var(--numbers-128);
+  }
+}
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  outline: none;
+
+  &:focus-visible {
+    border-radius: var(--measurements-radius-xl);
+    @include utils.shadow-focus(rgba(73, 133, 253, 0.25));
+  }
+}
+
+.desktopOptions {
+  max-height: var(--numbers-288);
+  min-width: var(--numbers-128);
+}
+
+.option {
+  display: flex;
+  flex-direction: row;
+  flex: 1 0;
+  padding: var(--numbers-2) var(--numbers-6);
+  cursor: pointer;
+  outline: none;
+  overflow: auto;
+}
+
+.container {
+  display: flex;
+  flex-direction: row;
+  flex: 1 0;
+  padding: var(--numbers-6);
+  border-radius: var(--measurements-radius-sm);
+  overflow: auto;
+  transition: var(--measurements-transition);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  overflow: auto;
+}
+
+.hover,
+.selected {
+  background: var(--background-overlay-active-normal);
+}
+
+.mobileOptionsWrapper {
+  display: flex;
+  flex-direction: column;
+  max-height: 100dvh;
+
+  .heading {
+    flex: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: var(--numbers-16) var(--numbers-12) var(--numbers-12) var(--numbers-6);
+    position: relative;
+
+    .close {
+      display: flex;
+      flex-direction: column;
+      flex: 0 0 auto;
+      width: var(--numbers-24);
+      height: var(--numbers-24);
+      font-size: var(--numbers-24);
+      align-items: center;
+      justify-content: center;
+      color: var(--icon-base-secondary);
+      cursor: pointer;
+      transition: var(--measurements-transition);
+
+      &:hover {
+        color: var(--icon-base-primary);
+      }
+    }
+
+    &::before {
+      content: '';
+      display: block;
+      width: var(--numbers-36);
+      height: var(--numbers-5);
+      border-radius: var(--numbers-5);
+      background: rgba(60, 60, 67, 0.3);
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+
+  .options {
+    flex: 1;
+    overflow: auto;
+  }
+
+  .control {
+    flex: 0;
+    display: flex;
+    flex-direction: column;
+    padding: var(--numbers-16);
+    margin-top: var(--numbers-10);
+
+    border-radius: var(--measurements-radius-xxl) var(--measurements-radius-xxl) 0 0;
+    border-top: var(--numbers-1) solid var(--border-base-divider);
+    border-right: var(--numbers-1) solid var(--border-base-divider);
+    border-left: var(--numbers-1) solid var(--border-base-divider);
+    background: var(--background-surface-default);
+  }
+}
+
+.overlay {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  align-items: flex-end;
+  backdrop-filter: blur(var(--numbers-1));
+  background: var(--colors-gray-6a);
+  overflow: auto;
+}

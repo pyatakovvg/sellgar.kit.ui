@@ -1,0 +1,108 @@
+.root {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  caret-color: transparent;
+  color: var(--text-base-primary);
+}
+
+.root [data-formatted-input-line-key] {
+  display: flex;
+  flex-direction: row;
+  gap: var(--numbers-6);
+}
+
+.cell {
+  position: relative;
+  display: inline-flex;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  width: var(--numbers-52);
+  height: var(--numbers-52);
+  border: var(--numbers-1) solid var(--border-action-normal);
+  border-radius: var(--measurements-radius-sm);
+  background: var(--background-surface-neutral);
+  font-size: var(--typography-size-h5);
+  font-weight: var(--typography-weight-medium);
+  line-height: var(--typography-line-height-h5);
+  letter-spacing: var(--typography-letter-spacing-h5);
+  text-align: center;
+  user-select: text;
+}
+
+.root[data-formatted-input-focused='true'] .empty.active {
+  border-color: var(--border-accent-blue-accent);
+}
+
+.root[data-formatted-input-focused='true'] .empty.active::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--numbers-2);
+  height: var(--numbers-22);
+  border-radius: var(--numbers-2);
+  background: var(--border-accent-blue-accent);
+  transform: translate(-50%, -50%);
+  animation: cursor-blink 1s steps(1, end) infinite;
+}
+
+.root[data-formatted-input-focused='true'] .filled.active {
+  border-color: var(--border-accent-blue-accent);
+}
+
+.root[data-formatted-input-focused='true'] .filled.active::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: calc(50% + var(--numbers-13));
+  width: var(--numbers-2);
+  height: var(--numbers-30);
+  border-radius: var(--numbers-2);
+  background: var(--border-accent-blue-accent);
+  transform: translate(-50%, -50%);
+  animation: cursor-blink 1s steps(1, end) infinite;
+}
+
+.destructive .cell {
+  border-color: transparent;
+  background: var(--background-surface-destructive);
+  color: var(--text-status-destructive);
+}
+
+.root.destructive[data-formatted-input-focused='true'] .active {
+  border-color: var(--border-action-focus-destructive);
+}
+
+.root.destructive[data-formatted-input-focused='true'] .active::after {
+  background: var(--border-action-focus-destructive);
+}
+
+.disabled .cell {
+  border-color: var(--background-surface-neutral-subtle);
+  background: var(--background-surface-neutral-subtle);
+  color: var(--text-base-tertiary);
+}
+
+.disabled .empty.active::after {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root[data-formatted-input-focused='true'] .active::after {
+    animation: none;
+  }
+}
+
+@keyframes cursor-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0;
+  }
+}

@@ -1,0 +1,21 @@
+.emptyLine {
+  display: contents;
+}
+
+.emptyCell {
+  padding: var(--numbers-16);
+  color: var(--text-base-tertiary);
+  background: var(--background-surface-default);
+}
+
+.size--lg {
+  min-height: var(--numbers-64);
+}
+
+.size--md {
+  min-height: var(--numbers-54);
+}
+
+.size--sm {
+  min-height: var(--numbers-40);
+}

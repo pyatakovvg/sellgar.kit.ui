@@ -1,0 +1,13 @@
+@mixin shadow-lg($color) {
+  box-shadow:
+    0 var(--numbers-10) var(--numbers-16) calc(var(--numbers-3) * -1) $color,
+    0 var(--numbers-3) var(--numbers-6) calc(var(--numbers-3) * -2) $color;
+}
+
+@mixin shadow-xs($color) {
+  box-shadow: 0 var(--numbers-1) var(--numbers-2) 0 $color;
+}
+
+@mixin shadow-focus($color) {
+  box-shadow: 0 0 0 var(--numbers-2) $color;
+}

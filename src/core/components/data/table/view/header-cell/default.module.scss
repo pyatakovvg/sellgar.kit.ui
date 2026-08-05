@@ -1,0 +1,127 @@
+.headerCell {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: var(--numbers-12);
+  align-items: center;
+  padding: 0 var(--numbers-12);
+  border-bottom: var(--numbers-1) solid var(--border-base-divider);
+  background: var(--background-surface-default);
+  transition: background-color var(--measurements-transition);
+}
+
+.size--lg {
+  min-height: var(--numbers-32);
+}
+
+.size--md {
+  min-height: var(--numbers-28);
+}
+
+.size--sm {
+  min-height: var(--numbers-22);
+}
+
+.headerCellStylePrimary {
+  background: var(--background-surface-neutral);
+}
+
+.headerCellStylePrimary.headerCellInteractive:hover {
+  background: var(--background-surface-neutral-subtle);
+}
+
+.headerCellStyleSecondary {
+  background: var(--background-surface-neutral-subtle);
+}
+
+.headerCellStyleSecondary.headerCellInteractive:hover {
+  background: var(--background-surface-neutral-strong);
+}
+
+.headerCellSortable {
+  cursor: pointer;
+}
+
+.headerContent {
+  display: flex;
+  flex-direction: row;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  gap: var(--numbers-12);
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.headerContent.alignRight {
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.headerContent.alignCenter {
+  align-items: center;
+  justify-content: center;
+}
+
+.headerText {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: row;
+  gap: var(--numbers-2);
+  align-items: center;
+  min-width: 0;
+}
+
+.headerContentWithControls .headerText {
+  flex: 1 1 auto;
+}
+
+.headerContentWithControls:not(.alignRight):not(.alignCenter) .headerText {
+  justify-content: flex-start;
+}
+
+.headerContentWithControls.alignCenter .headerText {
+  justify-content: center;
+}
+
+.headerContentWithControls.alignRight .headerText {
+  justify-content: flex-end;
+}
+
+.headerControls {
+  display: inline-flex;
+  flex: 0 0 auto;
+  flex-direction: row;
+  gap: var(--numbers-8);
+  align-items: center;
+}
+
+.headerLabel {
+  margin: 0;
+  color: var(--text-base-secondary);
+}
+
+.selectionCell {
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+}
+
+.headerSortIcon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--numbers-20);
+  height: var(--numbers-20);
+}
+
+.pinnedLeftBoundary {
+  border-right: var(--numbers-3) solid var(--border-base-divider);
+}
+
+.pinnedRightBoundary {
+  border-left: var(--numbers-3) solid var(--border-base-divider);
+}

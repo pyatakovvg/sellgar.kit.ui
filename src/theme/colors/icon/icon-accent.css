@@ -1,0 +1,73 @@
+:root {
+  --icon-accent-blue: var(--colors-blue-11);
+  --icon-accent-blue-inverted: var(--colors-blue-11);
+  --icon-accent-blue-accent: var(--colors-blue-8);
+  --icon-accent-blue-secondary: var(--colors-blue-7a);
+  --icon-accent-blue-tertiary: var(--colors-blue-5a);
+
+  --icon-accent-green: var(--colors-green-11);
+  --icon-accent-green-inverted: var(--colors-green-11);
+  --icon-accent-green-accent: var(--colors-green-8);
+  --icon-accent-green-secondary: var(--colors-green-7a);
+  --icon-accent-green-tertiary: var(--colors-green-5a);
+
+  --icon-accent-orange: var(--colors-orange-11);
+  --icon-accent-orange-inverted: var(--colors-orange-11);
+  --icon-accent-orange-accent: var(--colors-orange-8);
+  --icon-accent-orange-secondary: var(--colors-orange-7a);
+  --icon-accent-orange-tertiary: var(--colors-orange-5a);
+
+  --icon-accent-red: var(--colors-red-11);
+  --icon-accent-red-inverted: var(--colors-red-11);
+  --icon-accent-red-accent: var(--colors-red-8);
+  --icon-accent-red-secondary: var(--colors-red-7a);
+  --icon-accent-red-tertiary: var(--colors-red-5a);
+
+  --icon-accent-purple: var(--colors-purple-11);
+  --icon-accent-purple-inverted: var(--colors-purple-11);
+  --icon-accent-purple-accent: var(--colors-purple-8);
+  --icon-accent-purple-secondary: var(--colors-purple-7a);
+  --icon-accent-purple-tertiary: var(--colors-purple-5a);
+
+  --icon-accent-primary: var(--additional-tiyn-8);
+  --icon-accent-primary-accent: var(--additional-tiyn-11);
+  --icon-accent-primary-secondary: var(--additional-tiyn-7a);
+  --icon-accent-primary-tertiary: var(--additional-tiyn-5a);
+}
+
+:root[data-theme='dark'] {
+  --icon-accent-blue: var(--colors-blue-9);
+  --icon-accent-blue-inverted: var(--colors-base-white);
+  --icon-accent-blue-accent: var(--colors-blue-8);
+  --icon-accent-blue-secondary: var(--colors-white-8);
+  --icon-accent-blue-tertiary: var(--colors-white-5);
+
+  --icon-accent-green: var(--colors-green-9);
+  --icon-accent-green-inverted: var(--colors-base-white);
+  --icon-accent-green-accent: var(--colors-green-8);
+  --icon-accent-green-secondary: var(--colors-white-8);
+  --icon-accent-green-tertiary: var(--colors-white-5);
+
+  --icon-accent-orange: var(--colors-orange-11);
+  --icon-accent-orange-inverted: var(--colors-base-white);
+  --icon-accent-orange-accent: var(--colors-orange-8);
+  --icon-accent-orange-secondary: var(--colors-white-8);
+  --icon-accent-orange-tertiary: var(--colors-white-5);
+
+  --icon-accent-red: var(--colors-red-11);
+  --icon-accent-red-inverted: var(--colors-base-white);
+  --icon-accent-red-accent: var(--colors-red-8);
+  --icon-accent-red-secondary: var(--colors-white-8);
+  --icon-accent-red-tertiary: var(--colors-white-5);
+
+  --icon-accent-purple: var(--colors-purple-11);
+  --icon-accent-purple-inverted: var(--colors-base-white);
+  --icon-accent-purple-accent: var(--colors-purple-8);
+  --icon-accent-purple-secondary: var(--colors-white-8);
+  --icon-accent-purple-tertiary: var(--colors-white-5);
+
+  --icon-accent-primary: var(--additional-tiyn-8);
+  --icon-accent-primary-accent: var(--additional-tiyn-9);
+  --icon-accent-primary-secondary: var(--additional-tiyn-1);
+  --icon-accent-primary-tertiary: var(--additional-tiyn-1);
+}

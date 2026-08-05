@@ -1,0 +1,11 @@
+:root {
+  --background-checkbox-default: var(--colors-base-white);
+  --background-checkbox-checked: var(--colors-blue-8);
+  --background-checkbox-disabled: var(--colors-gray-3);
+}
+
+:root[data-theme='dark'] {
+  --background-checkbox-default: var(--colors-gray-12);
+  --background-checkbox-checked: var(--colors-blue-8);
+  --background-checkbox-disabled: var(--colors-gray-11);
+}

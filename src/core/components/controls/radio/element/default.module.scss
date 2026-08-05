@@ -1,0 +1,97 @@
+@use '../../../../../shared/styles/shadow/shadow-size.scss' as utils;
+
+.wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+}
+
+.input {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.icon {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: var(--numbers-1) solid var(--border-action-normal);
+  background: var(--background-checkbox-default);
+  border-radius: var(--measurements-radius-full);
+  box-sizing: border-box;
+  @include utils.shadow-xs(rgba(20, 21, 26, 0.05));
+}
+
+.size {
+  &--md {
+    width: var(--numbers-20);
+    height: var(--numbers-20);
+  }
+
+  &--sm {
+    width: var(--numbers-16);
+    height: var(--numbers-16);
+  }
+}
+
+.input:checked + .icon {
+  border: var(--numbers-2) solid var(--border-select-primary);
+}
+
+.input:not(:disabled):not(:checked):hover + .icon {
+  border-color: var(--border-action-hover);
+}
+
+.input:not(:disabled):checked:hover + .icon {
+  @include utils.shadow-xs(rgba(20, 21, 26, 0.24));
+}
+
+.input:focus-visible + .icon {
+  box-shadow:
+    0 0 0 var(--numbers-1) var(--colors-base-white),
+    0 0 0 var(--numbers-3) rgba(73, 133, 253, 0.25);
+}
+
+.input:disabled {
+  cursor: not-allowed;
+}
+
+.input:checked + .icon:before {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  width: var(--numbers-8);
+  height: var(--numbers-8);
+  content: '';
+  border-radius: var(--measurements-radius-full);
+  background: var(--background-checkbox-checked);
+}
+
+.input:checked + .icon:before {
+  background: var(--background-checkbox-checked);
+}
+
+.input:disabled:is(:checked) + .icon {
+  border-color: var(--border-action-disabled);
+  box-shadow: none;
+}
+
+.input:disabled:not(:checked) + .icon {
+  border-color: var(--background-checkbox-disabled);
+  background: var(--background-checkbox-disabled);
+  box-shadow: none;
+}
+
+.input:disabled:is(:checked) + .icon:before {
+  border-color: var(--border-action-disabled);
+  background: var(--background-checkbox-disabled);
+}

@@ -1,0 +1,28 @@
+@use '../../../../shared/styles/shadow/shadow-size.scss' as utils;
+
+.wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  margin: auto;
+  border-radius: var(--measurements-radius-xxl);
+  border: var(--numbers-1) solid var(--border-action-normal);
+  background: var(--background-surface-default);
+  @include utils.shadow-lg(rgba(20, 21, 26, 0.08));
+}
+
+.overlay {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  padding: var(--numbers-24);
+  backdrop-filter: blur(var(--numbers-1));
+  background: var(--colors-gray-6a);
+}
+
+.close {
+  position: absolute;
+  top: var(--numbers-16);
+  right: var(--numbers-16);
+}

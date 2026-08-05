@@ -1,0 +1,53 @@
+.wrapper {
+  display: flex;
+  padding: var(--numbers-16) var(--numbers-16) var(--numbers-18) var(--numbers-16);
+  flex-direction: column;
+
+  width: 100%;
+
+  border-radius: var(--measurements-radius-lg);
+  border: var(--numbers-1) solid var(--border-action-normal);
+  background: var(--background-surface-default);
+  box-shadow: 0 var(--numbers-1) var(--numbers-2) 0 rgba(20, 21, 26, 0.05);
+
+  cursor: pointer;
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover:not(.disabled) {
+      background: var(--background-surface-neutral);
+    }
+  }
+
+  &:focus-visible {
+    border-color: var(--border-action-normal);
+    box-shadow: 0 0 0 var(--numbers-2) rgba(200, 178, 255, 0.5);
+  }
+
+  &.selected {
+    border-color: var(--border-action-pressed);
+    outline: var(--numbers-1) solid var(--border-action-pressed);
+    background: var(--background-accent-primary-subtle);
+  }
+}
+
+.description {
+  color: var(--text-base-tertiary);
+}
+
+.disabled {
+  border-color: var(--border-action-disabled);
+  background: var(--background-button-secondary);
+  outline: none;
+
+  cursor: auto;
+
+  .title {
+    color: var(--text-base-tertiary);
+  }
+}
+
+.selector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--numbers-16);
+}

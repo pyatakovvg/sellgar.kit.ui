@@ -1,0 +1,9 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  border-radius: var(--measurements-radius-xxl);
+  background: var(--background-surface-default);
+  border: var(--numbers-1) solid var(--border-action-normal);
+  overflow: auto;
+}

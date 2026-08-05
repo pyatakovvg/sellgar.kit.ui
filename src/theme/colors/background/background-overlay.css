@@ -1,0 +1,23 @@
+:root {
+  --background-overlay-normal: var(--colors-base-transparent);
+
+  --background-overlay-hover: var(--colors-gray-1a);
+
+  --background-overlay-active-normal: var(--colors-gray-1a);
+
+  --background-overlay-active-hover: var(--colors-gray-2a);
+
+  --background-overlay-custom: var(--colors-gray-2a);
+}
+
+:root[data-theme='dark'] {
+  --background-overlay-normal: var(--colors-base-transparent);
+
+  --background-overlay-hover: var(--colors-white-1);
+
+  --background-overlay-active-normal: var(--colors-white-1);
+
+  --background-overlay-active-hover: var(--colors-white-2);
+
+  --background-overlay-custom: var(--colors-white-2);
+}

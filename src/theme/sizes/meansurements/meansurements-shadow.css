@@ -1,0 +1,6 @@
+:root {
+  --measurements-shadows-lg:
+    0 var(--numbers-10) var(--numbers-16) calc(var(--numbers-3) * -1) rgba(20, 21, 26, 0.08),
+    0 var(--numbers-3) var(--numbers-6) calc(var(--numbers-2) * -1) rgba(20, 21, 26, 0.05);
+  --measurements-shadows-xs: 0 var(--numbers-1) var(--numbers-2) 0 rgba(20, 21, 26, 0.05);
+}

@@ -1,0 +1,38 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--numbers-4);
+  padding: var(--numbers-12);
+
+  border-radius: var(--measurements-radius-lg);
+  background: var(--background-surface-neutral);
+
+  &.middle,
+  &.large {
+    padding: var(--numbers-16);
+  }
+}
+
+.icon {
+  width: var(--numbers-16);
+  height: var(--numbers-16);
+
+  &.positive {
+    color: var(--background-accent-green-accent);
+  }
+
+  &.negative {
+    color: var(--background-accent-red-accent);
+  }
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--numbers-6);
+
+  .labelText {
+    color: var(--text-base-secondary);
+  }
+}

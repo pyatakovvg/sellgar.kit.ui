@@ -1,0 +1,49 @@
+.wrapper {
+  display: inline-flex;
+  flex-direction: row;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--numbers-4);
+}
+
+.lead-icon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--numbers-16);
+  height: var(--numbers-16);
+  font-size: var(--numbers-14);
+}
+
+.caption {
+  display: block;
+}
+
+.size {
+  &--l {
+    padding: var(--numbers-2) 0;
+  }
+}
+
+.state {
+  &--default {
+    color: var(--text-base-tertiary);
+  }
+
+  &--secondary {
+    color: var(--text-base-secondary);
+  }
+
+  &--info {
+    color: var(--text-status-info);
+  }
+
+  &--success {
+    color: var(--text-status-success);
+  }
+
+  &--destructive {
+    color: var(--text-status-destructive);
+  }
+}

@@ -1,0 +1,240 @@
+.wrapper {
+  position: relative;
+  display: inline-flex;
+  flex-direction: row;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-base-secondary);
+  background: var(--background-button-secondary);
+  border-left: none;
+  border-top: var(--numbers-1) solid var(--border-action-normal);
+  border-bottom: var(--numbers-1) solid var(--border-action-normal);
+  border-right: var(--numbers-1) solid var(--border-action-normal);
+  box-sizing: border-box;
+  cursor: pointer;
+  outline: none;
+  box-shadow: 0 var(--numbers-1) var(--numbers-2) 0 rgb(20 21 26 / 5%);
+  transition:
+    background var(--measurements-transition),
+    box-shadow var(--measurements-transition),
+    border var(--measurements-transition),
+    color var(--measurements-transition);
+
+  &:hover {
+    background: var(--background-button-secondary-hover);
+  }
+
+  &.active {
+    background: var(--background-button-secondary-hover);
+  }
+
+  &:disabled,
+  &.active:disabled {
+    color: var(--text-base-quaternary);
+    border-color: var(--border-action-disabled);
+    background: var(--background-button-secondary);
+
+    .text {
+      color: var(--text-base-quaternary);
+    }
+  }
+
+  &:first-child {
+    border-left: var(--numbers-1) solid var(--border-action-normal);
+  }
+
+  &:focus-visible {
+    z-index: 1;
+
+    &::after {
+      position: absolute;
+      inset: calc(var(--numbers-1) * -1);
+      border: var(--numbers-2) solid var(--border-action-focus-light);
+      border-radius: inherit;
+      pointer-events: none;
+      content: '';
+    }
+  }
+
+  .lead-icon {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--measurements-transition);
+  }
+
+  .text {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    color: var(--text-base-secondary);
+    font-weight: var(--typography-weight-medium);
+    transition: color var(--measurements-transition);
+  }
+
+  .badge {
+  }
+
+  .tail-icon {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    margin: 0 0 0 var(--numbers-4);
+    transition: color var(--measurements-transition);
+  }
+}
+
+.size {
+  &--large {
+    height: var(--numbers-48);
+    padding: var(--numbers-12) var(--numbers-16);
+    font-size: var(--typography-size-body-s);
+    line-height: var(--typography-line-height-body-s);
+    letter-spacing: var(--typography-letter-spacing-body-s);
+
+    .lead-icon {
+      width: var(--numbers-20);
+      height: var(--numbers-20);
+    }
+
+    .text {
+      padding: 0 var(--numbers-4);
+    }
+
+    .badge {
+      padding: var(--numbers-2) var(--numbers-4);
+      border-radius: var(--measurements-radius-md);
+
+      .label {
+        font-size: var(--typography-size-caption-l);
+        line-height: var(--typography-line-height-caption-l);
+        letter-spacing: var(--typography-letter-spacing-caption-l);
+        padding: 0 var(--numbers-4);
+      }
+    }
+
+    .tail-icon {
+      width: var(--numbers-20);
+      height: var(--numbers-20);
+    }
+  }
+
+  &--medium {
+    height: var(--numbers-40);
+    padding: var(--numbers-10) var(--numbers-12);
+    font-size: var(--typography-size-caption-l);
+    line-height: var(--typography-line-height-caption-l);
+    letter-spacing: var(--typography-letter-spacing-caption-l);
+
+    .lead-icon {
+      width: var(--numbers-20);
+      height: var(--numbers-20);
+    }
+
+    .text {
+      padding: 0 var(--numbers-4);
+    }
+
+    .badge {
+      padding: var(--numbers-2) var(--numbers-3);
+      border-radius: var(--measurements-radius-sm);
+
+      .label {
+        font-size: var(--typography-size-caption-m);
+        line-height: var(--typography-line-height-caption-m);
+        letter-spacing: var(--typography-letter-spacing-caption-m);
+        padding: 0 var(--numbers-3);
+      }
+    }
+
+    .tail-icon {
+      width: var(--numbers-20);
+      height: var(--numbers-20);
+    }
+  }
+
+  &--small {
+    height: var(--numbers-32);
+    padding: var(--numbers-6) var(--numbers-10);
+    font-size: var(--typography-size-caption-l);
+    line-height: var(--typography-line-height-caption-l);
+    letter-spacing: var(--typography-letter-spacing-caption-l);
+
+    .lead-icon {
+      width: var(--numbers-16);
+      height: var(--numbers-16);
+    }
+
+    .text {
+      padding: 0 var(--numbers-4);
+    }
+
+    .badge {
+      padding: var(--numbers-2) var(--numbers-3);
+      border-radius: var(--measurements-radius-sm);
+
+      .label {
+        font-size: var(--typography-size-caption-m);
+        line-height: var(--typography-line-height-caption-m);
+        letter-spacing: var(--typography-letter-spacing-caption-m);
+        padding: 0 var(--numbers-3);
+      }
+    }
+
+    .tail-icon {
+      width: var(--numbers-16);
+      height: var(--numbers-16);
+    }
+  }
+}
+
+.shape {
+  &--rounded {
+    &.size {
+      &--large {
+        &:first-child {
+          border-radius: var(--measurements-radius-xl) 0 0 var(--measurements-radius-xl);
+        }
+
+        &:last-child {
+          border-radius: 0 var(--measurements-radius-xl) var(--measurements-radius-xl) 0;
+        }
+      }
+
+      &--medium {
+        &:first-child {
+          border-radius: var(--measurements-radius-xl) 0 0 var(--measurements-radius-xl);
+        }
+
+        &:last-child {
+          border-radius: 0 var(--measurements-radius-xl) var(--measurements-radius-xl) 0;
+        }
+      }
+
+      &--small {
+        &:first-child {
+          border-radius: var(--measurements-radius-lg) 0 0 var(--measurements-radius-lg);
+        }
+
+        &:last-child {
+          border-radius: 0 var(--measurements-radius-lg) var(--measurements-radius-lg) 0;
+        }
+      }
+    }
+  }
+
+  &--pill {
+    &:first-child {
+      border-radius: var(--measurements-radius-full) 0 0 var(--measurements-radius-full);
+    }
+
+    &:last-child {
+      border-radius: 0 var(--measurements-radius-full) var(--measurements-radius-full) 0;
+    }
+  }
+}

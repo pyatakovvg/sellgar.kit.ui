@@ -1,0 +1,45 @@
+:root {
+  /******** LIGHT ********************************************* DARK *************/
+
+  --colors-gray-1: #f7f7f8; /* --colors-gray-13 */
+  --colors-gray-2: #e9eaec; /* --colors-gray-12 */
+  --colors-gray-3: #dee0e3; /* --colors-gray-11 */
+  --colors-gray-4: #c8cad0; /* --colors-gray-10 */
+  --colors-gray-5: #babdc5; /* --colors-gray-9 */
+  --colors-gray-6: #9ea2ad; /* --colors-gray-8 */
+  --colors-gray-7: #7e869a; /* --colors-gray-7 */
+  --colors-gray-8: #717684; /* --colors-gray-6 */
+  --colors-gray-9: #5e636e; /* --colors-gray-5 */
+  --colors-gray-10: #464a53; /* --colors-gray-4 */
+  --colors-gray-11: #333333; /* --colors-gray-3 */
+  --colors-gray-12: #1f2228; /* --colors-gray-2 */
+  --colors-gray-13: #14151a; /* --colors-gray-1 */
+
+  --colors-gray-1a: rgba(10, 15, 41, 4%); /* --colors-white-1 */
+  --colors-gray-2a: rgba(10, 15, 41, 8%); /* --colors-white-2 */
+  --colors-gray-3a: rgba(10, 15, 41, 14%); /* --colors-white-3 */
+  --colors-gray-4a: rgba(10, 15, 41, 20%); /* --colors-white-4 */
+  --colors-gray-5a: rgba(10, 15, 41, 25%); /* --colors-white-5 */
+  --colors-gray-6a: rgba(13, 17, 38, 30%); /* --colors-white-6 */
+  --colors-gray-7a: rgba(13, 17, 38, 40%); /* --colors-white-7 */
+  --colors-gray-8a: rgba(13, 17, 38, 50%); /* --colors-white-8 */
+  --colors-gray-9a: rgba(13, 17, 38, 60%); /* --colors-white-9 */
+  --colors-gray-10a: rgba(13, 17, 38, 70%); /* --colors-white-10 */
+  --colors-gray-11a: rgba(13, 17, 38, 80%); /* --colors-white-11 */
+  --colors-gray-12a: rgba(13, 17, 38, 90%); /* --colors-white-12 */
+  --colors-gray-13a: rgba(13, 17, 38, 95%); /* --colors-white-13 */
+
+  --colors-white-1: rgba(255, 255, 255, 8%);
+  --colors-white-2: rgba(255, 255, 255, 14%);
+  --colors-white-3: rgba(255, 255, 255, 18%);
+  --colors-white-4: rgba(255, 255, 255, 24%);
+  --colors-white-5: rgba(255, 255, 255, 32%);
+  --colors-white-6: rgba(255, 255, 255, 40%);
+  --colors-white-7: rgba(255, 255, 255, 46%);
+  --colors-white-8: rgba(255, 255, 255, 50%);
+  --colors-white-9: rgba(255, 255, 255, 60%);
+  --colors-white-10: rgba(255, 255, 255, 70%);
+  --colors-white-11: rgba(255, 255, 255, 80%);
+  --colors-white-12: rgba(255, 255, 255, 90%);
+  --colors-white-13: rgba(255, 255, 255, 95%);
+}

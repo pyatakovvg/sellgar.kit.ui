@@ -1,0 +1,124 @@
+.wrapper {
+  display: flex;
+  flex-direction: row;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--numbers-8);
+}
+
+.variant--default,
+.variant--more {
+  flex: 0 0 auto;
+}
+
+.content {
+  display: flex;
+  flex-direction: row;
+  flex: 0 0 auto;
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+
+  &.size {
+    &--sm {
+      gap: var(--numbers-4);
+    }
+
+    &--md {
+      gap: var(--numbers-6);
+    }
+  }
+}
+
+.link {
+  cursor: pointer;
+}
+
+.icon {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--icon-base-secondary);
+  transition: color var(--measurements-transition);
+
+  &.size {
+    &--sm {
+      width: var(--numbers-14);
+      height: var(--numbers-14);
+      font-size: var(--numbers-14);
+    }
+
+    &--md {
+      width: var(--numbers-16);
+      height: var(--numbers-16);
+      font-size: var(--numbers-16);
+    }
+  }
+}
+
+.label {
+  display: block;
+  flex: 0 0 auto;
+  color: var(--text-base-secondary);
+  text-align: center;
+  white-space: nowrap;
+  transition: color var(--measurements-transition);
+}
+
+.divider {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--icon-base-secondary);
+  transition: color var(--measurements-transition);
+
+  &.size {
+    &--sm {
+      width: var(--numbers-14);
+      height: var(--numbers-14);
+      font-size: var(--numbers-14);
+    }
+
+    &--md {
+      width: var(--numbers-16);
+      height: var(--numbers-16);
+      font-size: var(--numbers-16);
+    }
+  }
+
+  &--slash {
+    color: var(--text-base-secondary);
+
+    &.size {
+      &--sm {
+        font-size: var(--typography-size-caption-s);
+        line-height: var(--typography-line-height-caption-s);
+        letter-spacing: var(--typography-letter-spacing-caption-s);
+      }
+
+      &--md {
+        font-size: var(--typography-size-caption-m);
+        line-height: var(--typography-line-height-caption-m);
+        letter-spacing: var(--typography-letter-spacing-caption-m);
+      }
+    }
+  }
+}
+
+.link:hover {
+  .icon,
+  .label {
+    color: var(--text-base-primary);
+  }
+}
+
+.current {
+  &.icon,
+  &.label {
+    color: var(--text-base-primary);
+  }
+}

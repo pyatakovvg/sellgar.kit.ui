@@ -1,0 +1,21 @@
+.wrapper {
+}
+
+.wrapperStandalone {
+  border: var(--numbers-1) solid var(--border-base-divider);
+  border-radius: var(--measurements-radius-lg);
+}
+
+.wrapperEmbedded {
+  border: 0;
+  border-radius: 0;
+}
+
+.content {
+  position: relative;
+  display: grid;
+}
+
+.headerLine {
+  display: contents;
+}

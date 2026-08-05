@@ -1,0 +1,7 @@
+import React from 'react';
+
+export const Medal2LineIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg {...props} viewBox="0 0 32 32" width="1em" height="1em" fill="currentColor" aria-hidden="true">
+    <path d="M16 11.333l2.821 6.784 7.323 0.587-5.579 4.779 1.704 7.147-6.269-3.829-6.269 3.829 1.704-7.147-5.579-4.779 7.323-0.587 2.821-6.784zM16 18.276l-0.985 2.369-2.555 0.204 1.947 1.668-0.596 2.495 2.189-1.337 2.188 1.337-0.595-2.493 1.945-1.669-2.553-0.204-0.985-2.369zM10.667 2.667v12h-2.667v-12h2.667zM24 2.667v12h-2.667v-12h2.667zM17.333 2.667v6.667h-2.667v-6.667h2.667z" />
+  </svg>
+);

@@ -1,0 +1,9 @@
+:root {
+  --typography-weight-light: 200;
+  --typography-weight-regular: 300;
+  --typography-weight-medium: 400;
+  --typography-weight-semi-bold: 500;
+  --typography-weight-bold: 600;
+  --typography-weight-extra-bold: 700;
+  --typography-weight-black: 900;
+}

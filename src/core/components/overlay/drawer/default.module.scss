@@ -1,0 +1,36 @@
+.wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  min-height: 0;
+  width: var(--numbers-500);
+  border-left: var(--numbers-1) solid var(--border-action-normal);
+  background: var(--background-surface-default);
+  box-shadow: calc(var(--numbers-6) * -1) 0 var(--numbers-10) 0 rgba(20, 21, 26, 0.08);
+  overflow: auto;
+}
+
+.overlay {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  min-height: 0;
+  align-items: flex-end;
+  backdrop-filter: blur(var(--numbers-1));
+  background: var(--colors-gray-6a);
+  overflow: hidden;
+}
+
+@media (max-width: 767px) {
+  .overlay {
+    flex-direction: row;
+    padding: var(--numbers-32) 0 0;
+  }
+
+  .wrapper {
+    max-height: 100%;
+    width: auto;
+    border-radius: var(--measurements-radius-lg) var(--measurements-radius-lg) 0 0;
+  }
+}

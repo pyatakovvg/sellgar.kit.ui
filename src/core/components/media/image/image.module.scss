@@ -1,0 +1,28 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+}
+
+.process {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+}
+
+.exception {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+}
+
+.image {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  object-fit: contain;
+}
+
+.hide {
+  display: none;
+}

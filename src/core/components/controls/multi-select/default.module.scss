@@ -1,0 +1,13 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  overflow: auto;
+}
+
+.reference {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--numbers-4);
+  align-items: center;
+}

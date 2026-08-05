@@ -1,0 +1,28 @@
+.close {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  width: var(--numbers-24);
+  height: var(--numbers-24);
+  padding: 0;
+  font-size: var(--numbers-24);
+  font-family: inherit;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--measurements-radius-full);
+  background: var(--background-button-tetriary);
+  color: var(--icon-base-secondary);
+  cursor: pointer;
+  transition: var(--measurements-transition);
+
+  &:hover {
+    color: var(--icon-base-primary);
+    background: var(--background-button-tetriary-hover);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.64;
+  }
+}

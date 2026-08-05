@@ -1,0 +1,117 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--numbers-16);
+  width: var(--numbers-64);
+  height: 100%;
+}
+
+.container {
+  width: var(--numbers-64);
+  border-right: var(--numbers-1) solid var(--border-action-normal);
+  background: var(--background-surface-default);
+  transition: width 0.2s;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: var(--numbers-8) 0;
+
+  &.open {
+    width: var(--numbers-280);
+  }
+}
+
+.top {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+}
+
+.middle {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  gap: var(--numbers-2);
+}
+
+.bottom {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  margin: var(--numbers-16) 0 0;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+
+  & + & {
+    margin: var(--numbers-16) 0 0;
+  }
+}
+
+.divider {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  padding: var(--numbers-4) 0;
+}
+
+.additional {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  padding: var(--numbers-6) var(--numbers-16);
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  padding: var(--numbers-2) var(--numbers-8);
+}
+
+.sub-cells {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  padding: 0 0 0 var(--numbers-32);
+}
+
+.state {
+  position: relative;
+}
+
+.collapsed,
+.expanded {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.collapsed {
+  opacity: 1;
+  position: absolute;
+  inset: 0;
+  width: var(--numbers-44);
+}
+
+.expanded {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.open {
+  .collapsed {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .expanded {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}

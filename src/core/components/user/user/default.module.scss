@@ -1,0 +1,41 @@
+.wrapper {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: var(--numbers-10) var(--numbers-16);
+
+  &.clickable:hover {
+    cursor: pointer;
+  }
+}
+
+.avatar {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  padding: var(--numbers-2) 0;
+}
+
+.avatarText {
+  margin: 0;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  padding: 0 var(--numbers-4);
+  margin: 0 0 0 var(--numbers-4);
+  overflow: auto;
+}
+
+.name {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+}
+
+.caption {
+  display: block;
+  color: var(--text-base-secondary);
+}

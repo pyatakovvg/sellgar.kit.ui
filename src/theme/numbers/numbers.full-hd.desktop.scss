@@ -1,0 +1,21 @@
+@use './utils/view-port.utils.scss' as utils;
+
+$viewport-desktop-width: 1440px;
+
+:root {
+  @media screen and (min-width: 768px) and (max-width: 1440px) {
+    --numbers-0_1: #{utils.pxToVW(0.1px, $viewport-desktop-width)};
+    --numbers-0_2: #{utils.pxToVW(0.2px, $viewport-desktop-width)};
+    --numbers-0_3: #{utils.pxToVW(0.3px, $viewport-desktop-width)};
+    --numbers-0_5: #{utils.pxToVW(0.5px, $viewport-desktop-width)};
+    --numbers-0_6: #{utils.pxToVW(0.6px, $viewport-desktop-width)};
+    --numbers-1_5: #{utils.pxToVW(1.5px, $viewport-desktop-width)};
+    --numbers-1_6: #{utils.pxToVW(1.6px, $viewport-desktop-width)};
+    --numbers-1_7: #{utils.pxToVW(1.7px, $viewport-desktop-width)};
+    --numbers-2_2: #{utils.pxToVW(2.2px, $viewport-desktop-width)};
+
+    @for $i from 0 through 3000 {
+      --numbers-#{$i}: #{utils.pxToVW($i * 1px, $viewport-desktop-width)};
+    }
+  }
+}

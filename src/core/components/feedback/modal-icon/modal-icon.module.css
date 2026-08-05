@@ -1,0 +1,51 @@
+.wrapper {
+  background-color: var(--background-button-primary);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  &.success {
+    background: linear-gradient(180deg, #48ffcb 0%, #4778f5 100%);
+  }
+
+  &.warning {
+    background: linear-gradient(180deg, #ffba6c 0%, #fe6a35 100%);
+  }
+
+  &.error {
+    background: linear-gradient(180deg, #ffba6c 0%, #ff0404 100%);
+  }
+}
+
+.icon {
+  color: transparent;
+  background: linear-gradient(180deg, #fff 0%, rgba(255, 255, 255, 0.7) 100%);
+  background-clip: text;
+  display: flex;
+}
+
+.small {
+  width: var(--numbers-32);
+  height: var(--numbers-32);
+
+  .icon {
+    font-size: var(--numbers-16);
+  }
+}
+.xlarge {
+  width: var(--numbers-48);
+  height: var(--numbers-48);
+
+  .icon {
+    font-size: var(--numbers-36);
+  }
+}
+
+.pill {
+  border-radius: 100%;
+}
+
+.rounded {
+  border-radius: var(--numbers-12);
+}

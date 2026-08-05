@@ -1,0 +1,112 @@
+@use '../../../../../shared/styles/shadow/shadow-size.scss' as utils;
+
+.container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+}
+
+.wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  border: var(--numbers-1) solid var(--border-action-normal);
+  background: var(--background-checkbox-default);
+  border-radius: var(--measurements-radius-xs);
+  box-sizing: border-box;
+  @include utils.shadow-xs(rgba(20, 21, 26, 0.05));
+}
+
+.input {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.indeterminate {
+  border-color: var(--border-base-surface);
+  background: var(--background-checkbox-checked);
+}
+
+.disabled {
+  border-color: var(--background-checkbox-disabled);
+  background: var(--background-checkbox-disabled);
+  box-shadow: none;
+}
+
+.icon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  align-items: center;
+  justify-content: center;
+  color: var(--border-base-surface);
+}
+
+.size {
+  &--medium {
+    width: var(--numbers-20);
+    height: var(--numbers-20);
+    font-size: var(--typography-size-caption-l);
+  }
+
+  &--small {
+    width: var(--numbers-16);
+    height: var(--numbers-16);
+    font-size: var(--typography-size-caption-m);
+  }
+}
+
+.input + .wrapper .icon {
+  display: none;
+}
+
+.input:not(:disabled):hover + .wrapper {
+  border-color: var(--border-action-hover);
+}
+
+.input:not(:disabled):hover + .indeterminate {
+  border-color: var(--border-action-hover);
+}
+
+.input:focus-visible + .wrapper {
+  box-shadow:
+    0 0 0 var(--numbers-1) var(--colors-base-white),
+    0 0 0 var(--numbers-3) rgba(73, 133, 253, 0.25);
+}
+
+.input:disabled {
+  cursor: not-allowed;
+}
+
+.input:checked + .wrapper {
+  border-color: var(--border-base-surface);
+  background: var(--background-checkbox-checked);
+}
+
+.input:checked + .wrapper .icon {
+  display: flex;
+}
+
+.input + .indeterminate .icon {
+  display: flex;
+}
+
+.input:disabled + .wrapper {
+  border-color: var(--background-checkbox-disabled);
+  background: var(--background-checkbox-disabled);
+  box-shadow: none;
+}
