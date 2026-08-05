@@ -4,7 +4,8 @@ import cn from 'classnames';
 import { User3LineIcon } from '../../../../icons';
 
 import { Name } from './name';
-import { Avatar, Typography } from '../../..';
+import { Typography } from '../../content';
+import { Avatar } from '../../media';
 
 import s from './default.module.scss';
 

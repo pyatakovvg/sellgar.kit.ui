@@ -18,7 +18,7 @@ import {
 import React from 'react';
 
 import { More2FillIcon } from '../../../../icons';
-import { DropDownWrapper } from '../../..';
+import { DropDownWrapper } from '../../../systems';
 
 import cn from 'classnames';
 import s from './default.module.scss';

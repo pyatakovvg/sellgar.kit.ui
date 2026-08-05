@@ -1,7 +1,7 @@
 import React from 'react';
 import cn from 'classnames';
 
-import { Divider as DividerComponent } from '../../../components';
+import { Divider as DividerComponent } from '../../layout/divider';
 
 import s from './default.module.css';
 

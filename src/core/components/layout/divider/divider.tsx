@@ -1,6 +1,7 @@
 import React from 'react';
 
-import { Button, Typography } from '../../..';
+import { Button } from '../../action';
+import { Typography } from '../../content';
 
 import s from './default.module.scss';
 

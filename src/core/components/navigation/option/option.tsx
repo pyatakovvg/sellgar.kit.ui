@@ -1,6 +1,8 @@
 import React from 'react';
 
-import { Typography, Badge, Toggle } from '../../..';
+import { Typography } from '../../content';
+import { Toggle } from '../../controls';
+import { Badge } from '../../status';
 
 import cn from 'classnames';
 import s from './default.module.scss';

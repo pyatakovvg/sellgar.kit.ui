@@ -1,8 +1,8 @@
 import React from 'react';
 
-import { Scrollbar } from '../../../..';
+import { Scrollbar } from '../../../layout';
 
-import { useTableLastRowTrigger } from '../adapter/last-row-trigger.ts';
+import { useTableLastRowTrigger } from '../adapter';
 import { TableHeaderCellView } from './header-cell-view.tsx';
 import { TableLineView } from './line-view.tsx';
 
@@ -12,15 +12,13 @@ import s from './table-view.module.scss';
 import type {
   TableCellSnapshot,
   TableColumnId,
-  TableColumnLayoutSnapshot,
   TableColumnModel,
   TableDataLineSnapshot,
   TableExpandedLineSnapshot,
-  TableLineSnapshot,
   TableNodeId,
   TableSnapshot,
-} from '../runtime/types.ts';
-import type { TableLastRowTriggerConfig } from '../adapter/last-row-trigger.ts';
+} from '../runtime';
+import type { TableLastRowTriggerConfig } from '../adapter';
 
 type TableViewSurface = 'standalone' | 'embedded';
 type TableViewStyle = 'primary' | 'secondary';

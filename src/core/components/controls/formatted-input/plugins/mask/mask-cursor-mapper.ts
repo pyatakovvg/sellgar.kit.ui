@@ -93,7 +93,7 @@ export class FormattedInputMaskCursorMapper {
 
   getCaretVisualPosition(
     rawOffset: number,
-    rawValue: string,
+    _rawValue: string,
   ): { affinity: TFormattedInputCaretAffinity; visualOffset: number } {
     let currentRawOffset = 0;
     let visualOffset = 0;
@@ -123,7 +123,7 @@ export class FormattedInputMaskCursorMapper {
     };
   }
 
-  getFirstEditableRawOffset(rawValue: string): number {
+  getFirstEditableRawOffset(_rawValue: string): number {
     for (const rawToken of this._rawTokens) {
       if (rawToken.token.type === 'slot') {
         return rawToken.rawIndex;

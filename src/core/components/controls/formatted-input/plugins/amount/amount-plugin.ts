@@ -99,10 +99,7 @@ export class FormattedInputAmountPlugin implements IFormattedInputPlugin {
   execute(context: FormattedInputPluginContext): FormattedInputPluginContext {
     if (context.phase === 'createState') {
       return context.setState(
-        this._createState(
-          context.rawValue,
-          context.selection ?? FormattedInputSelection.collapsed(context.rawOffset),
-        ),
+        this._createState(context.rawValue, context.selection ?? FormattedInputSelection.collapsed(context.rawOffset)),
       );
     }
 
@@ -245,7 +242,7 @@ export class FormattedInputAmountPlugin implements IFormattedInputPlugin {
   ): IFormattedInputEditorTransactionResult {
     const rawValue = state.getRawValue();
     const currentRawOffset = state.selection.focus.position.rawOffset;
-    let nextRawOffset = currentRawOffset;
+    let nextRawOffset: number;
 
     if (command.direction === 'start') {
       nextRawOffset = 0;
@@ -257,13 +254,10 @@ export class FormattedInputAmountPlugin implements IFormattedInputPlugin {
       nextRawOffset = currentRawOffset + 1;
     }
 
-    return this._createSelectionTransaction(
-      state,
-      {
-        type: 'setSelection',
-        selection: this._createCollapsedSelection(rawValue, nextRawOffset),
-      },
-    );
+    return this._createSelectionTransaction(state, {
+      type: 'setSelection',
+      selection: this._createCollapsedSelection(rawValue, nextRawOffset),
+    });
   }
 
   private _setSelection(
@@ -585,7 +579,7 @@ export class FormattedInputAmountPlugin implements IFormattedInputPlugin {
 
   private _shouldInsertGroupSeparator(
     rawValue: string,
-    rawOffset: number,
+    _rawOffset: number,
     integerEndIndex: number,
     integerDigitIndex: number,
   ): boolean {
@@ -612,11 +606,6 @@ export class FormattedInputAmountPlugin implements IFormattedInputPlugin {
 
     return count;
   }
-
-  private _getVisualOffsetForRawOffset(rawValue: string, rawOffset: number): number {
-    return this._getCaretPositionForRawOffset(rawValue, rawOffset).visualOffset;
-  }
-
   private _getCaretPositionForRawOffset(
     rawValue: string,
     rawOffset: number,

@@ -1,4 +1,4 @@
-import { Typography } from '../../../components';
+import { Typography } from '../../content';
 
 import React from 'react';
 import cn from 'classnames';

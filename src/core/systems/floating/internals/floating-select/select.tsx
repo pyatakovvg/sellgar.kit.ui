@@ -22,12 +22,14 @@ import React from 'react';
 
 import { CloseFillIcon } from '../../../../../icons';
 
-import { DropDownWrapper, Scrollbar } from '../../../..';
+import { Scrollbar } from '../../../../components';
+import { DropDownWrapper } from '../../drop-down-wrapper';
 
 import cn from 'classnames';
 import s from './default.module.scss';
 import { useIsMobile } from './use-is-mobile-hook.ts';
-import { Button, Typography } from '../../../../components';
+import { Button } from '../../../../components';
+import { Typography } from '../../../../components';
 
 interface IOptions {
   tabIndex?: number;

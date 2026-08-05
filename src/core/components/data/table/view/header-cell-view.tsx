@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { Typography } from '../../../..';
+import { Typography } from '../../../content';
 
 import { TableHeaderActionsView } from './header-actions-view.tsx';
 import { TableSelectionCheckboxView } from './selection-checkbox-view.tsx';
@@ -15,7 +15,7 @@ import type {
   TableColumnLayoutSnapshot,
   TableSelectionSnapshot,
   TableTextAlign,
-} from '../runtime/types.ts';
+} from '../runtime';
 
 type TableAriaSort = 'ascending' | 'descending' | 'none';
 type TableHeaderCellStyle = 'primary' | 'secondary';

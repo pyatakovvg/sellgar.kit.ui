@@ -1,11 +1,11 @@
 import React from 'react';
 
-import { Popover } from '../../../..';
+import { Popover } from '../../../overlay';
 import { More2FillIcon } from '../../../../../icons';
 
 import s from './header-cell-view.module.scss';
 
-import type { TableColumnActionModel } from '../runtime/types.ts';
+import type { TableColumnActionModel } from '../runtime';
 
 interface TableHeaderActionViewProps {
   action: TableColumnActionModel<unknown, React.ReactNode>;

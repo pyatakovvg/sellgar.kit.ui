@@ -1,9 +1,9 @@
 import React from 'react';
 import moment from 'moment';
 
-import { Field } from '../../../..';
+import { Field } from '../../field';
 import { InputMask } from '../../input-mask';
-import { Label } from '../../../status/label';
+import { Label } from '../../../status';
 import { Controls } from './controls';
 
 import s from './default.module.scss';

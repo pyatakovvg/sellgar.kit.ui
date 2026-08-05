@@ -1,6 +1,7 @@
 import React from 'react';
 
-import { Badge, Typography } from '../../../..';
+import { Typography } from '../../../content';
+import { Badge } from '../../../status';
 
 import s from './default.module.scss';
 

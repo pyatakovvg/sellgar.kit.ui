@@ -2,8 +2,9 @@ import React from 'react';
 
 import { Loader4LineIcon } from '../../../../icons';
 
-import { Animate } from '../../feedback/animate';
-import { IBadgeProps, Typography } from '../../..';
+import { Animate } from '../../feedback';
+import { Typography } from '../../content';
+import type { IBadgeProps } from '../../status';
 
 import cn from 'classnames';
 import s from './default.module.scss';
