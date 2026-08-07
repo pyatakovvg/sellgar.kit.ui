@@ -26,14 +26,14 @@
     "./theme.full-hd.desktop.css": "./src/theme.full-hd.desktop.css"
   },
   "dependencies": {
-    "@floating-ui/dom": "1.7.6",
-    "@floating-ui/react": "0.27.19",
+    "@floating-ui/dom": "1.8.0",
+    "@floating-ui/react": "0.27.20",
     "@react-input/mask": "2.0.4",
     "@react-input/number-format": "2.0.3",
     "classnames": "2.5.1",
     "date-fns": "4.4.0",
     "moment": "2.30.1",
-    "moment-timezone": "0.6.2",
+    "moment-timezone": "0.6.3",
     "react-slider": "2.0.6"
   },
   "peerDependencies": {
@@ -49,11 +49,11 @@
     }
   },
   "devDependencies": {
-    "@storybook/react-vite": "10.4.6",
+    "@storybook/react-vite": "10.5.7",
     "@types/react-slider": "1.3.6",
-    "@vitejs/plugin-react": "6.0.3",
+    "@vitejs/plugin-react": "6.0.5",
     "typescript": "6.0.3",
-    "vite": "8.1.1",
+    "vite": "8.2.1",
     "vite-plugin-dts": "5.0.3",
     "vite-plugin-lib-inject-css": "2.2.2",
     "vite-plugin-webfont-dl": "3.12.0"
