@@ -32,8 +32,8 @@
     "@react-input/number-format": "2.0.3",
     "classnames": "2.5.1",
     "date-fns": "4.4.0",
-    "moment": "2.30.1",
-    "moment-timezone": "0.6.3",
+    "moment": "2.31.0",
+    "moment-timezone": "0.6.4",
     "react-slider": "2.0.6"
   },
   "peerDependencies": {
@@ -49,14 +49,14 @@
     }
   },
   "devDependencies": {
-    "@storybook/react-vite": "10.5.7",
+    "@storybook/react-vite": "10.6.0",
     "@types/react-slider": "1.3.6",
-    "@vitejs/plugin-react": "6.0.5",
+    "@vitejs/plugin-react": "6.1.1",
     "typescript": "6.0.3",
-    "vite": "8.2.1",
-    "vite-plugin-dts": "5.0.3",
+    "vite": "8.3.0",
+    "vite-plugin-dts": "5.1.0",
     "vite-plugin-lib-inject-css": "2.2.2",
-    "vite-plugin-webfont-dl": "3.12.0"
+    "vite-plugin-webfont-dl": "3.13.1"
   },
   "author": "",
   "license": "ISC"
