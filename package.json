@@ -33,7 +33,7 @@
     "classnames": "2.5.1",
     "date-fns": "4.4.0",
     "moment": "2.31.0",
-    "moment-timezone": "0.6.4",
+    "moment-timezone": "0.6.5",
     "react-slider": "2.0.6"
   },
   "peerDependencies": {
@@ -49,12 +49,12 @@
     }
   },
   "devDependencies": {
-    "@storybook/react-vite": "10.6.0",
+    "@storybook/react-vite": "10.6.1",
     "@types/react-slider": "1.3.6",
-    "@vitejs/plugin-react": "6.1.1",
+    "@vitejs/plugin-react": "6.1.2",
     "typescript": "6.0.3",
-    "vite": "8.3.1",
-    "vite-plugin-dts": "5.1.1",
+    "vite": "8.3.4",
+    "vite-plugin-dts": "5.1.2",
     "vite-plugin-lib-inject-css": "2.2.2",
     "vite-plugin-webfont-dl": "3.13.1"
   },

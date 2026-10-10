@@ -1,0 +1,33 @@
+.wrapper {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: var(--numbers-8);
+  color: var(--text-base-primary);
+}
+
+.dots {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--numbers-8);
+  margin-left: var(--numbers-8);
+}
+
+.dot {
+  width: var(--numbers-2);
+  height: var(--numbers-2);
+  border-radius: var(--measurements-radius-full);
+  background: var(--text-base-tertiary);
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+}
+
+.text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
