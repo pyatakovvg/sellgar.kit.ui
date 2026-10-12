@@ -1,7 +1,7 @@
 {
   "name": "@sellgar/kit",
   "type": "module",
-  "version": "0.0.190",
+  "version": "0.0.1",
   "description": "Sellgar kit",
   "main": "./src/index.ts",
   "module": "./src/index.ts",
@@ -10,20 +10,20 @@
     "**/*.scss"
   ],
   "exports": {
-    "./package.tson": "./package.tson",
+    "./package.json": "./package.json",
     ".": {
       "import": "./src/index.ts"
     },
     "./icons": {
-      "import": "./src/icons.ts"
+      "import": "./src/icons/index.ts"
     },
-    "./icons.css": "./src/icons.css",
-    "./inter.css": "./src/inter.css",
-    "./geologica.css": "./src/geologica.css",
-    "./theme.css": "./src/theme.css",
-    "./theme.mobile.css": "./src/theme.mobile.css",
-    "./theme.4k.desktop.css": "./src/theme.4k.desktop.css",
-    "./theme.full-hd.desktop.css": "./src/theme.full-hd.desktop.css"
+    "./icons.css": "./src/theme/fonts/icons/style.css",
+    "./inter.css": "./src/theme/fonts/inter/style.css",
+    "./geologica.css": "./src/theme/fonts/geologica/style.css",
+    "./theme.css": "./src/theme/theme.css",
+    "./theme.mobile.css": "./src/theme/theme.mobile.css",
+    "./theme.4k.desktop.css": "./src/theme/theme.4k.desktop.css",
+    "./theme.full-hd.desktop.css": "./src/theme/theme.full-hd.desktop.css"
   },
   "dependencies": {
     "@floating-ui/dom": "1.8.0",
