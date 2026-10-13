@@ -1,4 +1,14 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
+
+import {
+  getElementScale,
+  getHorizontalScrollPosition,
+  INITIAL_SCROLLBAR_GEOMETRY,
+  setHorizontalScrollPosition,
+} from './geometry';
+import type { ScrollbarGeometry } from './geometry';
+import { useScrollbarGeometry } from './hooks';
 
 import cn from 'classnames';
 import s from './default.module.scss';
@@ -15,6 +25,7 @@ interface IThumbState {
 
 interface IScrollbarState {
   readonly horizontal: IThumbState;
+  readonly isHorizontalFloating: boolean;
   readonly isAwake: boolean;
   readonly vertical: IThumbState;
 }
@@ -27,9 +38,14 @@ interface IDragState {
   readonly thumbSize: number;
   readonly trackSize: number;
   readonly viewportSize: number;
+  readonly captureElement: HTMLDivElement;
+  readonly pointerId: number;
+  readonly pointerScale: number;
 }
 
-type TScrollbarProps = React.HTMLAttributes<HTMLDivElement>;
+interface IProps extends React.HTMLAttributes<HTMLDivElement> {
+  floatingHorizontalScrollbar?: boolean;
+}
 
 const initialThumbState: IThumbState = {
   isVisible: false,
@@ -39,6 +55,7 @@ const initialThumbState: IThumbState = {
 
 const initialState: IScrollbarState = {
   horizontal: initialThumbState,
+  isHorizontalFloating: false,
   isAwake: false,
   vertical: initialThumbState,
 };
@@ -66,12 +83,25 @@ const getThumbState = (
   };
 };
 
-const createState = (viewport: HTMLDivElement, isAwake: boolean): IScrollbarState => {
+const createState = (
+  viewport: HTMLDivElement,
+  horizontalTrack: HTMLDivElement,
+  geometry: ScrollbarGeometry,
+  isAwake: boolean,
+): IScrollbarState => {
   const verticalTrackSize = Math.max(0, viewport.clientHeight - TRACK_OFFSET * 2);
-  const horizontalTrackSize = Math.max(0, viewport.clientWidth - TRACK_OFFSET * 2);
+  const horizontalTrackSize = horizontalTrack.clientWidth;
 
   return {
-    horizontal: getThumbState(viewport.clientWidth, viewport.scrollWidth, viewport.scrollLeft, horizontalTrackSize),
+    horizontal: geometry.available
+      ? getThumbState(
+          viewport.clientWidth,
+          viewport.scrollWidth,
+          getHorizontalScrollPosition(viewport),
+          horizontalTrackSize,
+        )
+      : initialThumbState,
+    isHorizontalFloating: geometry.floating,
     isAwake,
     vertical: getThumbState(viewport.clientHeight, viewport.scrollHeight, viewport.scrollTop, verticalTrackSize),
   };
@@ -80,6 +110,7 @@ const createState = (viewport: HTMLDivElement, isAwake: boolean): IScrollbarStat
 const isStateEqual = (left: IScrollbarState, right: IScrollbarState) => {
   return (
     left.isAwake === right.isAwake &&
+    left.isHorizontalFloating === right.isHorizontalFloating &&
     left.vertical.isVisible === right.vertical.isVisible &&
     left.vertical.offset === right.vertical.offset &&
     left.vertical.size === right.vertical.size &&
@@ -111,7 +142,7 @@ const getPointerPosition = (event: PointerEvent | React.PointerEvent<HTMLElement
 };
 
 const getScrollPosition = (viewport: HTMLDivElement, axis: IDragState['axis']) => {
-  return axis === 'vertical' ? viewport.scrollTop : viewport.scrollLeft;
+  return axis === 'vertical' ? viewport.scrollTop : getHorizontalScrollPosition(viewport);
 };
 
 const getScrollSize = (viewport: HTMLDivElement, axis: IDragState['axis']) => {
@@ -126,13 +157,18 @@ const getTrackSize = (track: HTMLDivElement, axis: IDragState['axis']) => {
   return axis === 'vertical' ? track.clientHeight : track.clientWidth;
 };
 
+const getPointerScale = (track: HTMLDivElement, axis: IDragState['axis']) => {
+  const scale = getElementScale(track);
+  return axis === 'vertical' ? scale.y : scale.x;
+};
+
 const setScrollPosition = (viewport: HTMLDivElement, axis: IDragState['axis'], value: number) => {
   if (axis === 'vertical') {
     viewport.scrollTop = value;
     return;
   }
 
-  viewport.scrollLeft = value;
+  setHorizontalScrollPosition(viewport, value);
 };
 
 const scrollFocusedElementIntoViewport = (viewport: HTMLDivElement, element: HTMLElement): boolean => {
@@ -161,17 +197,32 @@ const scrollFocusedElementIntoViewport = (viewport: HTMLDivElement, element: HTM
   return viewport.scrollTop !== previousScrollTop || viewport.scrollLeft !== previousScrollLeft;
 };
 
-export const Scrollbar = React.forwardRef<HTMLDivElement, React.PropsWithChildren<TScrollbarProps>>(
-  ({ children, className, onFocusCapture, onMouseEnter, onMouseLeave, onPointerDown, onScroll, ...props }, ref) => {
+export const Scrollbar = React.forwardRef<HTMLDivElement, IProps>(
+  (
+    {
+      children,
+      className,
+      floatingHorizontalScrollbar = true,
+      onFocusCapture,
+      onMouseEnter,
+      onMouseLeave,
+      onPointerDown,
+      onScroll,
+      ...props
+    },
+    ref,
+  ) => {
+    const scrollbarId = React.useId();
     const rootRef = React.useRef<HTMLDivElement>(null);
     const viewportRef = React.useRef<HTMLDivElement>(null);
     const contentRef = React.useRef<HTMLDivElement>(null);
     const verticalTrackRef = React.useRef<HTMLDivElement>(null);
     const horizontalTrackRef = React.useRef<HTMLDivElement>(null);
     const hideTimerRef = React.useRef<number | null>(null);
-    const frameRef = React.useRef<number | null>(null);
     const focusFrameRef = React.useRef<number | null>(null);
     const dragStateRef = React.useRef<IDragState | null>(null);
+    const geometryRef = React.useRef<ScrollbarGeometry>(INITIAL_SCROLLBAR_GEOMETRY);
+    const awakeRef = React.useRef(false);
     const [state, setState] = React.useState<IScrollbarState>(initialState);
 
     const clearHideTimer = React.useCallback(() => {
@@ -185,35 +236,72 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, React.PropsWithChildre
 
     const updateState = React.useCallback((isAwake: boolean) => {
       const viewport = viewportRef.current;
+      const horizontalTrack = horizontalTrackRef.current;
 
-      if (!viewport) {
+      if (!viewport || !horizontalTrack) {
         return;
       }
 
-      const nextState = createState(viewport, isAwake);
+      awakeRef.current = isAwake;
+      const nextState = createState(viewport, horizontalTrack, geometryRef.current, isAwake);
 
       setState((previousState) => (isStateEqual(previousState, nextState) ? previousState : nextState));
     }, []);
 
-    const requestUpdate = React.useCallback(
-      (isAwake: boolean) => {
-        if (frameRef.current != null) {
-          window.cancelAnimationFrame(frameRef.current);
-        }
+    const cancelDrag = React.useCallback(() => {
+      const dragState = dragStateRef.current;
+      if (!dragState) return;
 
-        frameRef.current = window.requestAnimationFrame(() => {
-          frameRef.current = null;
-          updateState(isAwake);
-        });
+      dragStateRef.current = null;
+      if (dragState.captureElement.hasPointerCapture(dragState.pointerId)) {
+        dragState.captureElement.releasePointerCapture(dragState.pointerId);
+      }
+    }, []);
+
+    const handleGeometryMeasure = React.useCallback(
+      (geometry: ScrollbarGeometry) => {
+        geometryRef.current = geometry;
+        const viewport = viewportRef.current;
+        const dragState = dragStateRef.current;
+        const track = dragState?.axis === 'vertical' ? verticalTrackRef.current : horizontalTrackRef.current;
+
+        if (
+          dragState &&
+          viewport &&
+          track &&
+          (!viewport.isConnected ||
+            !geometry.available ||
+            dragState.scrollSize !== getScrollSize(viewport, dragState.axis) ||
+            dragState.viewportSize !== getViewportSize(viewport, dragState.axis) ||
+            dragState.trackSize !== getTrackSize(track, dragState.axis) ||
+            Math.abs(dragState.pointerScale - getPointerScale(track, dragState.axis)) > 0.001)
+        )
+          cancelDrag();
+
+        updateState(awakeRef.current);
       },
-      [updateState],
+      [cancelDrag, updateState],
+    );
+
+    const { requestGeometryUpdate, portalHost } = useScrollbarGeometry(
+      {
+        root: rootRef,
+        viewport: viewportRef,
+        content: contentRef,
+        horizontalTrack: horizontalTrackRef,
+      },
+      floatingHorizontalScrollbar,
+      handleGeometryMeasure,
+      cancelDrag,
     );
 
     const scheduleHide = React.useCallback(() => {
       clearHideTimer();
+      if (dragStateRef.current) return;
 
       hideTimerRef.current = window.setTimeout(() => {
         hideTimerRef.current = null;
+        if (dragStateRef.current) return;
         updateState(false);
       }, HIDE_DELAY_MS);
     }, [clearHideTimer, updateState]);
@@ -223,60 +311,36 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, React.PropsWithChildre
       updateState(true);
     }, [clearHideTimer, updateState]);
 
-    const handleWindowChange = React.useCallback(() => {
-      requestUpdate(state.isAwake);
-    }, [requestUpdate, state.isAwake]);
-
-    React.useEffect(() => {
-      const root = rootRef.current;
-      const viewport = viewportRef.current;
-      const content = contentRef.current;
-
-      if (!root || !viewport || !content) {
-        return void 0;
-      }
-
-      const resizeObserver = new ResizeObserver(() => requestUpdate(state.isAwake));
-      const mutationObserver = new MutationObserver(() => requestUpdate(state.isAwake));
-
-      resizeObserver.observe(root);
-      resizeObserver.observe(viewport);
-      resizeObserver.observe(content);
-      mutationObserver.observe(content, {
-        childList: true,
-        subtree: true,
-      });
-      window.addEventListener('resize', handleWindowChange);
-
-      requestUpdate(state.isAwake);
-
-      return () => {
-        resizeObserver.disconnect();
-        mutationObserver.disconnect();
-        window.removeEventListener('resize', handleWindowChange);
-      };
-    }, [handleWindowChange, requestUpdate, state.isAwake]);
-
     React.useEffect(() => {
       return () => {
         clearHideTimer();
-
-        if (frameRef.current != null) {
-          window.cancelAnimationFrame(frameRef.current);
-        }
+        cancelDrag();
 
         if (focusFrameRef.current != null) {
           window.cancelAnimationFrame(focusFrameRef.current);
         }
       };
-    }, [clearHideTimer]);
+    }, [cancelDrag, clearHideTimer]);
 
     React.useEffect(() => {
       const handlePointerMove = (event: PointerEvent) => {
         const viewport = viewportRef.current;
         const dragState = dragStateRef.current;
 
-        if (!viewport || !dragState) {
+        if (!viewport || !dragState || event.pointerId !== dragState.pointerId) {
+          return;
+        }
+
+        const track = dragState.axis === 'vertical' ? verticalTrackRef.current : horizontalTrackRef.current;
+        if (
+          !viewport.isConnected ||
+          !track ||
+          dragState.scrollSize !== getScrollSize(viewport, dragState.axis) ||
+          dragState.viewportSize !== getViewportSize(viewport, dragState.axis) ||
+          dragState.trackSize !== getTrackSize(track, dragState.axis) ||
+          Math.abs(dragState.pointerScale - getPointerScale(track, dragState.axis)) > 0.001
+        ) {
+          cancelDrag();
           return;
         }
 
@@ -287,19 +351,20 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, React.PropsWithChildre
           return;
         }
 
-        const pointerDelta = getPointerPosition(event, dragState.axis) - dragState.pointerPosition;
+        const pointerDelta =
+          (getPointerPosition(event, dragState.axis) - dragState.pointerPosition) / dragState.pointerScale;
         const scrollDelta = (pointerDelta / maxThumbOffset) * maxScroll;
 
         setScrollPosition(viewport, dragState.axis, dragState.scrollPosition + scrollDelta);
         updateState(true);
       };
 
-      const handlePointerUp = () => {
-        if (!dragStateRef.current) {
+      const handlePointerUp = (event: PointerEvent) => {
+        if (!dragStateRef.current || event.pointerId !== dragStateRef.current.pointerId) {
           return;
         }
 
-        dragStateRef.current = null;
+        cancelDrag();
         scheduleHide();
       };
 
@@ -312,12 +377,13 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, React.PropsWithChildre
         window.removeEventListener('pointerup', handlePointerUp);
         window.removeEventListener('pointercancel', handlePointerUp);
       };
-    }, [scheduleHide, updateState]);
+    }, [cancelDrag, scheduleHide, updateState]);
 
     const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
       onScroll?.(event);
       wake();
       scheduleHide();
+      requestGeometryUpdate();
     };
 
     const handleMouseEnter = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -367,6 +433,7 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, React.PropsWithChildre
     };
 
     const handleThumbPointerDown = (event: React.PointerEvent<HTMLDivElement>, axis: IDragState['axis']) => {
+      if (event.button !== 0 || dragStateRef.current) return;
       const viewport = viewportRef.current;
       const track = axis === 'vertical' ? verticalTrackRef.current : horizontalTrackRef.current;
       const thumb = axis === 'vertical' ? state.vertical : state.horizontal;
@@ -388,10 +455,14 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, React.PropsWithChildre
         thumbSize: thumb.size,
         trackSize: getTrackSize(track, axis),
         viewportSize: getViewportSize(viewport, axis),
+        captureElement: event.currentTarget,
+        pointerId: event.pointerId,
+        pointerScale: getPointerScale(track, axis),
       };
     };
 
     const handleTrackPointerDown = (event: React.PointerEvent<HTMLDivElement>, axis: IDragState['axis']) => {
+      if (event.button !== 0 || dragStateRef.current) return;
       const viewport = viewportRef.current;
       const track = axis === 'vertical' ? verticalTrackRef.current : horizontalTrackRef.current;
       const thumb = axis === 'vertical' ? state.vertical : state.horizontal;
@@ -407,6 +478,7 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, React.PropsWithChildre
       const trackRect = track.getBoundingClientRect();
       const pointerPosition = getPointerPosition(event, axis);
       const trackStart = axis === 'vertical' ? trackRect.top : trackRect.left;
+      const pointerScale = getPointerScale(track, axis);
       const maxScroll = getScrollSize(viewport, axis) - getViewportSize(viewport, axis);
       const maxThumbOffset = getTrackSize(track, axis) - thumb.size;
 
@@ -414,39 +486,83 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, React.PropsWithChildre
         return;
       }
 
-      const nextThumbOffset = Math.min(Math.max(pointerPosition - trackStart - thumb.size / 2, 0), maxThumbOffset);
+      const nextThumbOffset = Math.min(
+        Math.max((pointerPosition - trackStart) / pointerScale - thumb.size / 2, 0),
+        maxThumbOffset,
+      );
 
       setScrollPosition(viewport, axis, (nextThumbOffset / maxThumbOffset) * maxScroll);
       scheduleHide();
     };
 
     const rootClassName = cn(s.root, className);
+    const verticalTrackClassName = cn(s.track, s.trackVertical, {
+      [s.trackAvailable]: state.vertical.isVisible,
+      [s.trackAwake]: state.isAwake,
+    });
+    const horizontalTrackClassName = cn(s.track, s.trackHorizontal, {
+      [s.trackAvailable]: state.horizontal.isVisible,
+      [s.trackAwake]: state.isAwake || state.isHorizontalFloating,
+    });
+
+    const horizontalTrack = (
+      <div
+        ref={horizontalTrackRef}
+        className={horizontalTrackClassName}
+        data-scrollbar-track={'horizontal'}
+        data-scrollbar-owner={scrollbarId}
+        aria-hidden={true}
+        onPointerDown={(event) => handleTrackPointerDown(event, 'horizontal')}
+        onMouseEnter={wake}
+        onMouseLeave={scheduleHide}
+        onLostPointerCapture={(event) => {
+          if (event.pointerId === dragStateRef.current?.pointerId) {
+            cancelDrag();
+            scheduleHide();
+          }
+        }}
+      >
+        <div
+          className={cn(s.thumb, s.thumbHorizontal)}
+          style={{
+            transform: `translate3d(${state.horizontal.offset}px, 0, 0)`,
+            width: state.horizontal.size,
+          }}
+          onPointerDown={(event) => handleThumbPointerDown(event, 'horizontal')}
+        />
+      </div>
+    );
 
     return (
       <div
         {...props}
         ref={mergeRefs(rootRef, ref)}
+        data-scrollbar-id={scrollbarId}
         className={rootClassName}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onFocusCapture={handleFocusCapture}
         onPointerDown={handlePointerDown}
       >
-        <div ref={viewportRef} className={s.viewport} onScroll={handleScroll}>
+        <div ref={viewportRef} data-scrollbar-viewport={scrollbarId} className={s.viewport} onScroll={handleScroll}>
           <div ref={contentRef} className={s.content}>
             {children}
           </div>
         </div>
         <div
           ref={verticalTrackRef}
-          className={cn(s.track, s.trackVertical, {
-            [s.trackAvailable]: state.vertical.isVisible,
-            [s.trackAwake]: state.isAwake,
-          })}
-          aria-hidden
+          className={verticalTrackClassName}
+          data-scrollbar-track={'vertical'}
+          aria-hidden={true}
           onPointerDown={(event) => handleTrackPointerDown(event, 'vertical')}
           onMouseEnter={wake}
           onMouseLeave={scheduleHide}
+          onLostPointerCapture={(event) => {
+            if (event.pointerId === dragStateRef.current?.pointerId) {
+              cancelDrag();
+              scheduleHide();
+            }
+          }}
         >
           <div
             className={cn(s.thumb, s.thumbVertical)}
@@ -457,26 +573,7 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, React.PropsWithChildre
             onPointerDown={(event) => handleThumbPointerDown(event, 'vertical')}
           />
         </div>
-        <div
-          ref={horizontalTrackRef}
-          className={cn(s.track, s.trackHorizontal, {
-            [s.trackAvailable]: state.horizontal.isVisible,
-            [s.trackAwake]: state.isAwake,
-          })}
-          aria-hidden
-          onPointerDown={(event) => handleTrackPointerDown(event, 'horizontal')}
-          onMouseEnter={wake}
-          onMouseLeave={scheduleHide}
-        >
-          <div
-            className={cn(s.thumb, s.thumbHorizontal)}
-            style={{
-              transform: `translate3d(${state.horizontal.offset}px, 0, 0)`,
-              width: state.horizontal.size,
-            }}
-            onPointerDown={(event) => handleThumbPointerDown(event, 'horizontal')}
-          />
-        </div>
+        {portalHost ? createPortal(horizontalTrack, portalHost) : horizontalTrack}
       </div>
     );
   },
