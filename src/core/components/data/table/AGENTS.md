@@ -25,11 +25,12 @@ cells являются доменными сущностями, а React выс�
 
 - Public/local entrypoint: `index.ts`.
 - React adapter: `table.tsx`.
-- Стили принадлежат view-компонентам в `view/*.module.scss`; общий
+- Стили принадлежат view-компонентам в `view/<component>/default.module.scss`; общий
   `default.module.scss` для Table не использовать.
 - JSX schema parts: `configuration`.
 - Platform-independent runtime: `runtime`.
 - React view components: `view`.
+- View entrypoint подключает `view/table`; ячейки и строки подключаются через фасады каталогов. `useCellData`, `useRowExpanded` и `ExpandTrigger` используют единые контексты из `view/context`.
 - Browser/React behavior adapters: `adapter`.
 - Доменная модель описана в `DOMAIN.md`.
 
@@ -45,7 +46,7 @@ cells являются доменными сущностями, а React выс�
   - root scope: `Column`, `Empty`, `Expand`;
   - column scope: `Head`, `Actions`, `Cell`;
   - cell render scope: row context и `ExpandTrigger`.
-- Expansion API MVP: `Table.Expand`, `Table.ExpandTrigger`.
+- Expansion API MVP: `Table.Expand`, `Table.ExpandTrigger`. Row handlers получают `context.expansion` с `expanded` и `toggle()`, когда в schema присутствует `Table.Expand`.
 - `Table.Column.sort` повторяет внешний handler contract старой таблицы:
   `directionDefault`, `onToggle`, `onReset`.
 - `Table.Column.pinLeft` и `Table.Column.pinRight` повторяют pinning
@@ -64,7 +65,7 @@ cells являются доменными сущностями, а React выс�
 - `Table.layout` задаёт интеграцию с окружающим layout: владелец scroll и
   sticky header offset.
 - `Table.style` задаёт visual style таблицы: `primary` или `secondary`.
-- `Table.size` задаёт высоту body/empty cells: `sm`, `md` или `lg`.
+- `Table.size` задаёт минимальную высоту header/body/empty cells: `sm`, `md` или `lg`.
 - Допустимый consumer import: `import { Table } from '@tiyn/kit'`.
 - Public type facade экспортирует только props/config/render-scope типы, которые
   уже участвуют в consumer contract.
@@ -128,7 +129,7 @@ cells являются доменными сущностями, а React выс�
 - Controller provider/hooks держать в `table/adapter`, потому что это
   React-level bridge к adapter state, а не runtime-сущность.
 - Новые view styles держать рядом с конкретным view-владельцем в
-  `table/view/*.module.scss`, а не в общем stylesheet на уровне компонента.
+  `table/view/<component>/default.module.scss`, а не в общем stylesheet на уровне компонента.
 - Browser-only features вроде `IntersectionObserver` держать в adapter/view
   слоях, не в runtime.
 - Новые schema parts добавлять только в тот scope, где они допустимы по
@@ -166,7 +167,7 @@ cells являются доменными сущностями, а React выс�
   snapshot.
 - Table size должен оставаться view-level контрактом и не попадать в runtime
   snapshot.
-- Table size должен менять только высоту body/empty cells, не header, expanded
+- Table size должен менять только минимальную высоту header/body/empty cells, не expanded
   container, ширину колонок, padding или typography.
 - Header hover state применять только для headers с интерактивными controls:
   sortable header или column actions.

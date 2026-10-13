@@ -187,7 +187,7 @@ selection, tree, pinning и sort state не должны зависеть от v
 
 ### Size
 
-`Table.size` задаёт высоту body cells и empty cell:
+`Table.size` задаёт минимальную высоту body cells и empty cell:
 
 - `lg` — 64px;
 - `md` — 54px;
@@ -195,7 +195,10 @@ selection, tree, pinning и sort state не должны зависеть от v
 
 Default size — `lg`.
 
-Size не меняет header height, expanded container, column width, padding и
+Заголовок получает тот же `size`: `lg` — 32px, `md` — 28px, `sm` — 22px.
+Контент и controls могут увеличивать минимальную высоту ячейки.
+
+Size не меняет expanded container, column width, padding и
 typography. Это view-level контракт: runtime snapshot, columns, lines,
 selection, tree, pinning и sort state не должны зависеть от size.
 

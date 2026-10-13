@@ -38,7 +38,11 @@ interface TableLineEventHandler<T> {
 }
 
 interface TableCellFactory<T, THeader, TActionContent> {
-  (line: TableDataLineSnapshot<T>, column: TableColumnModel<THeader, TActionContent>, columnIndex: number): TableCellSnapshot<T>;
+  (
+    line: TableDataLineSnapshot<T>,
+    column: TableColumnModel<THeader, TActionContent>,
+    columnIndex: number,
+  ): TableCellSnapshot<T>;
 }
 
 interface TableColumnElementSetter {
@@ -113,7 +117,7 @@ export const TableView = <T, THeader extends React.ReactNode>(props: TableViewPr
             key={layout.columnId}
             layout={layout}
             stickyHeader={props.layout.stickyHeader}
-            size={props.size ?? 'md'}
+            size={props.size}
             tableStyle={props.tableStyle}
             setColumnElement={props.setColumnElement}
             selection={props.snapshot.selection}
@@ -128,7 +132,7 @@ export const TableView = <T, THeader extends React.ReactNode>(props: TableViewPr
           key={line.id}
           line={line}
           rowIndex={line.visualIndex + 2}
-          size={props.size ?? 'md'}
+          size={props.size}
           columnLayouts={props.snapshot.columnLayouts}
           lastRowTriggerCellRef={line.id === lastDataLine?.id ? lastRowTriggerCellRef : undefined}
           isInteractive={props.isRowInteractive}

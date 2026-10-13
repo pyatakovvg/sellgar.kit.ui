@@ -167,12 +167,12 @@ export const TableComponent = <T extends object>(props: TableComponentProps<T>) 
   const isTreeEnabled = Boolean(props.tree?.isUse);
   const treeAccessor = props.tree?.accessor;
   const treeDefaultExpanded = props.tree?.defaultExpanded;
-  const rowEvents = useTableRowEvents(props.row);
   const layout = React.useMemo(() => resolveTableLayout(props.layout), [props.layout]);
   const { columnWidths, setColumnElement } = useTableColumnWidths();
   const { selectedNodeIds, setSelectedNodeIds, retainSelectedNodeIds } = useTableSelection();
   const sort = useTableSort(schema.columns);
   const { expandedNodeIds, isNodeExpanded, toggleNodeExpanded, retainExpandedNodeIds } = useTableExpansion();
+  const rowEvents = useTableRowEvents(props.row, schema.hasExpand ? { isNodeExpanded, toggleNodeExpanded } : undefined);
   const { toggledNodeIds, toggleNode, retainToggledNodeIds } = useTableTree();
 
   const runtimeInput = React.useMemo(

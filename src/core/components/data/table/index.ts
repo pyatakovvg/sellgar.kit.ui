@@ -1,6 +1,6 @@
 export { Table } from './table.tsx';
 export { useTableControllerSelection } from './adapter/controller';
-export { useCellData, useRowExpanded } from './view/cell-data-context.ts';
+export { useCellData, useRowExpanded } from './view/context';
 
 export type {
   TableControllerSelection,

@@ -1,12 +1,19 @@
 import React from 'react';
 
 import type { TableDataLineSnapshot } from '../runtime/types.ts';
+import type { TableExpansionAdapter } from './expansion.ts';
 
 export type TableRowEventTrigger = 'click' | 'doubleClick' | 'contextMenu';
 
 export interface TableRowEventPayload<T> {
   row: T;
   rowIndex: number;
+  context: {
+    expansion?: {
+      expanded: boolean;
+      toggle(): void;
+    };
+  };
   trigger: TableRowEventTrigger;
   nativeEvent: React.MouseEvent<HTMLDivElement>;
 }
@@ -42,7 +49,10 @@ const isDefaultInteractiveTarget = (target: EventTarget | null): boolean => {
   return Boolean(target.closest('button, a, input, select, textarea, [role="button"], [data-row-event-ignore]'));
 };
 
-export const useTableRowEvents = <T>(config: TableRowConfig<T> | undefined): TableRowEventsAdapter<T> => {
+export const useTableRowEvents = <T>(
+  config: TableRowConfig<T> | undefined,
+  expansion?: Pick<TableExpansionAdapter, 'isNodeExpanded' | 'toggleNodeExpanded'>,
+): TableRowEventsAdapter<T> => {
   const clickTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearPendingClick = React.useCallback(() => {
@@ -78,11 +88,19 @@ export const useTableRowEvents = <T>(config: TableRowConfig<T> | undefined): Tab
       handler({
         row: line.node.data,
         rowIndex: line.node.index,
+        context: {
+          expansion: expansion
+            ? {
+                expanded: expansion.isNodeExpanded(line.node.nodeId),
+                toggle: () => expansion.toggleNodeExpanded(line.node.nodeId),
+              }
+            : undefined,
+        },
         trigger,
         nativeEvent: event,
       });
     },
-    [config],
+    [config, expansion],
   );
 
   const onRowClick = React.useCallback<TableRowLineEventHandler<T>>(
