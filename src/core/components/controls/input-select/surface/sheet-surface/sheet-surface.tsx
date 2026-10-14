@@ -1,0 +1,62 @@
+import { FloatingOverlay } from '@floating-ui/react';
+import React from 'react';
+
+import { CloseFillIcon } from '../../../../../../icons';
+
+import { Button } from '../../../../action/button';
+import { ListScroll } from '../../list-scroll';
+import { DropDownWrapper } from '../../../../../systems/floating';
+
+import cn from 'classnames';
+import s from './default.module.scss';
+
+import type { TFloatingListElementProps } from '../../../../../systems/floating';
+
+interface IProps {
+  children: React.ReactNode;
+  listProps: TFloatingListElementProps;
+  placeholder: string | undefined;
+  props: TFloatingListElementProps;
+  search: React.ReactNode;
+  onClose(): void;
+}
+
+export const SheetSurface: React.FC<IProps> = ({ children, listProps, placeholder, props, search, onClose }) => {
+  const surfaceProps: TFloatingListElementProps = {
+    ...props,
+    className: cn(s.wrapper, props.className),
+    style: {
+      ...props.style,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      top: 'auto',
+      transform: 'none',
+      width: '100%',
+    },
+  };
+
+  return (
+    <FloatingOverlay className={s.overlay} lockScroll>
+      <DropDownWrapper {...surfaceProps}>
+        <div className={s.sheet}>
+          <header className={s.heading}>
+            <div className={s.header}>{placeholder ?? ''}</div>
+            <button className={s.close} type={'button'} onClick={onClose}>
+              <CloseFillIcon />
+            </button>
+          </header>
+          <div className={s.search}>{search}</div>
+          <ListScroll className={s.content} props={listProps}>
+            {children}
+          </ListScroll>
+          <div className={s.control}>
+            <Button style={'primary'} size={'sm'} type={'button'} onClick={onClose}>
+              Закрыть
+            </Button>
+          </div>
+        </div>
+      </DropDownWrapper>
+    </FloatingOverlay>
+  );
+};

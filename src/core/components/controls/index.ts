@@ -4,6 +4,7 @@ export * from './datepicker';
 export * from './field';
 export * from './formatted-input';
 export * from './input';
+export { InputSelect } from './input-select';
 export * from './input-amount';
 export * from './input-amount-2';
 export * from './input-mask';

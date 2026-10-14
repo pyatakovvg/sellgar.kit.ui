@@ -1,0 +1,12 @@
+.wrapper {
+  min-width: var(--numbers-128);
+}
+
+.content {
+  max-height: var(--numbers-288);
+}
+
+.search {
+  padding: var(--numbers-8);
+  border-bottom: var(--numbers-1) solid var(--border-base-divider);
+}
