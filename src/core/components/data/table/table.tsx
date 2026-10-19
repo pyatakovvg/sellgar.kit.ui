@@ -15,6 +15,7 @@ import { ExpandTrigger } from './configuration/expand-trigger.tsx';
 import { Head } from './configuration/head.tsx';
 import { createTableSchema } from './configuration/schema.ts';
 import { CellRuntime } from './runtime/cell-runtime.ts';
+import { createEmptyTableSelectionModel } from './runtime/selection-runtime.ts';
 import { TableRuntime } from './runtime/table-runtime.ts';
 import { TableView } from './view';
 
@@ -62,9 +63,18 @@ export interface TableStickyHeaderConfig {
   top?: string;
 }
 
+export interface TableVirtualizationConfig {
+  enabled?: boolean;
+  rowHeight?: number;
+  overscan?: number;
+}
+
+export type TableLayoutVirtualization = boolean | TableVirtualizationConfig;
+
 export interface TableLayoutConfig {
   scroll?: TableLayoutScroll;
   stickyHeader?: boolean | TableStickyHeaderConfig;
+  virtualization?: TableLayoutVirtualization;
 }
 
 interface TableResolvedLayout {
@@ -72,6 +82,11 @@ interface TableResolvedLayout {
   stickyHeader: {
     enabled: boolean;
     top: string;
+  };
+  virtualization: {
+    enabled: boolean;
+    rowHeight?: number;
+    overscan: number;
   };
 }
 
@@ -116,6 +131,13 @@ const resolveTableChildren = <T extends object>(children: TableChildren<T> | und
 const resolveTableLayout = (layout: TableLayoutConfig | undefined): TableResolvedLayout => {
   const scroll = layout?.scroll ?? 'internal';
   const stickyHeader = layout?.stickyHeader ?? true;
+  const virtualization = layout?.virtualization;
+  const virtualizationConfig = typeof virtualization === 'object' ? virtualization : undefined;
+  const resolvedVirtualization = {
+    enabled: virtualization === true || Boolean(virtualizationConfig?.enabled),
+    rowHeight: virtualizationConfig?.rowHeight,
+    overscan: virtualizationConfig?.overscan ?? 6,
+  };
 
   if (stickyHeader === false) {
     return {
@@ -124,6 +146,7 @@ const resolveTableLayout = (layout: TableLayoutConfig | undefined): TableResolve
         enabled: false,
         top: '0px',
       },
+      virtualization: resolvedVirtualization,
     };
   }
 
@@ -133,6 +156,7 @@ const resolveTableLayout = (layout: TableLayoutConfig | undefined): TableResolve
       enabled: true,
       top: stickyHeader === true ? '0px' : (stickyHeader.top ?? '0px'),
     },
+    virtualization: resolvedVirtualization,
   };
 };
 
@@ -169,7 +193,7 @@ export const TableComponent = <T extends object>(props: TableComponentProps<T>) 
   const treeDefaultExpanded = props.tree?.defaultExpanded;
   const layout = React.useMemo(() => resolveTableLayout(props.layout), [props.layout]);
   const { columnWidths, setColumnElement } = useTableColumnWidths();
-  const { selectedNodeIds, setSelectedNodeIds, retainSelectedNodeIds } = useTableSelection();
+  const { selection, setSelection, retainSelection } = useTableSelection();
   const sort = useTableSort(schema.columns);
   const { expandedNodeIds, isNodeExpanded, toggleNodeExpanded, retainExpandedNodeIds } = useTableExpansion();
   const rowEvents = useTableRowEvents(props.row, schema.hasExpand ? { isNodeExpanded, toggleNodeExpanded } : undefined);
@@ -180,7 +204,7 @@ export const TableComponent = <T extends object>(props: TableComponentProps<T>) 
       rows: props.data.nodes,
       columns: schema.columns,
       selectionEnabled: isSelectionEnabled,
-      selectedNodeIds,
+      selection,
       emptyLineEnabled: schema.hasEmpty,
       expandedLineEnabled: schema.hasExpand,
       expandedNodeIds,
@@ -205,13 +229,22 @@ export const TableComponent = <T extends object>(props: TableComponentProps<T>) 
       schema.columns,
       schema.hasEmpty,
       schema.hasExpand,
-      selectedNodeIds,
+      selection,
       sort.snapshot,
       treeAccessor,
       treeDefaultExpanded,
       toggledNodeIds,
     ],
   );
+  const runtimeInputRef = React.useRef(runtimeInput);
+  const isSelectionEnabledRef = React.useRef(isSelectionEnabled);
+  const selectionOnSelectRef = React.useRef(selectionOnSelect);
+  const toggledNodeIdsRef = React.useRef(toggledNodeIds);
+
+  runtimeInputRef.current = runtimeInput;
+  isSelectionEnabledRef.current = isSelectionEnabled;
+  selectionOnSelectRef.current = selectionOnSelect;
+  toggledNodeIdsRef.current = toggledNodeIds;
 
   const snapshot = React.useMemo(() => {
     const runtime = runtimeRef.current;
@@ -225,6 +258,7 @@ export const TableComponent = <T extends object>(props: TableComponentProps<T>) 
         selection: {
           allSelected: false,
           indeterminate: false,
+          model: createEmptyTableSelectionModel(),
           selectedNodeIds: [],
         },
         lines: [],
@@ -233,14 +267,17 @@ export const TableComponent = <T extends object>(props: TableComponentProps<T>) 
 
     return runtime.createSnapshot(runtimeInput);
   }, [runtimeInput]);
+  const snapshotRef = React.useRef(snapshot);
+
+  snapshotRef.current = snapshot;
 
   const selectedRows = React.useMemo((): T[] => {
     const runtime = runtimeRef.current;
 
     if (!runtime || !isSelectionEnabled) return [];
 
-    return runtime.getSelectedRows(snapshot.selection.selectedNodeIds);
-  }, [isSelectionEnabled, snapshot.selection.selectedNodeIds]);
+    return runtime.getSelectedRows(snapshot.selection.model);
+  }, [isSelectionEnabled, snapshot.selection.model]);
 
   React.useEffect(() => {
     if (!tableController) return void 0;
@@ -253,100 +290,91 @@ export const TableComponent = <T extends object>(props: TableComponentProps<T>) 
   }, [tableController, tableControllerOwnerId]);
 
   React.useEffect(() => {
-    retainSelectedNodeIds(snapshot.selection.selectedNodeIds);
+    retainSelection(snapshot.selection.model);
     retainExpandedNodeIds(snapshot.nodeIds);
     retainToggledNodeIds(snapshot.nodeIds);
-  }, [
-    retainExpandedNodeIds,
-    retainSelectedNodeIds,
-    retainToggledNodeIds,
-    snapshot.nodeIds,
-    snapshot.selection.selectedNodeIds,
-  ]);
+  }, [retainExpandedNodeIds, retainSelection, retainToggledNodeIds, snapshot.nodeIds, snapshot.selection.model]);
 
   const handleRowToggle = React.useCallback(
     (nodeId: TableNodeId) => {
       const runtime = runtimeRef.current;
+      const currentRuntimeInput = runtimeInputRef.current;
 
-      if (!runtime || !isSelectionEnabled) return;
+      if (!runtime || !isSelectionEnabledRef.current) return;
 
-      const nextSelectedNodeIds = runtime.toggleNodeSelection(
-        runtimeInput.selectedNodeIds ?? [],
+      const nextSelection = runtime.toggleNodeSelection(
+        currentRuntimeInput.selection,
         nodeId,
-        runtimeInput.tree,
+        currentRuntimeInput.tree,
       );
-      const selectedRows = runtime.getSelectedRows(nextSelectedNodeIds);
+      const selectedRows = runtime.getSelectedRows(nextSelection);
 
-      setSelectedNodeIds(nextSelectedNodeIds);
-      selectionOnSelect?.(selectedRows);
+      setSelection(nextSelection);
+      selectionOnSelectRef.current?.(selectedRows);
     },
-    [isSelectionEnabled, runtimeInput, selectionOnSelect, setSelectedNodeIds],
+    [setSelection],
   );
 
   const handleSelectionClear = React.useCallback(() => {
-    if (!isSelectionEnabled || runtimeInput.selectedNodeIds.length === 0) return;
+    if (!isSelectionEnabledRef.current || snapshotRef.current.selection.selectedNodeIds.length === 0) return;
 
-    setSelectedNodeIds([]);
-    selectionOnSelect?.([]);
-  }, [isSelectionEnabled, runtimeInput.selectedNodeIds, selectionOnSelect, setSelectedNodeIds]);
+    setSelection(createEmptyTableSelectionModel());
+    selectionOnSelectRef.current?.([]);
+  }, [setSelection]);
 
   const handleSelectionSelectAll = React.useCallback(() => {
     const runtime = runtimeRef.current;
+    const currentRuntimeInput = runtimeInputRef.current;
 
-    if (!runtime || !isSelectionEnabled || snapshot.selection.allSelected) return;
+    if (!runtime || !isSelectionEnabledRef.current || snapshotRef.current.selection.allSelected) return;
 
-    const nextSelectedNodeIds = runtime.toggleAllNodesSelection([], runtimeInput.tree);
+    const nextSelection = runtime.toggleAllNodesSelection(createEmptyTableSelectionModel(), currentRuntimeInput.tree);
 
-    if (nextSelectedNodeIds.length === 0) return;
+    if (runtime.getSelectedRows(nextSelection).length === 0) return;
 
-    const selectedRows = runtime.getSelectedRows(nextSelectedNodeIds);
+    const selectedRows = runtime.getSelectedRows(nextSelection);
 
-    setSelectedNodeIds(nextSelectedNodeIds);
-    selectionOnSelect?.(selectedRows);
-  }, [isSelectionEnabled, runtimeInput.tree, selectionOnSelect, setSelectedNodeIds, snapshot.selection.allSelected]);
+    setSelection(nextSelection);
+    selectionOnSelectRef.current?.(selectedRows);
+  }, [setSelection]);
 
   const handleAllRowsToggle = React.useCallback(() => {
     const runtime = runtimeRef.current;
+    const currentRuntimeInput = runtimeInputRef.current;
 
-    if (!runtime || !isSelectionEnabled) return;
+    if (!runtime || !isSelectionEnabledRef.current) return;
 
-    const nextSelectedNodeIds = runtime.toggleAllNodesSelection(runtimeInput.selectedNodeIds ?? [], runtimeInput.tree);
-    const selectedRows = runtime.getSelectedRows(nextSelectedNodeIds);
+    const nextSelection = runtime.toggleAllNodesSelection(currentRuntimeInput.selection, currentRuntimeInput.tree);
+    const selectedRows = runtime.getSelectedRows(nextSelection);
 
-    setSelectedNodeIds(nextSelectedNodeIds);
-    selectionOnSelect?.(selectedRows);
-  }, [isSelectionEnabled, runtimeInput, selectionOnSelect, setSelectedNodeIds]);
+    setSelection(nextSelection);
+    selectionOnSelectRef.current?.(selectedRows);
+  }, [setSelection]);
 
   const handleTreeNodeToggle = React.useCallback(
     (nodeId: TableNodeId) => {
       const runtime = runtimeRef.current;
-      const isExpanded = isTreeNodeExpanded(nodeId, runtimeInput.tree?.defaultExpanded, toggledNodeIds);
+      const currentRuntimeInput = runtimeInputRef.current;
+      const isExpanded = isTreeNodeExpanded(
+        nodeId,
+        currentRuntimeInput.tree?.defaultExpanded,
+        toggledNodeIdsRef.current,
+      );
 
-      if (runtime && isSelectionEnabled && isExpanded) {
-        const nextSelectedNodeIds = runtime.clearPartialNodeSubtreeSelection(
-          runtimeInput.selectedNodeIds ?? [],
-          nodeId,
-        );
+      if (runtime && isSelectionEnabledRef.current && isExpanded) {
+        const nextSelection = runtime.clearPartialNodeSubtreeSelection(currentRuntimeInput.selection, nodeId);
 
-        if (nextSelectedNodeIds !== runtimeInput.selectedNodeIds) {
-          const selectedRows = runtime.getSelectedRows(nextSelectedNodeIds);
+        if (nextSelection !== currentRuntimeInput.selection) {
+          const selectedRows = runtime.getSelectedRows(nextSelection);
 
-          setSelectedNodeIds(nextSelectedNodeIds);
-          selectionOnSelect?.(selectedRows);
+          setSelection(nextSelection);
+          selectionOnSelectRef.current?.(selectedRows);
         }
       }
 
       toggleNode(nodeId);
     },
-    [
-      isSelectionEnabled,
-      runtimeInput.selectedNodeIds,
-      runtimeInput.tree?.defaultExpanded,
-      selectionOnSelect,
-      setSelectedNodeIds,
-      toggledNodeIds,
-      toggleNode,
-    ],
+    [setSelection, toggleNode],
   );
 
   const tableControllerSelectionCommands = React.useMemo<TableControllerSelectionCommands>(

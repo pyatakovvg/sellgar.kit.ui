@@ -10,6 +10,7 @@ interface IProps {
   isActive?: boolean;
   isToday?: boolean;
   isWeekday?: boolean;
+  isDisabled?: boolean;
   tabIndex?: number;
   onKeyDown?(event: React.KeyboardEvent<HTMLButtonElement>): void;
   onClick(): void;
@@ -22,21 +23,25 @@ export const Day: React.FC<React.PropsWithChildren<IProps>> = (props) => {
         [s['is-active']]: props.isActive,
         [s['is-today']]: props.isToday,
         [s['is-weekday']]: props.isWeekday,
+        [s['is-disabled']]: props.isDisabled,
       }),
-    [props.isActive, props.isToday, props.isWeekday],
+    [props.isActive, props.isDisabled, props.isToday, props.isWeekday],
   );
+
+  const isEmphasized = !!props.isToday || (!!props.isDisabled && !!props.isActive);
 
   return (
     <button
       ref={props.ref}
       className={s.wrapper}
       type={'button'}
+      disabled={props.isDisabled}
       tabIndex={props.tabIndex}
       onClick={props.onClick}
       onKeyDown={props.onKeyDown}
     >
       <div className={className}>
-        <Typography size={'caption-l'} weight={'medium'}>
+        <Typography size={'caption-l'} weight={isEmphasized ? 'extra-bold' : 'medium'}>
           <p>{props.children}</p>
         </Typography>
       </div>

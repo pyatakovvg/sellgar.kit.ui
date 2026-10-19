@@ -78,6 +78,7 @@ const InputComponent: React.FC<IProps> = ({
   const handleBlur = (event: React.FocusEvent<HTMLInputElement>) => {
     setFocused(false);
     setKeyboardFocused(false);
+    isPointerFocusRef.current = false;
     props.onBlur && props.onBlur(event);
   };
 

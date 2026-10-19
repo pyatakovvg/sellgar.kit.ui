@@ -344,6 +344,7 @@ const Trigger: React.FC<IFloatingTriggerProps> = ({ children }) => {
   const handleBlur = React.useCallback(() => {
     floating.setFocused(false);
     floating.setKeyboardFocused(false);
+    isPointerFocusRef.current = false;
   }, [floating]);
 
   const handlePointerDown = React.useCallback(() => {

@@ -70,7 +70,7 @@ export const InputOtp: React.FC<IProps> = ({
   useEffect(() => {
     const abortController = new AbortController();
 
-    if ('OTPCredential' in window) {
+    if ('OTPCredential' in window && 'credentials' in navigator) {
       navigator.credentials
         .get({
           otp: { transport: ['sms'] },

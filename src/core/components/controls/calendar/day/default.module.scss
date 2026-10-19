@@ -37,18 +37,31 @@
   }
 }
 
-.is-active {
-  color: var(--text-base-primary);
-  border: var(--numbers-1) solid var(--border-action-focus-light);
-}
-
 .is-today {
-  color: var(--text-accent-purple-accent);
-  text-shadow: 0 0 var(--numbers-6) var(--text-accent-purple-accent);
+  color: var(--text-accent-blue-accent);
 }
 
 .is-weekday {
   color: var(--text-base-secondary);
+}
+
+.is-active {
+  color: var(--text-base-static-white);
+  background: var(--background-accent-blue-accent);
+
+  &:hover {
+    background: var(--background-accent-blue-accent);
+  }
+}
+
+.is-disabled {
+  color: var(--text-base-quaternary);
+  background: var(--background-button-ghost);
+  cursor: default;
+
+  &:hover {
+    background: var(--background-button-ghost);
+  }
 }
 
 .is-prev-week-day,

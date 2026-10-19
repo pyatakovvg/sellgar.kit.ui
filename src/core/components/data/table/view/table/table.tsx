@@ -5,6 +5,7 @@ import { Scrollbar } from '../../shared';
 import { useTableLastRowTrigger } from '../../adapter';
 import { TableHeaderCellView } from '../header-cell';
 import { TableLineView } from '../line';
+import { useTableVirtualLines } from './hooks/use-virtual-lines.hook.ts';
 
 import cn from 'classnames';
 import s from './default.module.scss';
@@ -15,6 +16,7 @@ import type {
   TableColumnModel,
   TableDataLineSnapshot,
   TableExpandedLineSnapshot,
+  TableLineSnapshot,
   TableNodeId,
   TableSnapshot,
 } from '../../runtime';
@@ -30,6 +32,11 @@ interface TableViewLayout {
   stickyHeader: {
     enabled: boolean;
     top: string;
+  };
+  virtualization: {
+    enabled: boolean;
+    rowHeight?: number;
+    overscan: number;
   };
 }
 
@@ -77,18 +84,45 @@ interface TableViewProps<T, THeader extends React.ReactNode> {
   onRowContextMenu?: TableLineEventHandler<T>;
 }
 
+const TABLE_ROW_HEIGHT_BY_SIZE: Record<TableViewSize, number> = {
+  lg: 64,
+  md: 54,
+  sm: 40,
+};
+
+const canVirtualizeLines = <T,>(lines: TableLineSnapshot<T>[]): boolean => {
+  for (const line of lines) {
+    if (line.kind !== 'data') return false;
+  }
+
+  return true;
+};
+
 export const TableView = <T, THeader extends React.ReactNode>(props: TableViewProps<T, THeader>) => {
+  const contentRef = React.useRef<HTMLDivElement>(null);
   const rowCount = props.snapshot.lines.length + 1;
   const columnCount = props.snapshot.columnLayouts.length;
+  const isVirtualizationEnabled = props.layout.virtualization.enabled && canVirtualizeLines(props.snapshot.lines);
+  const virtualLines = useTableVirtualLines({
+    enabled: isVirtualizationEnabled,
+    lineCount: props.snapshot.lines.length,
+    rowHeight: props.layout.virtualization.rowHeight ?? TABLE_ROW_HEIGHT_BY_SIZE[props.size],
+    overscan: props.layout.virtualization.overscan,
+    scrollMode: props.layout.scroll,
+    contentRef,
+  });
+  const visibleLines = virtualLines.enabled
+    ? props.snapshot.lines.slice(virtualLines.startIndex, virtualLines.endIndex)
+    : props.snapshot.lines;
   const lastDataLine = React.useMemo((): TableDataLineSnapshot<T> | null => {
-    for (let index = props.snapshot.lines.length - 1; index >= 0; index--) {
-      const line = props.snapshot.lines[index];
+    for (let index = visibleLines.length - 1; index >= 0; index--) {
+      const line = visibleLines[index];
 
       if (line?.kind === 'data') return line;
     }
 
     return null;
-  }, [props.snapshot.lines]);
+  }, [visibleLines]);
   const lastRowTriggerCellRef = useTableLastRowTrigger({
     line: lastDataLine,
     config: props.lastRowTrigger,
@@ -105,6 +139,7 @@ export const TableView = <T, THeader extends React.ReactNode>(props: TableViewPr
 
   const content = (
     <div
+      ref={contentRef}
       className={s.content}
       role="table"
       aria-rowcount={rowCount}
@@ -127,7 +162,18 @@ export const TableView = <T, THeader extends React.ReactNode>(props: TableViewPr
         ))}
       </div>
 
-      {props.snapshot.lines.map((line) => (
+      {virtualLines.enabled && virtualLines.topSpacerHeight > 0 && (
+        <div
+          className={s.virtualSpacer}
+          role="presentation"
+          style={{
+            gridColumn: `span ${columnCount}`,
+            height: virtualLines.topSpacerHeight,
+          }}
+        />
+      )}
+
+      {visibleLines.map((line) => (
         <TableLineView
           key={line.id}
           line={line}
@@ -152,6 +198,17 @@ export const TableView = <T, THeader extends React.ReactNode>(props: TableViewPr
           onRowContextMenu={props.onRowContextMenu}
         />
       ))}
+
+      {virtualLines.enabled && virtualLines.bottomSpacerHeight > 0 && (
+        <div
+          className={s.virtualSpacer}
+          role="presentation"
+          style={{
+            gridColumn: `span ${columnCount}`,
+            height: virtualLines.bottomSpacerHeight,
+          }}
+        />
+      )}
     </div>
   );
 
@@ -159,5 +216,9 @@ export const TableView = <T, THeader extends React.ReactNode>(props: TableViewPr
     return <div className={wrapperClassName}>{content}</div>;
   }
 
-  return <Scrollbar className={wrapperClassName}>{content}</Scrollbar>;
+  return (
+    <Scrollbar className={wrapperClassName} onScroll={virtualLines.onScroll}>
+      {content}
+    </Scrollbar>
+  );
 };

@@ -46,14 +46,15 @@ Interaction-компонент календаря с выбором даты, м
 - `export { Calendar } from './calendar.tsx';`
 - Consumer import: `import { Calendar } from '@sellgar/kit'` или compound API ближайшего public-компонента.
 - Exported/source names: `Calendar`.
-- Props из `IProps`: `autoFocus`, `defaultValue`, `value`, `format`, `timeSelection`, `onChange`, `onCancel`, `displayTimeZone`.
+- Props из `IProps`: `autoFocus`, `defaultValue`, `value`, `format`, `timeSelection`, `isDateDisabled`, `onChange`, `onCancel`, `displayTimeZone`.
 - Локальные parts: `day`, `day-disabled`, `header`, `inputs`, `utils`, `week-day`.
 
 ## Контракт изменения
 
 - Не менять локальные exports (`export { Calendar } from './calendar.tsx';`) без оценки public API.
 - Так как узел достижим через barrel chain `@sellgar/kit`, изменение имени компонента, props или exported types может быть breaking change.
-- Props contract: `autoFocus`, `defaultValue`, `value`, `format`, `timeSelection`, `onChange`, `onCancel`, `displayTimeZone`. Новые/изменённые props нужно отражать в story и документации.
+- Props contract: `autoFocus`, `defaultValue`, `value`, `format`, `timeSelection`, `isDateDisabled`, `onChange`, `onCancel`, `displayTimeZone`. Новые/изменённые props нужно отражать в story и документации.
+- `isDateDisabled` — предикат `(date: Date) => boolean`; отключённые даты нельзя выбрать мышью или клавиатурой, а roving focus/стрелки не переходят на отключённые даты.
 
 ## Фактическое поведение
 
@@ -64,6 +65,8 @@ Interaction-компонент календаря с выбором даты, м
 - Имеет `value` prop; проверять controlled-сценарии и синхронизацию с внутренним state.
 - Поддерживает keyboard navigation по датам: стрелки двигают активную дату, `PageUp`/`PageDown` переключают месяц, `Shift+PageUp`/`Shift+PageDown` переключают год.
 - Использует roving focus в сетке дат: в Tab order находится только активная дата.
+- При заданном `isDateDisabled` навигация не переходит на отключённые даты.
+- Footer inputs (`inputs`) также валидируются против `isDateDisabled`: недоступное значение помечается destructive-состоянием и не применяется.
 - `autoFocus` фокусирует активную дату при mount, чтобы parent interactions вроде `Datepicker` могли открыть календарь сразу в keyboard flow.
 - `onCancel` прокидывается в inputs-блок и используется parent-компонентами для cancel lifecycle, например закрытия popover в `Datepicker`.
 - Имеет callback props; порядок вызовов и disabled guards являются частью поведения.

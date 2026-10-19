@@ -68,6 +68,7 @@ const getSelectedListValues = <T extends Record<string, any>, K extends keyof T>
   isAllSelected: boolean,
 ): readonly number[] => {
   const values: number[] = [];
+  const selectedValueSet = new Set(selectedValues);
 
   for (let index = 0; index < items.length; index++) {
     const item = items[index];
@@ -84,7 +85,7 @@ const getSelectedListValues = <T extends Record<string, any>, K extends keyof T>
       continue;
     }
 
-    if (selectedValues.includes(item.item[optionKey])) {
+    if (selectedValueSet.has(item.item[optionKey])) {
       values.push(index);
     }
   }

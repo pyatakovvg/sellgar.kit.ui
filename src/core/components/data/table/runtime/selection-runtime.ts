@@ -1,5 +1,12 @@
 import type { TableNodeId, TableNodeModel } from './types.ts';
 
+export type TableSelectionModelType = 'include' | 'exclude';
+
+export interface TableSelectionModel {
+  type: TableSelectionModelType;
+  nodeIds: ReadonlySet<TableNodeId>;
+}
+
 export interface TableSelectionStatus {
   allSelected: boolean;
   indeterminate: boolean;
@@ -10,80 +17,135 @@ export interface TableNodeSelectionStatus {
   indeterminate: boolean;
 }
 
-export class SelectionRuntime {
-  toggleNode(selectedNodeIds: readonly TableNodeId[], nodeId: TableNodeId): TableNodeId[] {
-    const nextSelectedNodeIds = new Set(selectedNodeIds);
+export const createEmptyTableSelectionModel = (): TableSelectionModel => ({
+  type: 'include',
+  nodeIds: new Set<TableNodeId>(),
+});
 
-    if (nextSelectedNodeIds.has(nodeId)) {
-      nextSelectedNodeIds.delete(nodeId);
+export class SelectionRuntime {
+  isNodeSelected(selection: TableSelectionModel, nodeId: TableNodeId): boolean {
+    const isIncluded = selection.nodeIds.has(nodeId);
+
+    return selection.type === 'include' ? isIncluded : !isIncluded;
+  }
+
+  toggleNode(selection: TableSelectionModel, nodeId: TableNodeId): TableSelectionModel {
+    const nextNodeIds = new Set(selection.nodeIds);
+    const isSelected = this.isNodeSelected(selection, nodeId);
+
+    if (selection.type === 'include') {
+      if (isSelected) {
+        nextNodeIds.delete(nodeId);
+      } else {
+        nextNodeIds.add(nodeId);
+      }
     } else {
-      nextSelectedNodeIds.add(nodeId);
+      if (isSelected) {
+        nextNodeIds.add(nodeId);
+      } else {
+        nextNodeIds.delete(nodeId);
+      }
     }
 
-    return Array.from(nextSelectedNodeIds);
+    return {
+      type: selection.type,
+      nodeIds: nextNodeIds,
+    };
   }
 
   toggleNodeSubtree(
-    selectedNodeIds: readonly TableNodeId[],
+    selection: TableSelectionModel,
     subtreeNodeIds: readonly TableNodeId[],
     ancestorSubtreeNodeIds: readonly TableNodeId[][],
-  ): TableNodeId[] {
-    const nextSelectedNodeIds = new Set(selectedNodeIds);
-    const allSelected = subtreeNodeIds.length > 0 && subtreeNodeIds.every((nodeId) => nextSelectedNodeIds.has(nodeId));
+  ): TableSelectionModel {
+    const nextNodeIds = new Set(selection.nodeIds);
+    const nextSelection: TableSelectionModel = {
+      type: selection.type,
+      nodeIds: nextNodeIds,
+    };
+    const allSelected =
+      subtreeNodeIds.length > 0 && subtreeNodeIds.every((nodeId) => this.isNodeSelected(selection, nodeId));
 
     if (allSelected) {
       for (const nodeId of subtreeNodeIds) {
-        nextSelectedNodeIds.delete(nodeId);
+        if (selection.type === 'include') {
+          nextNodeIds.delete(nodeId);
+        } else {
+          nextNodeIds.add(nodeId);
+        }
       }
     } else {
       for (const nodeId of subtreeNodeIds) {
-        nextSelectedNodeIds.add(nodeId);
+        if (selection.type === 'include') {
+          nextNodeIds.add(nodeId);
+        } else {
+          nextNodeIds.delete(nodeId);
+        }
       }
     }
 
-    this.normalizeAncestorSelection(nextSelectedNodeIds, ancestorSubtreeNodeIds);
+    this.normalizeAncestorSelection(nextSelection, ancestorSubtreeNodeIds);
 
-    return Array.from(nextSelectedNodeIds);
+    return nextSelection;
   }
 
   clearNodeSubtree(
-    selectedNodeIds: readonly TableNodeId[],
+    selection: TableSelectionModel,
     subtreeNodeIds: readonly TableNodeId[],
     ancestorSubtreeNodeIds: readonly TableNodeId[][],
-  ): TableNodeId[] {
-    const nextSelectedNodeIds = new Set(selectedNodeIds);
+  ): TableSelectionModel {
+    const nextNodeIds = new Set(selection.nodeIds);
+    const nextSelection: TableSelectionModel = {
+      type: selection.type,
+      nodeIds: nextNodeIds,
+    };
 
     for (const nodeId of subtreeNodeIds) {
-      nextSelectedNodeIds.delete(nodeId);
+      if (selection.type === 'include') {
+        nextNodeIds.delete(nodeId);
+      } else {
+        nextNodeIds.add(nodeId);
+      }
     }
 
-    this.normalizeAncestorSelection(nextSelectedNodeIds, ancestorSubtreeNodeIds);
+    this.normalizeAncestorSelection(nextSelection, ancestorSubtreeNodeIds);
 
-    return Array.from(nextSelectedNodeIds);
+    return nextSelection;
   }
 
-  toggleAll(selectedNodeIds: readonly TableNodeId[], nodeIds: readonly TableNodeId[]): TableNodeId[] {
-    const nextSelectedNodeIds = new Set(selectedNodeIds);
-    const allSelected = nodeIds.length > 0 && nodeIds.every((nodeId) => nextSelectedNodeIds.has(nodeId));
+  toggleAll(selection: TableSelectionModel, nodeIds: readonly TableNodeId[]): TableSelectionModel {
+    const nextNodeIds = new Set(selection.nodeIds);
+    const allSelected = nodeIds.length > 0 && nodeIds.every((nodeId) => this.isNodeSelected(selection, nodeId));
 
     if (allSelected) {
-      for (const nodeId of nodeIds) {
-        nextSelectedNodeIds.delete(nodeId);
-      }
+      return createEmptyTableSelectionModel();
+    }
 
-      return Array.from(nextSelectedNodeIds);
+    if (selection.type === 'include') {
+      return {
+        type: 'exclude',
+        nodeIds: new Set<TableNodeId>(),
+      };
     }
 
     for (const nodeId of nodeIds) {
-      nextSelectedNodeIds.add(nodeId);
+      nextNodeIds.delete(nodeId);
     }
 
-    return Array.from(nextSelectedNodeIds);
+    return {
+      type: selection.type,
+      nodeIds: nextNodeIds,
+    };
   }
 
-  getStatus(selectedNodeIds: readonly TableNodeId[], nodeIds: readonly TableNodeId[]): TableSelectionStatus {
-    const selectedNodeIdSet = new Set(selectedNodeIds);
-    const selectedVisibleCount = nodeIds.filter((nodeId) => selectedNodeIdSet.has(nodeId)).length;
+  getStatus(selection: TableSelectionModel, nodeIds: readonly TableNodeId[]): TableSelectionStatus {
+    let selectedVisibleCount = 0;
+
+    for (const nodeId of nodeIds) {
+      if (this.isNodeSelected(selection, nodeId)) {
+        selectedVisibleCount += 1;
+      }
+    }
 
     return {
       allSelected: nodeIds.length > 0 && selectedVisibleCount === nodeIds.length,
@@ -93,9 +155,8 @@ export class SelectionRuntime {
 
   getNodeStatuses<T>(
     nodes: readonly TableNodeModel<T>[],
-    selectedNodeIds: readonly TableNodeId[],
+    selection: TableSelectionModel,
   ): Map<TableNodeId, TableNodeSelectionStatus> {
-    const selectedNodeIdSet = new Set(selectedNodeIds);
     const selectedCountByNodeId = new Map<TableNodeId, number>();
     const totalCountByNodeId = new Map<TableNodeId, number>();
     const statusByNodeId = new Map<TableNodeId, TableNodeSelectionStatus>();
@@ -104,7 +165,7 @@ export class SelectionRuntime {
       const node = nodes[index];
       const childSelectedCount = selectedCountByNodeId.get(node.nodeId) ?? 0;
       const childTotalCount = totalCountByNodeId.get(node.nodeId) ?? 0;
-      const selectedCount = childSelectedCount + (selectedNodeIdSet.has(node.nodeId) ? 1 : 0);
+      const selectedCount = childSelectedCount + (this.isNodeSelected(selection, node.nodeId) ? 1 : 0);
       const totalCount = childTotalCount + 1;
 
       statusByNodeId.set(node.nodeId, {
@@ -124,23 +185,40 @@ export class SelectionRuntime {
     return statusByNodeId;
   }
 
-  retain(selectedNodeIds: readonly TableNodeId[], nodeIds: readonly TableNodeId[]): TableNodeId[] {
-    const visibleNodeIds = new Set(nodeIds);
-    const nextSelectedNodeIds = new Set<TableNodeId>();
+  materialize(selection: TableSelectionModel, nodeIds: readonly TableNodeId[]): TableNodeId[] {
+    const selectedNodeIds: TableNodeId[] = [];
 
-    for (const nodeId of selectedNodeIds) {
-      if (visibleNodeIds.has(nodeId)) {
-        nextSelectedNodeIds.add(nodeId);
+    for (const nodeId of nodeIds) {
+      if (this.isNodeSelected(selection, nodeId)) {
+        selectedNodeIds.push(nodeId);
       }
     }
 
-    return Array.from(nextSelectedNodeIds);
+    return selectedNodeIds;
+  }
+
+  retain(selection: TableSelectionModel, nodeIds: readonly TableNodeId[]): TableSelectionModel {
+    const nodeIdSet = new Set(nodeIds);
+    const nextNodeIds = new Set<TableNodeId>();
+
+    for (const nodeId of selection.nodeIds) {
+      if (nodeIdSet.has(nodeId)) {
+        nextNodeIds.add(nodeId);
+      }
+    }
+
+    return {
+      type: selection.type,
+      nodeIds: nextNodeIds,
+    };
   }
 
   private normalizeAncestorSelection(
-    selectedNodeIds: Set<TableNodeId>,
+    selection: TableSelectionModel,
     ancestorSubtreeNodeIds: readonly TableNodeId[][],
   ): void {
+    const selectedNodeIds = selection.nodeIds as Set<TableNodeId>;
+
     for (const subtreeNodeIds of ancestorSubtreeNodeIds) {
       const ancestorNodeId = subtreeNodeIds[0];
 
@@ -149,16 +227,20 @@ export class SelectionRuntime {
       let allDescendantsSelected = true;
 
       for (let index = 1; index < subtreeNodeIds.length; index++) {
-        if (!selectedNodeIds.has(subtreeNodeIds[index])) {
+        if (!this.isNodeSelected(selection, subtreeNodeIds[index])) {
           allDescendantsSelected = false;
           break;
         }
       }
 
-      if (allDescendantsSelected) {
+      if (selection.type === 'include' && allDescendantsSelected) {
         selectedNodeIds.add(ancestorNodeId);
-      } else {
+      } else if (selection.type === 'include') {
         selectedNodeIds.delete(ancestorNodeId);
+      } else if (allDescendantsSelected) {
+        selectedNodeIds.delete(ancestorNodeId);
+      } else {
+        selectedNodeIds.add(ancestorNodeId);
       }
     }
   }

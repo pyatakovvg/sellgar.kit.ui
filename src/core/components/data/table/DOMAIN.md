@@ -162,7 +162,8 @@ selection, tree, pinning и sort не должны зависеть от реж�
 - `layout.scroll: 'external'` — таблица не создаёт scroll container, а
   скроллом владеет page, drawer body, modal content или другой внешний layout;
 - `layout.stickyHeader` включает, отключает или настраивает `top` offset для
-  sticky header.
+  sticky header;
+- `layout.virtualization` включает отрисовку видимого диапазона data lines с overscan. По умолчанию выключена; expanded/empty lines используют полный render. Объект настройки поддерживает `enabled`, `rowHeight` и `overscan`. Scroll может быть internal или external; при фиксированной высоте `rowHeight` должен соответствовать фактической высоте строки.
 
 Layout не заменяет `surface`. `surface` отвечает за визуальную оболочку, а
 `layout` отвечает за интеграцию со scroll/sticky поведением окружения.
@@ -254,8 +255,7 @@ marker element, а не к line wrapper.
 Вычисляет selection snapshot и next selection state по `nodeId`.
 
 Reactive selection state хранится в adapter-слое, а runtime получает
-`selectedNodeIds` на вход. Это сохраняет React rerender contract и не отдаёт
-selection state во view.
+include/exclude-модель на вход: `type` и `ReadonlySet<nodeId>`. Для include Set содержит выбранные ids, для exclude — исключения. Select-all переключает модель в exclude с пустым Set: новые подгруженные строки также выбраны. Snapshot материализует `selectedNodeIds` для текущих nodes, а consumer по-прежнему получает исходные rows. Это сохраняет React rerender contract и не отдаёт ownership выбора во view.
 
 Первый срез selection поддерживает row selection через consumer-facing callback:
 

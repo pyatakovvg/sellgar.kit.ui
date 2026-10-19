@@ -53,7 +53,93 @@ interface TableLineViewProps<T, THeader, TActionContent> {
   onRowContextMenu?: TableLineEventHandler<T>;
 }
 
-export const TableLineView = <T, THeader, TActionContent>(props: TableLineViewProps<T, THeader, TActionContent>) => {
+const areColumnLayoutsEqual = <THeader, TActionContent>(
+  left: TableColumnLayoutSnapshot<THeader, TActionContent>[],
+  right: TableColumnLayoutSnapshot<THeader, TActionContent>[],
+): boolean => {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+
+  for (let index = 0; index < left.length; index++) {
+    const leftLayout = left[index];
+    const rightLayout = right[index];
+
+    if (!leftLayout || !rightLayout) return false;
+    if (leftLayout.columnId !== rightLayout.columnId) return false;
+    if (leftLayout.sourceIndex !== rightLayout.sourceIndex) return false;
+    if (leftLayout.visualIndex !== rightLayout.visualIndex) return false;
+    if (leftLayout.gridTemplateTrack !== rightLayout.gridTemplateTrack) return false;
+    if (leftLayout.pin?.side !== rightLayout.pin?.side) return false;
+    if (leftLayout.pin?.offset !== rightLayout.pin?.offset) return false;
+    if (leftLayout.pin?.isBoundary !== rightLayout.pin?.isBoundary) return false;
+    if (leftLayout.sort.isActive !== rightLayout.sort.isActive) return false;
+    if (leftLayout.sort.direction !== rightLayout.sort.direction) return false;
+    if (leftLayout.sort.isSortable !== rightLayout.sort.isSortable) return false;
+    if (leftLayout.column.kind !== rightLayout.column.kind) return false;
+    if (leftLayout.column.align !== rightLayout.column.align) return false;
+  }
+
+  return true;
+};
+
+const areLinesEqual = <T,>(left: TableLineSnapshot<T>, right: TableLineSnapshot<T>): boolean => {
+  if (left === right) return true;
+  if (left.id !== right.id) return false;
+  if (left.kind !== right.kind) return false;
+  if (left.visualIndex !== right.visualIndex) return false;
+
+  if (left.kind === 'data' && right.kind === 'data') {
+    return (
+      left.selected === right.selected &&
+      left.selectionIndeterminate === right.selectionIndeterminate &&
+      left.node.nodeId === right.node.nodeId &&
+      left.node.data === right.node.data &&
+      left.node.depth === right.node.depth &&
+      left.node.hasChildren === right.node.hasChildren &&
+      left.node.parentNodeId === right.node.parentNodeId
+    );
+  }
+
+  if (left.kind === 'empty' && right.kind === 'empty') {
+    return left.columnSpan === right.columnSpan;
+  }
+
+  if (left.kind === 'expanded' && right.kind === 'expanded') {
+    return left.node.nodeId === right.node.nodeId && left.node.data === right.node.data;
+  }
+
+  return false;
+};
+
+const areTableLineViewPropsEqual = <T, THeader, TActionContent>(
+  left: TableLineViewProps<T, THeader, TActionContent>,
+  right: TableLineViewProps<T, THeader, TActionContent>,
+): boolean => {
+  return (
+    left.rowIndex === right.rowIndex &&
+    left.size === right.size &&
+    left.lastRowTriggerCellRef === right.lastRowTriggerCellRef &&
+    left.isInteractive === right.isInteractive &&
+    left.createCell === right.createCell &&
+    left.renderCell === right.renderCell &&
+    left.renderEmpty === right.renderEmpty &&
+    left.renderExpanded === right.renderExpanded &&
+    left.onNodeToggle === right.onNodeToggle &&
+    left.isNodeExpanded === right.isNodeExpanded &&
+    left.onNodeExpandedToggle === right.onNodeExpandedToggle &&
+    left.isTreeEnabled === right.isTreeEnabled &&
+    left.isTreeDefaultExpanded === right.isTreeDefaultExpanded &&
+    left.treeToggledNodeIds === right.treeToggledNodeIds &&
+    left.onTreeNodeToggle === right.onTreeNodeToggle &&
+    left.onRowClick === right.onRowClick &&
+    left.onRowDoubleClick === right.onRowDoubleClick &&
+    left.onRowContextMenu === right.onRowContextMenu &&
+    areLinesEqual(left.line, right.line) &&
+    areColumnLayoutsEqual(left.columnLayouts, right.columnLayouts)
+  );
+};
+
+const TableLineViewComponent = <T, THeader, TActionContent>(props: TableLineViewProps<T, THeader, TActionContent>) => {
   const [isLineHovered, setIsLineHovered] = React.useState(false);
   const isLineInteractiveHovered = props.isInteractive && isLineHovered;
 
@@ -129,3 +215,8 @@ export const TableLineView = <T, THeader, TActionContent>(props: TableLineViewPr
     </div>
   );
 };
+
+export const TableLineView = React.memo(
+  TableLineViewComponent,
+  areTableLineViewPropsEqual,
+) as typeof TableLineViewComponent;

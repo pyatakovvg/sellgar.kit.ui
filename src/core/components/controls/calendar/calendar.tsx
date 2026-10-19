@@ -1,7 +1,5 @@
-import 'moment-timezone';
-
 import React from 'react';
-import moment from 'moment';
+import moment from 'moment-timezone';
 
 import { Day } from './day';
 import { DayDisabled } from './day-disabled';
@@ -35,6 +33,7 @@ interface IProps {
   value?: string;
   format?: string;
   timeSelection?: boolean;
+  isDateDisabled?(date: Date): boolean;
   onChange: (value: string | undefined) => void;
   onCancel?(): void;
   displayTimeZone?: string;
@@ -87,6 +86,17 @@ export const Calendar: React.FC<IProps> = (props) => {
     return getCalendarDays(calendarMoment.year(), calendarMoment.month());
   }, [props.displayTimeZone, selectedDate]);
 
+  const isMomentDisabled = React.useCallback(
+    (momentDate: moment.Moment) => {
+      if (!props.isDateDisabled) {
+        return false;
+      }
+
+      return props.isDateDisabled(momentDate.toDate());
+    },
+    [props.isDateDisabled],
+  );
+
   const handlePrevMonth = (month: number) => {
     const newMonth = month - 1;
     const nextMoment = selectedMoment.clone();
@@ -133,7 +143,13 @@ export const Calendar: React.FC<IProps> = (props) => {
   };
 
   const handleMoveActiveDate = (amount: number, unit: moment.unitOfTime.DurationConstructor) => {
-    setSelectedDate(selectedMoment.clone().add(amount, unit).format(props.format));
+    const nextMoment = selectedMoment.clone().add(amount, unit);
+
+    if (isMomentDisabled(nextMoment)) {
+      return;
+    }
+
+    setSelectedDate(nextMoment.format(props.format));
     setShouldFocusActiveDay(true);
   };
 
@@ -216,13 +232,15 @@ export const Calendar: React.FC<IProps> = (props) => {
           }
 
           const isActive = selectedMoment.isSame(currentMoment, 'day');
+          const isDisabled = isMomentDisabled(currentMoment);
 
           return (
             <Day
               key={index}
-              ref={isActive ? activeDayRef : undefined}
-              tabIndex={isActive ? 0 : -1}
+              ref={isActive && !isDisabled ? activeDayRef : undefined}
+              tabIndex={isActive && !isDisabled ? 0 : -1}
               isActive={isActive}
+              isDisabled={isDisabled}
               isToday={day.isToday}
               isWeekday={day.isWeekday}
               onKeyDown={handleKeyDownDay}
@@ -235,7 +253,12 @@ export const Calendar: React.FC<IProps> = (props) => {
       </div>
       {props.timeSelection ? (
         <div className={s.control}>
-          <Inputs value={selectedDate} onChange={handleChange} onCancel={props.onCancel} />
+          <Inputs
+            value={selectedDate}
+            isDateDisabled={props.isDateDisabled}
+            onChange={handleChange}
+            onCancel={props.onCancel}
+          />
         </div>
       ) : null}
     </div>

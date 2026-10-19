@@ -1,3 +1,5 @@
+import type { TableSelectionModel } from './selection-runtime.ts';
+
 export type TableNodeId = string;
 export type TableColumnId = string;
 export type TableLineId = string;
@@ -147,6 +149,7 @@ export type TableLineSnapshot<T> = TableDataLineSnapshot<T> | TableEmptyLineSnap
 export interface TableSelectionSnapshot {
   allSelected: boolean;
   indeterminate: boolean;
+  model: TableSelectionModel;
   selectedNodeIds: TableNodeId[];
 }
 

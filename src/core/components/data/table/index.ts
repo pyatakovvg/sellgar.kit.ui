@@ -33,6 +33,7 @@ export type {
   TableData,
   TableLayoutConfig,
   TableLayoutScroll,
+  TableLayoutVirtualization,
   TableProps,
   TableRootScope,
   TableSelectConfig,
@@ -41,6 +42,7 @@ export type {
   TableSurface,
   TableStyle,
   TableTreeConfig,
+  TableVirtualizationConfig,
 } from './table.tsx';
 export type {
   TableColumnSortConfig,

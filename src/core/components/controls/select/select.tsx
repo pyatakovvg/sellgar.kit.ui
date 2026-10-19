@@ -135,6 +135,7 @@ export const Select = <T extends Record<string, any>, K extends keyof T>({
           aria-haspopup={'listbox'}
           disabled={disabled}
           isClearable={optionSelected !== void 0 && isClearable}
+          isFocused={open}
           isOpen={open}
           tabIndex={tabIndex}
           onClear={handleClear}

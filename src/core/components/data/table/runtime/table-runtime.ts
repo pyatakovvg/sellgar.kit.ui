@@ -3,9 +3,10 @@ import { ColumnLayoutRuntime } from './column-layout-runtime.ts';
 import { assertTableInvariant } from './invariant.ts';
 import { LineRuntime } from './line-runtime.ts';
 import { NodeRuntime } from './node-runtime.ts';
-import { SelectionRuntime } from './selection-runtime.ts';
+import { SelectionRuntime, createEmptyTableSelectionModel } from './selection-runtime.ts';
 import { TreeRuntime } from './tree-runtime.ts';
 
+import type { TableSelectionModel } from './selection-runtime.ts';
 import type {
   TableColumnId,
   TableColumnModel,
@@ -29,7 +30,7 @@ export interface TableTreeInput<T extends object> {
 
 export interface TableSnapshotOptions<T extends object> {
   selectionEnabled?: boolean;
-  selectedNodeIds?: readonly TableNodeId[];
+  selection?: TableSelectionModel;
   emptyLineEnabled?: boolean;
   expandedLineEnabled?: boolean;
   expandedNodeIds?: ReadonlySet<TableNodeId>;
@@ -91,47 +92,47 @@ export class TableRuntime<T extends object, THeader = unknown, TActionContent = 
     this.setRows(input.rows, this.getNodeTreeOptions(input.tree));
   }
 
-  getSelectedRows(selectedNodeIds: readonly TableNodeId[]): T[] {
-    const selectedNodeIdSet = new Set(selectedNodeIds);
+  getSelectedRows(selection: TableSelectionModel): T[] {
+    const selectedRows: T[] = [];
 
-    return this.nodes
-      .getNodes()
-      .filter((node) => selectedNodeIdSet.has(node.nodeId))
-      .map((node) => node.data);
+    for (const node of this.nodes.getNodes()) {
+      if (this.selection.isNodeSelected(selection, node.nodeId)) {
+        selectedRows.push(node.data);
+      }
+    }
+
+    return selectedRows;
   }
 
   toggleNodeSelection(
-    selectedNodeIds: readonly TableNodeId[],
+    selection: TableSelectionModel,
     nodeId: TableNodeId,
     tree?: TableTreeInput<T>,
-  ): TableNodeId[] {
+  ): TableSelectionModel {
     if (tree?.enabled) {
       return this.selection.toggleNodeSubtree(
-        selectedNodeIds,
+        selection,
         this.nodes.getSubtreeNodeIds(nodeId),
         this.getAncestorSubtreeNodeIds(nodeId),
       );
     }
 
-    return this.selection.toggleNode(selectedNodeIds, nodeId);
+    return this.selection.toggleNode(selection, nodeId);
   }
 
-  toggleAllNodesSelection(selectedNodeIds: readonly TableNodeId[], tree?: TableTreeInput<T>): TableNodeId[] {
+  toggleAllNodesSelection(selection: TableSelectionModel, tree?: TableTreeInput<T>): TableSelectionModel {
     const nodeIds = tree?.enabled ? this.getAllNodeIds() : this.getVisibleNodes(tree).map((node) => node.nodeId);
 
-    return this.selection.toggleAll(selectedNodeIds, nodeIds);
+    return this.selection.toggleAll(selection, nodeIds);
   }
 
-  clearPartialNodeSubtreeSelection(
-    selectedNodeIds: readonly TableNodeId[],
-    nodeId: TableNodeId,
-  ): readonly TableNodeId[] {
-    const selectionStatus = this.selection.getNodeStatuses(this.nodes.getNodes(), selectedNodeIds).get(nodeId);
+  clearPartialNodeSubtreeSelection(selection: TableSelectionModel, nodeId: TableNodeId): TableSelectionModel {
+    const selectionStatus = this.selection.getNodeStatuses(this.nodes.getNodes(), selection).get(nodeId);
 
-    if (!selectionStatus?.indeterminate) return selectedNodeIds;
+    if (!selectionStatus?.indeterminate) return selection;
 
     return this.selection.clearNodeSubtree(
-      selectedNodeIds,
+      selection,
       this.nodes.getSubtreeNodeIds(nodeId),
       this.getAncestorSubtreeNodeIds(nodeId),
     );
@@ -142,7 +143,7 @@ export class TableRuntime<T extends object, THeader = unknown, TActionContent = 
 
     return this.snapshot({
       selectionEnabled: input.selectionEnabled,
-      selectedNodeIds: input.selectedNodeIds,
+      selection: input.selection,
       emptyLineEnabled: input.emptyLineEnabled,
       expandedLineEnabled: input.expandedLineEnabled,
       expandedNodeIds: input.expandedNodeIds,
@@ -174,12 +175,16 @@ export class TableRuntime<T extends object, THeader = unknown, TActionContent = 
     const allNodeIds = this.getAllNodeIds();
     const nodes = this.getVisibleNodes(options.tree);
     const nodeIds = nodes.map((node) => node.nodeId);
-    const selectedNodeIds = options.selectionEnabled
-      ? this.selection.retain(options.selectedNodeIds ?? [], allNodeIds)
-      : [];
+    const retainedSelection =
+      options.selectionEnabled && options.selection
+        ? this.selection.retain(options.selection, allNodeIds)
+        : createEmptyTableSelectionModel();
     const selectionScopeNodeIds = options.tree?.enabled ? allNodeIds : nodeIds;
-    const selectionStatus = this.selection.getStatus(selectedNodeIds, selectionScopeNodeIds);
-    const selectionStatusByNodeId = this.selection.getNodeStatuses(this.nodes.getNodes(), selectedNodeIds);
+    const selectionStatus = this.selection.getStatus(retainedSelection, selectionScopeNodeIds);
+    const selectedNodeIds = this.selection.materialize(retainedSelection, allNodeIds);
+    const selectionStatusByNodeId = options.tree?.enabled
+      ? this.selection.getNodeStatuses(this.nodes.getNodes(), retainedSelection)
+      : undefined;
 
     return {
       nodeIds: allNodeIds,
@@ -189,9 +194,10 @@ export class TableRuntime<T extends object, THeader = unknown, TActionContent = 
       selection: {
         allSelected: selectionStatus.allSelected,
         indeterminate: selectionStatus.indeterminate,
+        model: retainedSelection,
         selectedNodeIds,
       },
-      lines: this.lines.createLines(nodes, visibleColumns, selectedNodeIds, {
+      lines: this.lines.createLines(nodes, visibleColumns, retainedSelection, {
         emptyLineEnabled: options.emptyLineEnabled,
         expandedLineEnabled: options.expandedLineEnabled,
         expandedNodeIds: options.expandedNodeIds,

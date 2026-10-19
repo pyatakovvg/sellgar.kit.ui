@@ -37,14 +37,15 @@ Interaction AGENTS.
 - `export { Inputs } from './inputs.tsx';`
 - Consumer import: прямой public import из `@sellgar/kit` не подтверждён; использовать через ближайший parent/component API.
 - Exported/source names: `Inputs`.
-- Props из `IProps`: `value`, `onChange`, `onCancel`.
+- Props из `IProps`: `value`, `isDateDisabled`, `onChange`, `onCancel`.
 - Локальные parts: `controls`.
 
 ## Контракт изменения
 
 - Не менять локальные exports (`export { Inputs } from './inputs.tsx';`) без оценки public API.
 - Узел является scoped/internal для ближайшего родителя; не выводить его в public barrels без отдельного решения.
-- Props contract: `value`, `onChange`, `onCancel`. Новые/изменённые props нужно отражать в story и документации.
+- Props contract: `value`, `isDateDisabled`, `onChange`, `onCancel`. Новые/изменённые props нужно отражать в story и документации.
+- `isDateDisabled` валидирует введённую дату в реальном времени при вводе и при Apply: недоступная дата помечается destructive-состоянием и не применяется.
 
 ## Фактическое поведение
 

@@ -19,7 +19,7 @@ cells являются доменными сущностями, а React выс�
 - Отвечает за runtime-first table contract.
 - Не выносит локальный runtime в `core/systems`, пока runtime обслуживает
   только `Table`.
-- Не добавляет virtualization без отдельного проектного среза.
+- Поддерживает opt-in virtualization через `layout.virtualization`; по умолчанию она выключена.
 
 ## Как реализован
 
@@ -138,8 +138,7 @@ cells являются доменными сущностями, а React выс�
   identity, а не по строковому `displayName`.
 - Не импортировать `features` из `Table`.
 - Sort state хранить по `columnId`, не по visual/source index колонки.
-- Selection state хранить в adapter-слое по `nodeId`, не по data object
-  identity и не по primary key данных.
+- Selection state хранить в adapter-слое как include/exclude-модель с `Set<nodeId>`, не по data object identity и не по primary key данных. Select-all хранит исключения, а не копию всех выбранных ids; новые загруженные строки тоже считаются выбранными.
 - Внешние controller-команды должны вызывать тот же selection pipeline, что и
   view controls, включая `select.onSelect(rows)`.
 - Один `Table.ControllerProvider` поддерживает один активный `Table`.
@@ -175,6 +174,8 @@ cells являются доменными сущностями, а React выс�
   target, а не через scroll position math.
 - Не добавлять theme tokens без отдельного решения.
 - Не хранить reactive feature state внутри view-компонентов.
+- `TableLineView` использует memo comparator; callbacks selection/tree сохраняют identity и читают актуальный runtime input.
+- Для плоской таблицы subtree selection statuses не вычисляются.
 
 ## Риски и точки внимания
 
@@ -186,7 +187,7 @@ cells являются доменными сущностями, а React выс�
 
 ## Технический долг
 
-- Нет virtualization.
+- Virtualization применяется только к data-only lines с фиксированной высотой; expanded/empty lines отключают её.
 - Нет user-controlled resize column width.
 - Нет command bus.
 - Нет automated tests для runtime.

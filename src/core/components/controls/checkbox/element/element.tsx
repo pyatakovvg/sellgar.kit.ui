@@ -39,9 +39,18 @@ export const Element: React.FC<IProps> = ({ size = 'md', isIndeterminate, ...pro
 
   return (
     <div className={s.container}>
-      <input {...props} ref={inputRef} type={'checkbox'} aria-checked={ariaChecked} className={s.input} />
+      <input
+        {...props}
+        ref={inputRef}
+        type={'checkbox'}
+        aria-checked={ariaChecked}
+        className={s.input}
+        data-qa={'checkbox.element'}
+      />
       <div className={classNameInput}>
-        <span className={s.icon}>{isIndeterminate ? <SubtractFillIcon /> : <CheckFillIcon />}</span>
+        <span className={s.icon} data-qa={'checkbox.element.icon'}>
+          {isIndeterminate ? <SubtractFillIcon /> : <CheckFillIcon />}
+        </span>
       </div>
     </div>
   );

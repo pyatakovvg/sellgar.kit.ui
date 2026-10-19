@@ -56,7 +56,9 @@ const MultiSelectComponent = <T extends Record<string, any>, K extends keyof T>(
   } = useMultiSelect(props);
 
   const selectedOptions = React.useMemo(() => {
-    return options.filter((option) => selectedValues.includes(option[optionKey]));
+    const selectedValueSet = new Set(selectedValues);
+
+    return options.filter((option) => selectedValueSet.has(option[optionKey]));
   }, [options, selectedValues, optionKey]);
 
   React.useEffect(() => {

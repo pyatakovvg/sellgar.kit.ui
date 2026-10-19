@@ -1,4 +1,5 @@
 import type { TableNodeSelectionStatus } from './selection-runtime.ts';
+import type { TableSelectionModel } from './selection-runtime.ts';
 import type { TableColumnModel, TableLineSnapshot, TableNodeId, TableNodeModel } from './types.ts';
 
 const createDataLineId = (nodeId: TableNodeId): string => {
@@ -22,7 +23,7 @@ export class LineRuntime<T, THeader = unknown, TActionContent = unknown> {
   createLines(
     nodes: TableNodeModel<T>[],
     columns: TableColumnModel<THeader, TActionContent>[],
-    selectedNodeIds: readonly TableNodeId[],
+    selection: TableSelectionModel,
     options: TableCreateLinesOptions = {},
   ): TableLineSnapshot<T>[] {
     if (nodes.length === 0 && options.emptyLineEnabled) {
@@ -37,14 +38,13 @@ export class LineRuntime<T, THeader = unknown, TActionContent = unknown> {
     }
 
     const lines: TableLineSnapshot<T>[] = [];
-    const selectedNodeIdSet = new Set(selectedNodeIds);
 
     let visualIndex = 0;
 
     for (const node of nodes) {
       const lineId = createDataLineId(node.nodeId);
       const selectionStatus = options.selectionStatusByNodeId?.get(node.nodeId);
-      const selected = selectionStatus?.selected ?? selectedNodeIdSet.has(node.nodeId);
+      const selected = selectionStatus?.selected ?? this.isNodeSelected(selection, node.nodeId);
 
       lines.push({
         id: lineId,
@@ -79,5 +79,11 @@ export class LineRuntime<T, THeader = unknown, TActionContent = unknown> {
     }
 
     return lines;
+  }
+
+  private isNodeSelected(selection: TableSelectionModel, nodeId: TableNodeId): boolean {
+    const isIncluded = selection.nodeIds.has(nodeId);
+
+    return selection.type === 'include' ? isIncluded : !isIncluded;
   }
 }

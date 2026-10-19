@@ -36,14 +36,16 @@
 - `export { Day } from './day.tsx';`
 - Consumer import: прямой public import из `@sellgar/kit` не подтверждён; использовать через ближайший parent/component API.
 - Exported/source names: `Day`.
-- Props из `IProps`: `ref`, `isActive`, `isToday`, `isWeekday`, `tabIndex`, `onKeyDown`, `onClick`.
+- Props из `IProps`: `ref`, `isActive`, `isToday`, `isWeekday`, `isDisabled`, `tabIndex`, `onKeyDown`, `onClick`.
 - Локальных parts нет.
 
 ## Контракт изменения
 
 - Не менять локальные exports (`export { Day } from './day.tsx';`) без оценки public API.
 - Узел является scoped/internal для ближайшего родителя; не выводить его в public barrels без отдельного решения.
-- Props contract: `ref`, `isActive`, `isToday`, `isWeekday`, `tabIndex`, `onKeyDown`, `onClick`. Новые/изменённые props нужно отражать в story и документации.
+- Props contract: `ref`, `isActive`, `isToday`, `isWeekday`, `isDisabled`, `tabIndex`, `onKeyDown`, `onClick`. Новые/изменённые props нужно отражать в story и документации.
+- `isDisabled` рендерит неинтерактивную (native `disabled`) ячейку даты.
+- Ячейка, одновременно `isDisabled` и `isActive` (отключённый выбранный value), рендерится с `weight` 700 вместо 400.
 
 ## Фактическое поведение
 

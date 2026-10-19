@@ -59,6 +59,7 @@ Selection interaction для множественного выбора с badges
 - Имеет callback props; порядок вызовов и disabled guards являются частью поведения.
 - Focus/blur callbacks синхронизированы с controlled open state без таймеров.
 - Options layer построен на `core/systems/floating` и локальном `option-list`.
+- Поиск selected options и projection выбранных list indices используют локальный `Set`: один проход по выбранным значениям и один по options вместо `includes` для каждого option. Порядок options, badges, select-all и callbacks не меняется.
 
 ## Зависимости
 

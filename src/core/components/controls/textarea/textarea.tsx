@@ -67,6 +67,7 @@ export const Textarea: React.FC<IProps> = ({ ref, size = 'md', target, ...props 
   const handleBlur = (event: React.FocusEvent<HTMLTextAreaElement>) => {
     setFocused(false);
     setKeyboardFocused(false);
+    isPointerFocusRef.current = false;
     props.onBlur && props.onBlur(event);
   };
 

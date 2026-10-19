@@ -10,9 +10,24 @@ import s from './default.module.scss';
 
 interface IProps {
   value: string;
+  isDateDisabled?(date: Date): boolean;
   onChange(value: string): void;
   onCancel?(): void;
 }
+
+const parseDate = (value: string) => {
+  const match = value.match(/(0[1-9]|[1-2][0-9]|3[0-1])\.(0[1-9]|1[0-2])\.(\d{4})/);
+
+  if (!match) {
+    return null;
+  }
+
+  return moment()
+    .year(Number(match[3]))
+    .month(Number(match[2]) - 1)
+    .date(Number(match[1]))
+    .startOf('day');
+};
 
 export const Inputs: React.FC<IProps> = (props) => {
   const [date, setDate] = React.useState(() => moment(props.value).format('DD.MM.YYYY'));
@@ -28,9 +43,9 @@ export const Inputs: React.FC<IProps> = (props) => {
 
   const handleChangeDate = (event: React.ChangeEvent<HTMLInputElement>) => {
     const date = event.target.value;
-    const matchDate = date.match(/(0[1-9]|[1-2][0-9]|3[0-1])\.(0[1-9]|1[0-2])\.(\d{4})/);
+    const parsedDate = parseDate(date);
 
-    setErrorDateValidate(!matchDate);
+    setErrorDateValidate(!parsedDate || Boolean(props.isDateDisabled?.(parsedDate.toDate())));
     setDate(date);
   };
 
@@ -43,22 +58,19 @@ export const Inputs: React.FC<IProps> = (props) => {
   };
 
   const handleChange = () => {
-    const matchDate = date.match(/(0[1-9]|[1-2][0-9]|3[0-1])\.(0[1-9]|1[0-2])\.(\d{4})/);
+    const parsedDate = parseDate(date);
     const matchTime = time.match(/([0-1][0-9]|2[0-3]):([0-5][0-9])/);
 
-    if (!matchDate || !matchTime) {
+    if (!parsedDate || !matchTime) {
       return void 0;
     }
 
-    const result = moment()
-      .year(Number(matchDate[3]))
-      .month(Number(matchDate[2]) - 1)
-      .date(Number(matchDate[1]))
-      .hour(Number(matchTime[1]))
-      .minute(Number(matchTime[2]))
-      .second(0)
-      .millisecond(0)
-      .format();
+    if (props.isDateDisabled?.(parsedDate.toDate())) {
+      setErrorDateValidate(true);
+      return void 0;
+    }
+
+    const result = parsedDate.hour(Number(matchTime[1])).minute(Number(matchTime[2])).second(0).millisecond(0).format();
 
     props.onChange(result);
   };

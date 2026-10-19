@@ -153,11 +153,15 @@ export const InputAmount2Component: React.FC<IInputAmount2Props> = (componentPro
   const handleBlur = (event: React.FocusEvent<HTMLSpanElement>) => {
     setFocused(false);
     setKeyboardFocused(false);
+    isPointerFocusRef.current = false;
     props.onBlur?.(event);
   };
 
-  const handlePointerDown = (event: React.PointerEvent<HTMLSpanElement>) => {
+  const handlePointerDownCapture = () => {
     isPointerFocusRef.current = true;
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLSpanElement>) => {
     props.onPointerDown?.(event);
   };
 
@@ -181,6 +185,7 @@ export const InputAmount2Component: React.FC<IInputAmount2Props> = (componentPro
           onBlur={handleBlur}
           onChange={handleChange}
           onFocus={handleFocus}
+          onPointerDownCapture={handlePointerDownCapture}
           onPointerDown={handlePointerDown}
         />
       </div>

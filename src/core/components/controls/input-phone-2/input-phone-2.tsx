@@ -1,10 +1,6 @@
 import React from 'react';
 
-import {
-  FORMATTED_INPUT_MASK_DIGIT_RULE,
-  FormattedInput,
-  FormattedInputMaskPlugin,
-} from '../formatted-input';
+import { FORMATTED_INPUT_MASK_DIGIT_RULE, FormattedInput, FormattedInputMaskPlugin } from '../formatted-input';
 import { Badge } from '../../status/badge';
 
 import type { TFormattedInputMaskTokenOptions } from '../formatted-input';
@@ -207,11 +203,15 @@ export const InputPhone2: React.FC<IInputPhone2Props> = (componentProps) => {
   const handleBlur = (event: React.FocusEvent<HTMLSpanElement>) => {
     setFocused(false);
     setKeyboardFocused(false);
+    isPointerFocusRef.current = false;
     props.onBlur?.(event);
   };
 
-  const handlePointerDown = (event: React.PointerEvent<HTMLSpanElement>) => {
+  const handlePointerDownCapture = () => {
     isPointerFocusRef.current = true;
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLSpanElement>) => {
     props.onPointerDown?.(event);
   };
 
@@ -236,6 +236,7 @@ export const InputPhone2: React.FC<IInputPhone2Props> = (componentProps) => {
           onBlur={handleBlur}
           onChange={handleChange}
           onFocus={handleFocus}
+          onPointerDownCapture={handlePointerDownCapture}
           onPointerDown={handlePointerDown}
         />
       </div>

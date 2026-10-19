@@ -46,7 +46,7 @@ Selection interaction, объединяющий SelectInput, Popover и Calendar
 - `export { Datepicker } from './datepicker.tsx';`
 - Consumer import: `import { Datepicker } from '@sellgar/kit'` или compound API ближайшего public-компонента.
 - Exported/source names: `Datepicker`, `IProps`.
-- Props из `IProps`: `tailIcon`, `badge`, `size`, `target`, `value`, `tabIndex`, `placeholder`, `disabled`, `isClearable`, `format`, `displayFormat`, `displayTimeZone`, `timeSelection`, `templateValue`, `onChange`, `onFocus`, `onBlur`.
+- Props из `IProps`: `tailIcon`, `badge`, `size`, `target`, `value`, `tabIndex`, `placeholder`, `disabled`, `isClearable`, `format`, `displayFormat`, `displayTimeZone`, `timeSelection`, `isDateDisabled`, `templateValue`, `onChange`, `onFocus`, `onBlur`.
 - `templateValue` кастомизирует только отображение выбранного значения в trigger-е.
 - `templateOption` не относится к доменной модели Datepicker, потому что options в компоненте нет.
 - Локальные parts: `option`, `placeholder`.
@@ -55,7 +55,8 @@ Selection interaction, объединяющий SelectInput, Popover и Calendar
 
 - Не менять локальные exports (`export { Datepicker } from './datepicker.tsx';`) без оценки public API.
 - Так как узел достижим через barrel chain `@sellgar/kit`, изменение имени компонента, props или exported types может быть breaking change.
-- Props contract: `tailIcon`, `badge`, `size`, `target`, `value`, `tabIndex`, `placeholder`, `disabled`, `isClearable`, `format`, `displayFormat`, `displayTimeZone`, `timeSelection`, `templateValue`, `onChange`, `onFocus`, `onBlur`. Новые/изменённые props нужно отражать в story и документации.
+- Props contract: `tailIcon`, `badge`, `size`, `target`, `value`, `tabIndex`, `placeholder`, `disabled`, `isClearable`, `format`, `displayFormat`, `displayTimeZone`, `timeSelection`, `isDateDisabled`, `templateValue`, `onChange`, `onFocus`, `onBlur`. Новые/изменённые props нужно отражать в story и документации.
+- `isDateDisabled` прокидывается в `Calendar` и позволяет отключать отдельные даты (например, все даты раньше текущей).
 - Не переносить Select API механически: если новый prop требует option-list, item renderer или keyboard list navigation, сначала нужно определить календарную доменную сущность и проверить, что она реализуется внутри `Calendar`.
 
 ## Фактическое поведение

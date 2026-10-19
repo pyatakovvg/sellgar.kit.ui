@@ -53,11 +53,19 @@
   &--white {
     color: var(--icon-base-static-dark-secondary);
     background: var(--background-badge-white);
+
+    .label {
+      color: var(--text-base-static-dark);
+    }
   }
 
   &--surface {
     color: var(--icon-base-secondary);
     background: var(--background-badge-surface);
+
+    .label {
+      color: var(--text-base-primary);
+    }
   }
 
   &--white-destructive {
@@ -310,10 +318,18 @@
     &--white {
       color: var(--text-base-quaternary);
       background: var(--background-badge-white-disabled);
+
+      .label {
+        color: var(--text-base-quaternary);
+      }
     }
 
     &--surface {
       color: var(--text-base-quaternary);
+
+      .label {
+        color: var(--text-base-quaternary);
+      }
     }
 
     &--white-destructive {

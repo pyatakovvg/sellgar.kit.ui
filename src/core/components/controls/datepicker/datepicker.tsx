@@ -1,9 +1,7 @@
-import 'moment-timezone';
-
 import React from 'react';
 
 import { CalendarLineIcon } from '../../../../icons';
-import moment from 'moment';
+import moment from 'moment-timezone';
 
 import { Calendar } from '../calendar';
 import { SelectInput } from '../../../systems/floating/internals/select-input';
@@ -28,6 +26,7 @@ export interface IProps {
   displayFormat?: string;
   displayTimeZone?: string;
   timeSelection?: boolean;
+  isDateDisabled?(date: Date): boolean;
   templateValue?(value: string): React.ReactNode;
   onChange?: (value?: string) => void;
   onFocus?: () => void;
@@ -52,6 +51,7 @@ export const Datepicker: React.FC<IProps> = (componentProps) => {
     format = 'YYYY-MM-DDTHH:mm:ss.sssZ',
     displayFormat = 'DD.MM.YYYY',
     timeSelection = true,
+    isDateDisabled,
     templateValue,
   } = componentProps;
 
@@ -155,6 +155,7 @@ export const Datepicker: React.FC<IProps> = (componentProps) => {
             onChange={handleChange}
             onCancel={() => setOpen(false)}
             timeSelection={timeSelection}
+            isDateDisabled={isDateDisabled}
             displayTimeZone={displayTimeZone}
           />
         </div>

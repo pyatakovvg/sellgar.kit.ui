@@ -30,7 +30,7 @@ export const Checkbox: React.FC<IProps> = ({ size = 'md', label, caption, ...pro
   );
 
   return (
-    <label className={classNameInput}>
+    <label className={classNameInput} data-qa={'checkbox'}>
       <div className={s.element}>
         <Element size={size} {...props} />
       </div>
@@ -38,13 +38,13 @@ export const Checkbox: React.FC<IProps> = ({ size = 'md', label, caption, ...pro
         <div className={s.content}>
           <div className={s.label}>
             <Typography size={size === 'md' ? 'body-s' : 'caption-l'} weight={'medium'}>
-              <p>{label}</p>
+              <p data-qa={'checkbox.label.text'}>{label}</p>
             </Typography>
           </div>
           {caption && (
             <div className={s.caption}>
               <Typography size={'caption-l'} weight={'regular'}>
-                <p>{caption}</p>
+                <p data-qa={'checkbox.caption.text'}>{caption}</p>
               </Typography>
             </div>
           )}
