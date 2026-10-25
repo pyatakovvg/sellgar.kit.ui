@@ -90,6 +90,7 @@ export interface TFloatingContentState {
 
 interface IFloatingTriggerProps {
   children: React.ReactElement | ((state: TFloatingTriggerState) => React.ReactNode);
+  role?: React.AriaRole;
 }
 
 interface IFloatingContentProps {
@@ -328,7 +329,7 @@ const FloatingRoot: React.FC<TFloatingRootProps> = ({
   return <FloatingContext.Provider value={context}>{children}</FloatingContext.Provider>;
 };
 
-const Trigger: React.FC<IFloatingTriggerProps> = ({ children }) => {
+const Trigger: React.FC<IFloatingTriggerProps> = ({ children, ...props }) => {
   const floating = useFloatingContext();
   const isPointerFocusRef = React.useRef(false);
 
@@ -371,12 +372,16 @@ const Trigger: React.FC<IFloatingTriggerProps> = ({ children }) => {
     [floating],
   );
 
-  const triggerProps = floating.getReferenceProps({
+  const referenceProps = floating.getReferenceProps({
     onBlur: handleBlur,
     onFocus: handleFocus,
-    onKeyDown: handleKeyDown,
     onPointerDown: handlePointerDown,
   });
+  const triggerProps = {
+    ...referenceProps,
+    ...props,
+    onKeyDown: mergeEventHandlers(handleKeyDown, referenceProps.onKeyDown),
+  };
 
   const state = React.useMemo<TFloatingTriggerState>(
     () => ({

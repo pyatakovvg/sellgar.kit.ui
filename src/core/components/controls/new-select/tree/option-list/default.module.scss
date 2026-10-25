@@ -1,0 +1,14 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.option {
+  display: flex;
+  padding: var(--numbers-2) var(--numbers-6);
+  outline: none;
+}
+
+.indent {
+  flex: 0 0 calc(var(--numbers-32) - var(--numbers-6));
+}

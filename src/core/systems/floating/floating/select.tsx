@@ -38,11 +38,9 @@ export interface IFloatingSelectProps<TItem> {
   items: readonly TItem[];
   loop?: boolean;
   orientation?: TFloatingListOrientation;
+  scrollItemIntoView?: boolean | ScrollIntoViewOptions;
   value?: TFloatingSelectValue;
-  onChange?(
-    value: TFloatingSelectValue,
-    meta: TFloatingSelectChangeMeta<TItem>,
-  ): void;
+  onChange?(value: TFloatingSelectValue, meta: TFloatingSelectChangeMeta<TItem>): void;
 }
 
 const resolveSelectItemValue = <TItem,>(
@@ -87,9 +85,7 @@ const getSelectedItem = <TItem,>(
   return void 0;
 };
 
-const createChangeMeta = <TItem,>(
-  meta: TFloatingListChangeMeta<TItem>,
-): TFloatingSelectChangeMeta<TItem> => ({
+const createChangeMeta = <TItem,>(meta: TFloatingListChangeMeta<TItem>): TFloatingSelectChangeMeta<TItem> => ({
   index: meta.index,
   item: meta.item,
   value: meta.value,
@@ -105,6 +101,7 @@ export const Select = <TItem,>({
   items,
   loop,
   orientation,
+  scrollItemIntoView,
   value,
   onChange,
 }: IFloatingSelectProps<TItem>): React.ReactElement => {
@@ -119,6 +116,7 @@ export const Select = <TItem,>({
       loop={loop}
       orientation={orientation}
       role={'listbox'}
+      scrollItemIntoView={scrollItemIntoView}
       selectionMode={'single'}
       value={value}
       onValueChange={(nextValue, meta) => {
@@ -129,8 +127,7 @@ export const Select = <TItem,>({
     >
       {(state) => {
         const selectedValue =
-          typeof state.selectedValue === 'number' ||
-          typeof state.selectedValue === 'string'
+          typeof state.selectedValue === 'number' || typeof state.selectedValue === 'string'
             ? state.selectedValue
             : void 0;
 

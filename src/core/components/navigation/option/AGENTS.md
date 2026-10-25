@@ -76,3 +76,9 @@ Reusable option composition для строк выбора, меню и dropdown
 - Для изменений public exports, props contract или сборки: `yarn build` в `library/kit`.
 - Storybook scenario: `../../clients/storybook/src/kit/misc/option/option.stories.tsx`.
 - Для визуальных изменений проверить размеры, disabled/active states, DOM order, keyboard/focus behavior и responsive layout, если они применимы к компоненту.
+
+## Перенос новых селектов
+
+Фасад дополнен Option.Presentation для отображения значения NewSelect.
+Исходный Option, его props, разметка и стили сохраняются. Presentation имеет
+собственную разметку без интерактивного состояния и применяется только явно.

@@ -1,0 +1,22 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-left: calc(var(--numbers-32) - var(--numbers-6));
+}
+
+.custom {
+  display: flex;
+  min-width: 0;
+  outline: none;
+
+  &:focus-visible {
+    outline: var(--numbers-2) solid var(--border-action-focus-light);
+  }
+}

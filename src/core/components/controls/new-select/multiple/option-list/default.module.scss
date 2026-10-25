@@ -1,0 +1,19 @@
+.wrapper,
+.item {
+  display: flex;
+  flex-direction: column;
+}
+
+.option {
+  display: flex;
+  flex-direction: row;
+  flex: 1 0;
+  padding: var(--numbers-2) var(--numbers-6);
+  cursor: pointer;
+  outline: none;
+  overflow: auto;
+}
+
+.option[aria-disabled='true'] {
+  cursor: default;
+}

@@ -38,9 +38,40 @@
 - Desktop/mobile поведение задаётся presentation strategy, но visual shell
   рисует потребитель.
 - Состояния отдавать через slot state/render prop и context внутренних parts.
+- Floating.Trigger сначала передаёт keydown зарегистрированной навигации списка,
+  затем общим reference interactions. Обработанный списоком Enter/Space вызывает
+  preventDefault, поэтому useClick не переключает popup поверх выбора. Это важно
+  для multiple с closeOnSelect=false; отдельный keyboard runtime не добавляется.
+- Floating.List и Floating.Select принимают scrollItemIntoView и передают его
+  существующему useListNavigation. По умолчанию true (прежнее nearest-поведение);
+  потребитель может передать ScrollIntoViewOptions или false. Root Floating
+  не управляет прокруткой выбранных опций и не получает новых selection props.
 
 ## Проверка
 
 - `../../node_modules/.bin/tsc -p tsconfig.json --noEmit --incremental false`
 - Storybook scenario:
   `clients/storybook/src/kit/systems/floating/floating/floating.stories.tsx`
+
+## Навигация дерева
+
+Floating.List дополнительно принимает role=tree, activeIndex/onNavigate и
+onKeyDown. Controlled activeIndex позволяет потребителю перейти к родителю
+или ребёнку. Предотвращённый onKeyDown не передаётся стандартной навигации.
+List не знает о потомках, раскрытии, листах или каскадном выборе. В treeitem
+семантику level/expanded/checked задаёт владелец. Для tree List сохраняет явно
+переданный aria-selected, не добавляя его к дереву с aria-checked. Для listbox
+aria-selected вычисляет сам List; menu не получает selection-атрибут.
+Старые listbox/menu сохраняют
+прежний внутренний activeIndex и keyboard-поведение.
+
+Для tree начальный selectedIndex фиксируется на открытии. Дальнейшие изменения
+каскадного выбора не вызывают повторную начальную фокусировку и scroll. При
+следующем открытии снимок пересчитывается. Активная строка при взаимодействии
+управляется отдельно через activeIndex/onNavigate. Listbox/menu используют
+прежний selectedIndex без этого изменения.
+
+В tree useListNavigation не сбрасывает activeIndex при pointerleave: hover
+подключён готовым getItemProps, а последний активный узел сохраняется для
+дальнейшего Left/Right/Enter/Space. Floating.Trigger принимает нативный role;
+TreeSelect задаёт combobox и для стандартного поля, и для custom trigger.

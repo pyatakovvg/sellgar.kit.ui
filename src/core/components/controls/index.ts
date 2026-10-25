@@ -20,3 +20,5 @@ export * from './select-tree';
 export * from './slider';
 export * from './textarea';
 export * from './toggle';
+export { NewSelect } from './new-select';
+export { NewSelectList } from './new-select-list';

@@ -21,3 +21,10 @@ Family-каталог controls-компонентов.
 ## Проверка
 
 - Для source-изменений запускать `../../node_modules/.bin/tsc -p tsconfig.json --noEmit --incremental false`.
+
+## Новые семейства выбора
+
+NewSelect объединяет отдельные Simple, Multiple, Tree и Multiple.Tree.
+NewSelectList.Multiple.Tree — самостоятельный inline-список. Они добавлены рядом
+с существующими Select/MultiSelect/SelectTree/MultiSelectTree без замены их API.
+Контракты и проверки описаны в локальных AGENTS семейств.

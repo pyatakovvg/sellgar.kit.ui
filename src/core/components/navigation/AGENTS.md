@@ -20,3 +20,8 @@ Family-каталог navigation-компонентов.
 ## Проверка
 
 - Для source-изменений запускать `../../node_modules/.bin/tsc -p tsconfig.json --noEmit --incremental false`.
+
+## Готовые опшены
+
+SelectOption и ExtendedOption перенесены для новых селектов. Они экспортируются
+дополнительно; существующий Option сохраняет свой контракт.

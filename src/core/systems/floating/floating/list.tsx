@@ -10,7 +10,7 @@ export type TFloatingListOrientation = 'horizontal' | 'vertical';
 export type TFloatingListSelectionMode = 'multiple' | 'none' | 'single';
 export type TFloatingListValue = number | string;
 export type TFloatingListSelectionValue = TFloatingListValue | readonly TFloatingListValue[] | undefined;
-export type TFloatingListRole = 'listbox' | 'menu';
+export type TFloatingListRole = 'listbox' | 'menu' | 'tree';
 
 export interface TFloatingListChangeMeta<TItem> {
   index: number;
@@ -42,6 +42,7 @@ export interface TFloatingListState<TItem> {
 }
 
 export interface IFloatingListProps<TItem> {
+  activeIndex?: number | null;
   children: React.ReactNode | ((state: TFloatingListState<TItem>) => React.ReactNode);
   closeOnSelect?: boolean;
   defaultValue?: TFloatingListSelectionValue;
@@ -52,9 +53,12 @@ export interface IFloatingListProps<TItem> {
   loop?: boolean;
   orientation?: TFloatingListOrientation;
   role?: TFloatingListRole;
+  scrollItemIntoView?: boolean | ScrollIntoViewOptions;
   selectionMode?: TFloatingListSelectionMode;
   value?: TFloatingListSelectionValue;
   onItemSelect?(meta: TFloatingListChangeMeta<TItem>): void;
+  onKeyDown?(event: React.KeyboardEvent<HTMLElement>): void;
+  onNavigate?(index: number | null): void;
   onValueChange?(value: TFloatingListSelectionValue, meta: TFloatingListChangeMeta<TItem>): void;
 }
 
@@ -123,6 +127,8 @@ const getItemRole = (role: TFloatingListRole): string => {
     return 'menuitem';
   }
 
+  if (role === 'tree') return 'treeitem';
+
   return 'option';
 };
 
@@ -134,6 +140,7 @@ const isMultipleSelectionValue = (
 };
 
 export const List = <TItem,>({
+  activeIndex: controlledActiveIndex,
   children,
   closeOnSelect,
   defaultValue,
@@ -144,16 +151,20 @@ export const List = <TItem,>({
   loop = true,
   orientation = 'vertical',
   role: roleProp,
+  scrollItemIntoView = true,
   selectionMode = 'single',
   value,
   onItemSelect,
+  onKeyDown,
+  onNavigate,
   onValueChange,
 }: IFloatingListProps<TItem>): React.ReactElement => {
   const floating = useFloatingContext();
   const itemRefs = React.useRef<Array<HTMLElement | null>>([]);
   const referenceInteractionId = React.useId();
   const optionIdPrefix = React.useId();
-  const [activeIndex, setActiveIndex] = React.useState<number | null>(null);
+  const [uncontrolledActiveIndex, setActiveIndex] = React.useState<number | null>(null);
+  const activeIndex = controlledActiveIndex === void 0 ? uncontrolledActiveIndex : controlledActiveIndex;
   const [uncontrolledValue, setUncontrolledValue] = React.useState<TFloatingListSelectionValue>(defaultValue);
 
   const selectedValue = value ?? uncontrolledValue;
@@ -161,9 +172,13 @@ export const List = <TItem,>({
   const role = roleProp ?? (selectionMode === 'none' ? 'menu' : 'listbox');
   const shouldCloseOnSelect = closeOnSelect ?? selectionMode === 'single';
 
-  const handleNavigate = React.useCallback((index: number | null): void => {
-    setActiveIndex(index);
-  }, []);
+  const handleNavigate = React.useCallback(
+    (index: number | null): void => {
+      if (controlledActiveIndex === void 0) setActiveIndex(index);
+      onNavigate?.(index);
+    },
+    [controlledActiveIndex, onNavigate],
+  );
 
   const isItemDisabled = React.useCallback(
     (index: number): boolean => {
@@ -195,6 +210,14 @@ export const List = <TItem,>({
 
     return null;
   }, [getItemValue, items, selectedValues]);
+
+  const [openingNavigation, setOpeningNavigation] = React.useState<{ open: boolean; selectedIndex: number | null }>({
+    open: false,
+    selectedIndex: null,
+  });
+  if (openingNavigation.open !== floating.open) {
+    setOpeningNavigation({ open: floating.open, selectedIndex });
+  }
 
   const disabledIndices = React.useMemo(() => {
     const indices: number[] = [];
@@ -290,7 +313,7 @@ export const List = <TItem,>({
 
   const handleReferenceKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLElement>) => {
-      if (disabled || !floating.open || (event.key !== 'Enter' && event.key !== ' ')) {
+      if (event.defaultPrevented || disabled || !floating.open || (event.key !== 'Enter' && event.key !== ' ')) {
         return;
       }
 
@@ -308,11 +331,13 @@ export const List = <TItem,>({
     activeIndex,
     disabledIndices,
     focusItemOnOpen: true,
+    focusItemOnHover: role !== 'tree',
     listRef: itemRefs,
     loop,
     onNavigate: handleNavigate,
     orientation,
-    selectedIndex,
+    scrollItemIntoView,
+    selectedIndex: role === 'tree' ? openingNavigation.selectedIndex : selectedIndex,
     virtual: true,
   });
   const listRole = useRole(floating.floating.context, {
@@ -324,10 +349,15 @@ export const List = <TItem,>({
     () => ({
       reference: {
         ...listNavigation.reference,
-        onKeyDown: mergeEventHandlers(listNavigation.reference?.onKeyDown, handleReferenceKeyDown),
+        onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
+          if (floating.open && !disabled) onKeyDown?.(event);
+          if (event.defaultPrevented) return;
+          listNavigation.reference?.onKeyDown?.(event);
+          handleReferenceKeyDown(event);
+        },
       },
     }),
-    [handleReferenceKeyDown, listNavigation.reference],
+    [disabled, floating.open, handleReferenceKeyDown, listNavigation.reference, onKeyDown],
   );
 
   React.useEffect(() => {
@@ -358,27 +388,31 @@ export const List = <TItem,>({
 
       return {
         ...listProps,
+        onKeyDown: (event) => {
+          onKeyDown?.(event);
+          if (!event.defaultPrevented) listProps.onKeyDown?.(event);
+          if (
+            role === 'tree' &&
+            (event.target === event.currentTarget ||
+              (event.target instanceof HTMLElement && event.target.getAttribute('role') === 'treeitem'))
+          )
+            handleReferenceKeyDown(event);
+        },
         ref,
       };
     },
-    [disabled, interactions, role, selectionMode],
+    [disabled, handleReferenceKeyDown, interactions, onKeyDown, role, selectionMode],
   );
 
   const getInnerProps = React.useCallback(
-    (
-      props: TFloatingListInnerElementProps = {},
-    ): TFloatingListInnerElementProps => {
+    (props: TFloatingListInnerElementProps = {}): TFloatingListInnerElementProps => {
       return props;
     },
     [],
   );
 
   const getItemProps = React.useCallback(
-    (
-      index: number,
-      item: TItem,
-      props: TFloatingListItemElementProps = {},
-    ): TFloatingListItemElementProps => {
+    (index: number, item: TItem, props: TFloatingListItemElementProps = {}): TFloatingListItemElementProps => {
       const { ref, ...restProps } = props;
       const itemValue = resolveItemValue(item, index, getItemValue);
       const isSelected = hasSelectedValue(selectedValues, itemValue);
@@ -387,7 +421,7 @@ export const List = <TItem,>({
       const itemProps = interactions.getItemProps({
         ...restProps,
         'aria-disabled': itemDisabled || props['aria-disabled'],
-        'aria-selected': role === 'listbox' ? isSelected : void 0,
+        'aria-selected': role === 'listbox' ? isSelected : role === 'tree' ? props['aria-selected'] : void 0,
         id: props.id ?? getOptionId(index),
         onClick: mergeEventHandlers(() => {
           if (!itemDisabled) {
@@ -396,12 +430,12 @@ export const List = <TItem,>({
         }, props.onClick),
         onFocus: mergeEventHandlers(() => {
           if (!itemDisabled) {
-            setActiveIndex(index);
+            handleNavigate(index);
           }
         }, props.onFocus),
         onMouseEnter: mergeEventHandlers(() => {
           if (!itemDisabled && floating.presentation === 'popover') {
-            setActiveIndex(index);
+            handleNavigate(index);
           }
         }, props.onMouseEnter),
         role: props.role ?? getItemRole(role),
@@ -421,6 +455,7 @@ export const List = <TItem,>({
       floating.presentation,
       getOptionId,
       getItemValue,
+      handleNavigate,
       interactions,
       isItemDisabled,
       role,
@@ -454,14 +489,7 @@ export const List = <TItem,>({
     }
 
     return itemStates;
-  }, [
-    activeIndex,
-    getItemProps,
-    getItemValue,
-    isItemDisabled,
-    items,
-    selectedValues,
-  ]);
+  }, [activeIndex, getItemProps, getItemValue, isItemDisabled, items, selectedValues]);
 
   React.useEffect(() => {
     const reference = floating.floating.refs.domReference.current;
@@ -493,16 +521,7 @@ export const List = <TItem,>({
       selectedValue,
       selectedValues,
     }),
-    [
-      activeIndex,
-      getInnerProps,
-      getListProps,
-      items.length,
-      listItems,
-      role,
-      selectedValue,
-      selectedValues,
-    ],
+    [activeIndex, getInnerProps, getListProps, items.length, listItems, role, selectedValue, selectedValues],
   );
 
   if (isRenderFunction<TFloatingListState<TItem>>(children)) {

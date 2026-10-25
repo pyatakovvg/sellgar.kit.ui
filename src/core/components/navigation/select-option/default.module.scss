@@ -1,0 +1,140 @@
+@use '../../../../shared/styles/shadow/shadow-size.scss' as utils;
+
+.wrapper {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  flex: 1 0;
+  gap: var(--numbers-4);
+  width: 100%;
+  padding: var(--numbers-6);
+  border: var(--numbers-1) solid transparent;
+  border-radius: var(--measurements-radius-sm);
+  background: var(--background-overlay-normal);
+  color: var(--text-base-primary);
+  cursor: pointer;
+  outline: none;
+  overflow: hidden;
+  transition: var(--measurements-transition);
+
+  &:not(.disabled, .selected):hover {
+    background: var(--background-overlay-hover);
+  }
+
+  &:not(.disabled).selected:hover {
+    background: var(--background-overlay-active-hover);
+  }
+
+  &:not(.disabled):focus-visible {
+    border-color: var(--border-action-focus-light);
+    @include utils.shadow-focus(rgba(73, 133, 253, 0.25));
+  }
+}
+
+.selected:not(.disabled) {
+  background: var(--background-overlay-active-normal);
+}
+
+.active:not(.disabled, .selected),
+.hovered:not(.disabled, .selected) {
+  background: var(--background-overlay-hover);
+}
+
+.active.selected:not(.disabled),
+.hovered.selected:not(.disabled) {
+  background: var(--background-overlay-active-hover);
+}
+
+.focused:not(.disabled) {
+  border-color: var(--border-action-focus-light);
+  @include utils.shadow-focus(rgba(73, 133, 253, 0.25));
+}
+
+.disabled {
+  color: var(--text-base-quaternary);
+  cursor: default;
+}
+
+.checkbox,
+.lead-icon,
+.tail-icon,
+.check {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--numbers-20);
+  height: var(--numbers-20);
+  font-size: var(--numbers-16);
+}
+
+.lead-icon,
+.tail-icon {
+  color: var(--icon-base-secondary);
+}
+
+.check {
+  color: var(--icon-action-normal);
+}
+
+.disabled .lead-icon,
+.disabled .tail-icon,
+.disabled .check {
+  color: var(--icon-base-quaternary);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0;
+  justify-content: center;
+  min-width: 0;
+  padding: 0 var(--numbers-4);
+  overflow: hidden;
+}
+
+.title {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--numbers-4);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.text,
+.support,
+.caption {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.text {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.support {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--text-base-tertiary);
+}
+
+.caption {
+  color: var(--text-base-tertiary);
+}
+
+.disabled .support,
+.disabled .caption {
+  color: var(--text-base-quaternary);
+}
+
+.badge {
+  display: flex;
+  flex-direction: row;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 0 var(--numbers-2);
+}

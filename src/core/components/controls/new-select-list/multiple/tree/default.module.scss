@@ -1,0 +1,30 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  max-height: inherit;
+  border-radius: var(--measurements-radius-xxl);
+  background: var(--background-surface-neutral);
+  overflow: hidden;
+}
+
+.scrollbar {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  max-height: inherit;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--numbers-10);
+  padding: var(--numbers-12);
+}
+
+.empty {
+  margin: 0;
+  color: var(--text-base-secondary);
+}
