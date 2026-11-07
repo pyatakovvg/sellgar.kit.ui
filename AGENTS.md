@@ -14,6 +14,7 @@
 
 - core UI import `@sellgar/kit`;
 - отдельный icon API `@sellgar/kit/icons`;
+- отдельный table API `@sellgar/kit/table`;
 - будущие runtime feature entrypoints `@sellgar/kit/features/<feature>`;
 - shared internal styles/assets/utilities;
 - theme CSS entrypoints и шрифты.
@@ -39,6 +40,7 @@
 src/
   core/       // основной UI для @sellgar/kit
   icons/      // отдельный icon API для @sellgar/kit/icons
+  table/      // новая таблица для @sellgar/kit/table
   features/   // будущие runtime-фичи с точечными entrypoints
   shared/     // внутренние общие стили/assets/utilities
   theme/      // CSS theme entrypoints и шрифты
@@ -48,6 +50,8 @@ src/
 
 - `core` может импортировать `shared` и отдельные иконки из `icons`.
 - `icons` не должен импортировать `core`.
+- `table` развивается отдельно от существующей таблицы в `core`; его публичный фасад — `src/table/index.ts`. Перед изменениями читать `src/table/AGENTS.md`.
+- `table` не реэкспортируется из `src/index.ts` и не подменяет существующий `Table` в `@sellgar/kit`.
 - `features` может импортировать `core`, `icons` и `shared`, но не должен попадать в основной `@sellgar/kit`.
 - `shared` не должен импортировать `core`, `icons` или `features`.
 - `theme` сейчас не входит в реструктуризацию core/components/interactions и рассматривается отдельно.

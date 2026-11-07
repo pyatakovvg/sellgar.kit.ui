@@ -3,6 +3,9 @@
   "type": "module",
   "version": "0.0.1",
   "description": "Sellgar kit",
+  "scripts": {
+    "test:table": "vitest run --config vitest.table.config.ts"
+  },
   "main": "./src/index.ts",
   "module": "./src/index.ts",
   "sideEffects": [
@@ -16,6 +19,9 @@
     },
     "./icons": {
       "import": "./src/icons/index.ts"
+    },
+    "./table": {
+      "import": "./src/table/index.ts"
     },
     "./icons.css": "./src/theme/fonts/icons/style.css",
     "./inter.css": "./src/theme/fonts/inter/style.css",

@@ -1,0 +1,12 @@
+.wrapper {
+  display: grid;
+  box-sizing: border-box;
+  background: var(--background-surface-default);
+  transition: background var(--measurements-transition);
+}
+.interactive {
+  cursor: pointer;
+  &:hover {
+    background: var(--background-surface-neutral);
+  }
+}

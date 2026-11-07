@@ -13,6 +13,7 @@ const typesRoot = resolve(packageRoot, 'types');
 const entries = {
   index: 'src/index.ts',
   icons: 'src/icons/index.ts',
+  table: 'src/table/index.ts',
   'icons.css': 'src/theme/fonts/icons/style.css',
   'inter.css': 'src/theme/fonts/inter/style.css',
   'geologica.css': 'src/theme/fonts/geologica/style.css',
@@ -108,7 +109,9 @@ const normalizeCssModuleOutput = (): Plugin => ({
         const previousImportPath = createRelativeBundlePath(bundleItem.fileName, previousFileName);
         const nextImportPath = createRelativeBundlePath(bundleItem.fileName, nextFileName);
 
-        code = code.replaceAll(`'${previousImportPath}'`, `'${nextImportPath}'`).replaceAll(`"${previousImportPath}"`, `"${nextImportPath}"`);
+        code = code
+          .replaceAll(`'${previousImportPath}'`, `'${nextImportPath}'`)
+          .replaceAll(`"${previousImportPath}"`, `"${nextImportPath}"`);
       }
 
       bundleItem.code = code;
@@ -143,7 +146,9 @@ const preserveStaticFontCssAssets = (): Plugin => ({
         }
 
         const sourceFilePath = resolve(entry.assetSourceDirectoryPath, assetFileName);
-        const outputFileName = entry.assetOutputDirectoryPath ? posix.join(entry.assetOutputDirectoryPath, assetFileName) : assetFileName;
+        const outputFileName = entry.assetOutputDirectoryPath
+          ? posix.join(entry.assetOutputDirectoryPath, assetFileName)
+          : assetFileName;
 
         this.emitFile({
           type: 'asset',
@@ -188,7 +193,7 @@ export default defineConfig({
     dts({
       outDirs: typesRoot,
       entryRoot: sourceRoot,
-      exclude: ['**/*.stories.tsx'],
+      exclude: ['**/*.stories.tsx', 'src/table/**/__test__/**'],
       beforeWriteFile(filePath, content) {
         const normalizedFilePath = filePath.replaceAll('\\', '/');
         const normalizedTypesRoot = typesRoot.replaceAll('\\', '/');

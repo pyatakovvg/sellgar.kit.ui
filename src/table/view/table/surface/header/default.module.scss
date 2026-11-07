@@ -1,0 +1,21 @@
+.wrapper {
+  position: fixed;
+  z-index: 1;
+  overflow: hidden;
+  clip-path: var(--table-header-clip, inset(0));
+  pointer-events: none;
+  color: var(--text-base-primary);
+  font-size: var(--numbers-14);
+  line-height: var(--numbers-20);
+}
+
+.header {
+  display: grid;
+  background: var(--background-surface-neutral);
+  box-sizing: border-box;
+  pointer-events: auto;
+
+  &[data-dragging='true'] {
+    cursor: col-resize;
+  }
+}
