@@ -1,0 +1,27 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: inherit;
+}
+.content {
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 0 var(--numbers-12);
+}
+.separated {
+  border-top: var(--numbers-1) solid var(--border-base-divider);
+}
+.align {
+  &--center {
+    align-items: center;
+    text-align: center;
+  }
+  &--right {
+    align-items: flex-end;
+    text-align: right;
+  }
+}

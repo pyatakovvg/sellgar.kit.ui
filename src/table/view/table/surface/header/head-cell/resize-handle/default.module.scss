@@ -1,0 +1,34 @@
+.wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--numbers-2);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: col-resize;
+  touch-action: none;
+
+  &[aria-disabled='true'] {
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: var(--numbers-2) solid var(--icon-status-success);
+    outline-offset: calc(-1 * var(--numbers-2));
+  }
+}
+
+.indicator {
+  width: var(--numbers-2);
+  height: 100%;
+  background: var(--background-accent-blue-accent);
+  border-radius: var(--measurements-radius-full);
+  opacity: 0.4;
+
+  &[data-available='true'] {
+    opacity: 1;
+  }
+}
