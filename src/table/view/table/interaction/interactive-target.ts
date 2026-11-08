@@ -1,0 +1,35 @@
+const INTERACTIVE_TARGET = [
+  'a',
+  'button',
+  'input',
+  'select',
+  'textarea',
+  'label',
+  'summary',
+  'audio[controls]',
+  'video[controls]',
+  '[contenteditable]:not([contenteditable="false" i])',
+  ...[
+    'button',
+    'link',
+    'checkbox',
+    'radio',
+    'switch',
+    'combobox',
+    'listbox',
+    'option',
+    'textbox',
+    'searchbox',
+    'spinbutton',
+    'slider',
+    'scrollbar',
+    'menuitem',
+    'menuitemcheckbox',
+    'menuitemradio',
+    'tab',
+    'treeitem',
+  ].map((role) => `[role="${role}"]`),
+].join(',');
+
+export const isInteractiveTarget = (target: EventTarget | null): boolean =>
+  target instanceof Element && target.closest(INTERACTIVE_TARGET) !== null;

@@ -18,6 +18,7 @@ export interface TableExpandTriggerProps {
 
 export interface TableCellRenderScope<T> extends TableCellRenderContext<T> {
   ExpandTrigger: React.FC<TableExpandTriggerProps>;
+  TreeTrigger: React.FC;
 }
 
 export interface TableCellProps<T> {
@@ -70,6 +71,7 @@ export interface TableConfigurationInput<T extends object> extends TableProps<T>
 }
 
 export interface TableActionRenderer {
+  readonly id: string;
   readonly disabled: boolean;
   onAction(): void;
   render(): React.ReactNode;

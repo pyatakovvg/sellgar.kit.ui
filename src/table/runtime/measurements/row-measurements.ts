@@ -2,6 +2,11 @@ export class RowMeasurements {
   private readonly cells = new Map<string, Map<string, number>>();
   private readonly expanded = new Map<string, number>();
 
+  height(rowId: string, minimum: number): number | undefined {
+    const cells = this.cells.get(rowId);
+    return cells?.size ? Math.max(minimum, ...cells.values()) : undefined;
+  }
+
   expandedHeight(rowId: string): number {
     return this.expanded.get(rowId) ?? 0;
   }

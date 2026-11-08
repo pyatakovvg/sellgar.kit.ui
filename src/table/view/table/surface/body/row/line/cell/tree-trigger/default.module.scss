@@ -1,0 +1,12 @@
+.wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--numbers-16);
+  height: var(--numbers-16);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-base-secondary);
+  cursor: pointer;
+}

@@ -1,8 +1,14 @@
 .wrapper {
+  isolation: isolate;
   display: grid;
   box-sizing: border-box;
   background: var(--background-surface-default);
   transition: background var(--measurements-transition);
+
+  &:focus-visible {
+    outline: var(--numbers-2) solid var(--icon-status-success);
+    outline-offset: calc(-1 * var(--numbers-2));
+  }
 }
 .interactive {
   cursor: pointer;

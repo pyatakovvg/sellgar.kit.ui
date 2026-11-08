@@ -26,6 +26,7 @@ const context: TableCellRenderScope<Product> = {
   cellId: 'cell-1',
   lineId: 'line-1',
   ExpandTrigger: () => null,
+  TreeTrigger: () => null,
 };
 
 const automaticColumn = <Column key={'automatic'}>{({ Cell }) => <Cell />}</Column>;
@@ -261,6 +262,40 @@ describe('Table configuration compiler', () => {
     expect(action?.render()).toBe('Включено');
     action?.onAction();
     expect(onAction).toHaveBeenCalledOnce();
+  });
+
+  it('retains explicit action identities across reorder and rejects duplicates', () => {
+    const compile = (reversed = false, duplicate = false) =>
+      compileTableConfiguration({
+        data,
+        children: ({ Column }) => (
+          <Column>
+            {({ Cell, Actions }) => (
+              <>
+                <Cell />
+                <Actions>
+                  {({ Action }) => {
+                    const first = (
+                      <Action key="a" state={1} onAction={() => {}}>
+                        {({ state }) => state}
+                      </Action>
+                    );
+                    const second = (
+                      <Action key={duplicate ? 'a' : 'b'} state={2} onAction={() => {}}>
+                        {({ state }) => state}
+                      </Action>
+                    );
+                    return reversed ? [second, first] : [first, second];
+                  }}
+                </Actions>
+              </>
+            )}
+          </Column>
+        ),
+      }).renderers.columns.get('column:0')!.actions;
+    expect(compile().map((action) => action.id)).toEqual(['key:a', 'key:b']);
+    expect(compile(true).map((action) => action.id)).toEqual(['key:b', 'key:a']);
+    expect(() => compile(false, true)).toThrow(/Duplicate Table action id/);
   });
 
   it.each([

@@ -5,3 +5,8 @@
 - HeadCell определяет видимость и размещение ручки. ResizeHandle не скрывает себя и не решает, является ли колонка последней.
 - Сохранять label, description, focus-visible, touch-action и data-атрибуты. Расчёты ширин и pointer capture остаются в runtime/browser.
 - Фасад экспортирует только ResizeHandle. Новые stories и component tests в этот перенос не входят.
+
+- ArrowLeft/ArrowRight вызывают ту же runtime-операцию через browser.resizeBy с шагом 1;
+  Shift задаёт 10. Последняя и запрещённые колонки по-прежнему запрещены runtime.
+- Недоступный индикатор использует серый token icon-base-secondary, доступный —
+  зелёный icon-status-success; opacity одного акцентного цвета не заменяет этот контракт.

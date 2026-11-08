@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { TableRuntime } from '../table-runtime';
+import { TableBrowser } from '../browser/table-browser';
 
+import type { GeometryColumn } from '../../core/layout/types';
 import type { TableViewport } from '../types';
 
 const VIEWPORT: TableViewport = {
@@ -180,4 +182,140 @@ describe('Table resize grab point', () => {
       [200, 620, 200],
     ]);
   });
+});
+
+describe('Directed resize stability', () => {
+  const directed = () => {
+    const runtime = new TableRuntime();
+    const columns: GeometryColumn[] = ['a', 'b', 'c', 'd'].map((id, i) => ({
+      id,
+      mode: i % 2 ? 'auto' : 'fixed',
+      width: i % 2 ? 0 : 100,
+      floor: 0,
+      max: Infinity,
+      resizable: true,
+    }));
+    runtime.configure(columns, ['row'], [], OPTIONS);
+    runtime.updateViewport(VIEWPORT);
+    runtime.beginResize('c', 0);
+    runtime.moveResize(200);
+    runtime.finishResize();
+    expect(runtime.getSnapshot().widths).toEqual([100, 400, 300, 200]);
+    return runtime;
+  };
+
+  it('leaves all columns unchanged at zero pointer delta and applies only the directed change', () => {
+    const runtime = directed();
+    runtime.beginResize('a', 0);
+    runtime.moveResize(0);
+    expect(runtime.getSnapshot().widths).toEqual([100, 400, 300, 200]);
+    runtime.moveResize(40);
+    expect(runtime.getSnapshot().widths).toEqual([140, 380, 300, 180]);
+    runtime.moveResize(0);
+    expect(runtime.getSnapshot().widths).toEqual([100, 400, 300, 200]);
+  });
+
+  it('retains individual directed bases on neutral reflow and a container round trip', () => {
+    const runtime = directed();
+    runtime.setNestedWidth('child', 10);
+    expect(runtime.getSnapshot().widths).toEqual([100, 400, 300, 200]);
+    runtime.updateViewport({ ...VIEWPORT, container: 1200, width: 1200 });
+    runtime.updateViewport(VIEWPORT);
+    expect(runtime.getSnapshot().widths).toEqual([100, 400, 300, 200]);
+  });
+});
+
+describe('Keyboard resize commands', () => {
+  it('uses the same limits and permissions as pointer resizing', () => {
+    const runtime = createRuntime(505);
+    const browser = new TableBrowser(runtime);
+    browser.resizeBy('description', 10);
+    expect(runtime.getSnapshot()).toMatchObject({ widths: [505, 500], dragging: false });
+    browser.resizeBy('description', -10);
+    expect(runtime.getSnapshot().widths).toEqual([500, 500]);
+    browser.resizeBy('brand', 10);
+    expect(runtime.getSnapshot().widths).toEqual([500, 500]);
+  });
+});
+
+describe('Resize audit regressions', () => {
+  it('keeps actual widths above their bases and allows manual auto to return after fixed growth', () => {
+    const runtime = new TableRuntime();
+    const columns: GeometryColumn[] = [
+      { id: 'fixed', mode: 'fixed', width: 100, floor: 0, max: Infinity, resizable: true },
+      { id: 'manual', mode: 'auto', width: 0, floor: 0, max: Infinity, resizable: true },
+      { id: 'tail', mode: 'auto', width: 0, floor: 0, max: Infinity },
+    ];
+    runtime.configure(columns, ['row'], [], OPTIONS);
+    runtime.updateViewport(VIEWPORT);
+    runtime.beginResize('manual', 0);
+    runtime.moveResize(350);
+    runtime.finishResize();
+    runtime.beginResize('fixed', 0);
+    runtime.moveResize(200);
+    runtime.finishResize();
+    const before = runtime.getSnapshot().widths;
+    expect(before).toEqual([300, 800, 350]);
+    runtime.setNestedWidth('tiny', 1);
+    expect(runtime.getSnapshot().widths).toEqual(before);
+    runtime.beginResize('manual', 0);
+    expect(() => runtime.moveResize(-1000)).not.toThrow();
+    runtime.finishResize();
+    expect(runtime.getSnapshot().widths).toEqual([300, 350, 350]);
+  });
+
+  it('preserves a masked manual request when there is no horizontal intent', () => {
+    const runtime = createRuntime();
+    runtime.beginResize('description', 0);
+    runtime.moveResize(100);
+    runtime.finishResize();
+    runtime.updateViewport({ ...VIEWPORT, container: 1200, width: 1200 });
+    runtime.beginResize('description', 0);
+    runtime.moveResize(0);
+    runtime.finishResize();
+    runtime.updateViewport(VIEWPORT);
+    expect(runtime.getSnapshot().widths).toEqual([600, 500]);
+  });
+
+  it('rebases a held drag after the container changes and cancels to the pre-drag state at the new size', () => {
+    const runtime = createRuntime();
+    runtime.beginResize('description', 100);
+    runtime.updateViewport({ ...VIEWPORT, container: 1200, width: 1200 });
+    expect(() => runtime.moveResize(100)).not.toThrow();
+    expect(runtime.getSnapshot().widths).toEqual([600, 600]);
+    runtime.moveResize(150);
+    expect(runtime.getSnapshot().widths).toEqual([650, 600]);
+    runtime.cancelResize();
+    expect(runtime.getSnapshot()).toMatchObject({ widths: [600, 600], dragging: false });
+  });
+
+  it('does not globally redistribute a directed active drag on an ordinary configure', () => {
+    const runtime = new TableRuntime();
+    const columns: GeometryColumn[] = [
+      { id: 'left', mode: 'auto', width: 0, floor: 0, max: Infinity },
+      { id: 'fixed', mode: 'fixed', width: 200, floor: 0, max: Infinity, resizable: true },
+      { id: 'right', mode: 'auto', width: 0, floor: 0, max: Infinity },
+    ];
+    runtime.configure(columns, ['row'], [], OPTIONS);
+    runtime.updateViewport(VIEWPORT);
+    runtime.beginResize('fixed', 0);
+    runtime.moveResize(500);
+    runtime.configure(columns, ['row'], ['row'], OPTIONS);
+    expect(runtime.getSnapshot()).toMatchObject({ widths: [400, 700, 0], dragging: true });
+    runtime.moveResize(500);
+    expect(runtime.getSnapshot().widths).toEqual([400, 700, 0]);
+    runtime.cancelResize();
+    expect(runtime.getSnapshot().widths).toEqual([400, 200, 400]);
+  });
+});
+
+it('keeps the original min/max grab origin through a neutral nested requirement update', () => {
+  const runtime = createRuntime();
+  runtime.beginResize('description', 486);
+  runtime.moveResize(286);
+  runtime.setNestedWidth('tiny', 1);
+  runtime.moveResize(306);
+  expect(runtime.getSnapshot().widths).toEqual([500, 500]);
+  runtime.moveResize(506);
+  expect(runtime.getSnapshot().widths).toEqual([520, 500]);
 });

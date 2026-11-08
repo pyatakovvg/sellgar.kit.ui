@@ -1,6 +1,11 @@
 import { TableRuntime } from '../table-runtime';
+import { elementScale } from './coordinate-space';
+import { HeaderScroll } from './header-scroll';
+import { observePosition } from './position-observer';
+import { TablePresentation } from './table-presentation';
 
 import type { TableMeasurement } from '../types';
+import type { HeaderPlacement } from './table-presentation';
 
 const ANCHOR_LEASES = new WeakMap<HTMLElement, { count: number; previous: string }>();
 
@@ -27,6 +32,15 @@ const findScrollOwner = (root: HTMLElement, axis: 'X' | 'Y'): HTMLElement | Wind
   return window;
 };
 
+const innerRect = (element: HTMLElement) => {
+  const rect = element.getBoundingClientRect();
+  const scaleX = elementScale(element, 'X');
+  const scaleY = elementScale(element, 'Y');
+  const left = rect.left + element.clientLeft * scaleX;
+  const top = rect.top + element.clientTop * scaleY;
+  return { left, top, right: left + element.clientWidth * scaleX, bottom: top + element.clientHeight * scaleY };
+};
+
 export class TableBrowser {
   private root?: HTMLElement;
   private surface?: HTMLElement;
@@ -35,11 +49,20 @@ export class TableBrowser {
   private scrollHost?: HTMLElement;
   private owner?: HTMLElement | Window;
   private header?: HTMLElement;
+  private fixedProbe?: HTMLElement;
   private parent?: TableBrowser;
   private readonly nested = new Map<string, { root: HTMLElement; minimum: number }>();
   private scale = 1;
-  private pointer?: { id: number; clientX: number };
+  private cssScale = 1;
+  private scaleY = 1;
+  private pointer?: { id: number; clientX: number; target: HTMLElement };
   private readonly pending = new Map<string, TableMeasurement>();
+  private readonly measurementReaders = new Map<HTMLElement, () => void>();
+  private measurementVersion = -1;
+  private readonly headerScroll = new HeaderScroll();
+  private readonly presentation = new TablePresentation();
+  private headerPlacement?: HeaderPlacement;
+  private presenting = false;
   private frame = 0;
 
   constructor(private readonly runtime: TableRuntime) {}
@@ -62,6 +85,8 @@ export class TableBrowser {
     this.scroller = scroller;
     this.scrollHost = scrollHost;
     this.owner = internal ? scroller : findScrollOwner(root, 'Y');
+    this.measurementVersion = -1;
+    const unsubscribe = this.runtime.subscribe(() => this.present());
     const scrollElement = this.owner instanceof HTMLElement ? this.owner : document.documentElement;
     const releaseAnchor = acquireAnchor(scrollElement);
     const releaseHorizontalAnchor = scroller === scrollElement ? undefined : acquireAnchor(scroller);
@@ -72,12 +97,46 @@ export class TableBrowser {
     observer.observe(scrollHost);
     observer.observe(surface);
     observer.observe(probe);
+    let ancestor = root.parentElement;
+    while (ancestor) {
+      observer.observe(ancestor);
+      ancestor = ancestor.parentElement;
+    }
+    const releasePosition = observePosition(surface, refresh);
+    const move = (event: PointerEvent) => {
+      if (event.pointerId !== this.pointer?.id) return;
+      if (!(event.buttons & 1)) this.endResize(false);
+      else {
+        this.pointer.clientX = event.clientX;
+        this.runtime.moveResize(this.pointerX(event.clientX));
+      }
+    };
+    const up = (event: PointerEvent) => {
+      if (event.pointerId === this.pointer?.id) this.endResize(false);
+    };
+    const cancel = (event: PointerEvent) => {
+      if (event.pointerId === this.pointer?.id) this.endResize(true);
+    };
+    root.addEventListener('pointermove', move);
+    root.addEventListener('pointerup', up);
+    root.addEventListener('pointercancel', cancel);
+    root.addEventListener('lostpointercapture', cancel);
+    const focus = (event: FocusEvent) => this.revealFocusedCell(event);
+    root.addEventListener('focusin', focus);
     window.addEventListener('scroll', refresh, true);
     window.addEventListener('resize', refresh);
     this.refresh();
     return () => {
       this.endResize(true);
+      this.headerScroll.clear();
+      unsubscribe();
       observer.disconnect();
+      releasePosition();
+      root.removeEventListener('pointermove', move);
+      root.removeEventListener('pointerup', up);
+      root.removeEventListener('pointercancel', cancel);
+      root.removeEventListener('lostpointercapture', cancel);
+      root.removeEventListener('focusin', focus);
       window.removeEventListener('scroll', refresh, true);
       window.removeEventListener('resize', refresh);
       releaseAnchor();
@@ -116,24 +175,41 @@ export class TableBrowser {
     };
   }
 
+  attachHeaderPlacement(mount: HTMLElement, slot: HTMLElement, portal: HTMLElement): () => void {
+    const placement = { mount, slot, portal };
+    this.headerPlacement = placement;
+    this.present();
+    return () => {
+      if (this.headerPlacement === placement) this.headerPlacement = undefined;
+    };
+  }
+
+  present(): void {
+    if (!this.root || !this.surface || this.presenting) return;
+    this.presenting = true;
+    try {
+      const moved = this.presentation.apply(this.root, this.surface, this.runtime.getSnapshot(), this.headerPlacement);
+      if (moved) {
+        this.refresh();
+        this.presentation.apply(this.root, this.surface, this.runtime.getSnapshot(), this.headerPlacement);
+      }
+      this.syncHeaderScroll();
+      if (this.measurementVersion !== this.runtime.getSnapshot().version) this.schedule();
+    } finally {
+      this.presenting = false;
+    }
+  }
+
   attachHeader(header: HTMLElement): () => void {
     this.header = header;
+    const fixedProbe = document.createElement('span');
+    fixedProbe.style.cssText =
+      'position:fixed;left:var(--numbers-0);top:var(--numbers-0);width:var(--numbers-100);height:var(--numbers-100);visibility:hidden;pointer-events:none';
+    fixedProbe.ariaHidden = 'true';
+    header.parentElement?.appendChild(fixedProbe);
+    this.fixedProbe = fixedProbe;
     const observer = new ResizeObserver(() => this.schedule());
     observer.observe(header);
-    const move = (event: PointerEvent) => {
-      if (event.pointerId !== this.pointer?.id) return;
-      if (!(event.buttons & 1)) this.endResize(false);
-      else {
-        this.pointer.clientX = event.clientX;
-        this.runtime.moveResize(this.pointerX(event.clientX));
-      }
-    };
-    const up = (event: PointerEvent) => {
-      if (event.pointerId === this.pointer?.id) this.endResize(false);
-    };
-    const cancel = (event: PointerEvent) => {
-      if (event.pointerId === this.pointer?.id) this.endResize(true);
-    };
     const blur = () => this.endResize(true);
     const key = (event: KeyboardEvent) => {
       if (event.key === 'Escape') this.endResize(true);
@@ -142,10 +218,6 @@ export class TableBrowser {
       if (document.hidden) this.endResize(true);
     };
     const wheel = (event: WheelEvent) => this.scrollFromHeader(event);
-    header.addEventListener('pointermove', move);
-    header.addEventListener('pointerup', up);
-    header.addEventListener('pointercancel', cancel);
-    header.addEventListener('lostpointercapture', cancel);
     header.addEventListener('wheel', wheel, { passive: false });
     window.addEventListener('blur', blur);
     window.addEventListener('keydown', key);
@@ -153,113 +225,199 @@ export class TableBrowser {
     this.refresh();
     return () => {
       this.endResize(true);
+      this.headerScroll.clear();
       observer.disconnect();
-      header.removeEventListener('pointermove', move);
-      header.removeEventListener('pointerup', up);
-      header.removeEventListener('pointercancel', cancel);
-      header.removeEventListener('lostpointercapture', cancel);
       header.removeEventListener('wheel', wheel);
       window.removeEventListener('blur', blur);
       window.removeEventListener('keydown', key);
       document.removeEventListener('visibilitychange', visibility);
+      fixedProbe.remove();
+      this.fixedProbe = undefined;
       this.header = undefined;
     };
   }
 
-  beginResize(columnId: string, event: PointerEvent): void {
-    if (!event.isPrimary || event.button !== 0 || this.pointer || !this.header) return;
-    if (!this.runtime.beginResize(columnId, this.pointerX(event.clientX))) return;
-    event.preventDefault();
-    this.pointer = { id: event.pointerId, clientX: event.clientX };
-    this.header.setPointerCapture(event.pointerId);
+  syncHeaderScroll(): void {
+    if (!this.header || !this.scroller) return;
+    this.headerScroll.sync(
+      this.header,
+      this.scroller,
+      this.runtime.getSnapshot().viewport.left,
+      elementScale(this.scroller, 'X') / this.scale,
+    );
   }
 
-  observeCell(element: HTMLElement, rowId: string, columnId: string, version: number): () => void {
-    const observer = new ResizeObserver(() => {
+  beginResize(columnId: string, event: PointerEvent): void {
+    if (!event.isPrimary || event.button !== 0 || this.pointer || !this.header || !this.root) return;
+    if (!this.runtime.beginResize(columnId, this.pointerX(event.clientX))) return;
+    event.preventDefault();
+    this.pointer = { id: event.pointerId, clientX: event.clientX, target: this.root };
+    this.root.setPointerCapture(event.pointerId);
+  }
+
+  resizeBy(columnId: string, delta: number): void {
+    if (!this.runtime.beginResize(columnId, 0)) return;
+    this.runtime.moveResize(delta);
+    this.runtime.finishResize();
+  }
+
+  observeCell(element: HTMLElement, rowId: string, columnId: string): () => void {
+    return this.observeMeasurement(element, JSON.stringify([rowId, columnId]), () => {
       const parent = element.parentElement;
       const style = parent ? getComputedStyle(parent) : undefined;
       const borders = style ? Number.parseFloat(style.borderTopWidth) + Number.parseFloat(style.borderBottomWidth) : 0;
-      const entry = {
+      return {
         rowId,
         columnId,
-        version,
-        height: (element.getBoundingClientRect().height + borders) / this.scale,
+        version: this.runtime.getSnapshot().version,
+        height:
+          (element.getBoundingClientRect().height + borders * (parent ? elementScale(parent, 'Y') : 1)) / this.scaleY,
       };
-      this.pending.set(JSON.stringify([rowId, columnId]), entry);
-      this.schedule();
     });
-    observer.observe(element);
-    return () => observer.disconnect();
   }
 
-  observeExpanded(element: HTMLElement, rowId: string, version: number): () => void {
+  observeExpanded(element: HTMLElement, rowId: string): () => void {
+    return this.observeMeasurement(element, JSON.stringify([rowId, 'expanded']), () => ({
+      kind: 'expanded',
+      rowId,
+      version: this.runtime.getSnapshot().version,
+      height: element.getBoundingClientRect().height / this.scaleY,
+    }));
+  }
+
+  observeEmpty(element: HTMLElement): () => void {
+    return this.observeMeasurement(element, 'empty', () => ({
+      kind: 'empty',
+      version: this.runtime.getSnapshot().version,
+      height: element.getBoundingClientRect().height / this.scaleY,
+    }));
+  }
+
+  private observeMeasurement(element: HTMLElement, key: string, read: () => TableMeasurement): () => void {
+    const measure = () => {
+      this.pending.set(key, read());
+    };
+    this.measurementReaders.set(element, measure);
     const observer = new ResizeObserver(() => {
-      this.pending.set(JSON.stringify([rowId, 'expanded']), {
-        kind: 'expanded',
-        rowId,
-        version,
-        height: element.getBoundingClientRect().height / this.scale,
-      });
+      measure();
       this.schedule();
     });
     observer.observe(element);
-    return () => observer.disconnect();
+    measure();
+    this.schedule();
+    return () => {
+      observer.disconnect();
+      this.measurementReaders.delete(element);
+      this.pending.delete(key);
+    };
+  }
+
+  correctScroll(correction: number): void {
+    const owner = this.scrollOwner();
+    if (!correction || !owner) return;
+    const ownerScale = owner instanceof HTMLElement ? elementScale(owner, 'Y') : 1;
+    owner.scrollBy({ top: (correction * this.scaleY) / ownerScale });
   }
 
   toggleExpanded(rowId: string): void {
     const correction = this.runtime.toggleExpanded(rowId);
-    if (correction) this.scrollOwner()?.scrollBy({ top: correction * this.scale });
+    this.correctScroll(correction);
+  }
+
+  toggleTree(rowId: string): void {
+    const correction = this.runtime.toggleTree(rowId);
+    this.correctScroll(correction);
   }
 
   refresh(): void {
     if (!this.root || !this.surface || !this.probe || !this.scroller || !this.owner) return;
-    this.scale = this.probe.getBoundingClientRect().width / 100 || 1;
+    const previous = this.runtime.getSnapshot().viewport;
+    const probeWidth = this.probe.getBoundingClientRect().width;
+    this.scale = probeWidth / 100 || 1;
+    this.cssScale = probeWidth / (Number.parseFloat(getComputedStyle(this.probe).width) || 100) || 1;
+    const themeUnit = (Number.parseFloat(getComputedStyle(this.probe).width) || 100) / 100;
+    const verticalCssScale = this.fixedProbe ? elementScale(this.fixedProbe, 'Y') : elementScale(this.surface, 'Y');
+    this.scaleY = themeUnit * verticalCssScale || 1;
     const rootRect = this.surface.getBoundingClientRect();
     for (const [id, child] of this.nested) {
       const offset = (child.root.getBoundingClientRect().left - rootRect.left) / this.scale;
-      this.runtime.setNestedWidth(id, Math.max(0, offset) + child.minimum);
+      const style = getComputedStyle(child.root);
+      const borders =
+        ((Number.parseFloat(style.borderLeftWidth) + Number.parseFloat(style.borderRightWidth)) * this.cssScale) /
+        this.scale;
+      this.runtime.setNestedWidth(id, Math.max(0, offset) + borders + child.minimum);
     }
     const owner = this.scrollOwner()!;
-    const ownerRect = owner instanceof HTMLElement ? owner.getBoundingClientRect() : undefined;
-    let left = ownerRect && owner instanceof HTMLElement ? ownerRect.left + owner.clientLeft : 0;
-    let top = ownerRect && owner instanceof HTMLElement ? ownerRect.top + owner.clientTop : 0;
-    let right = left + (owner instanceof HTMLElement ? owner.clientWidth : document.documentElement.clientWidth);
-    let bottom = top + (owner instanceof HTMLElement ? owner.clientHeight : window.innerHeight);
+    const ownerRect = owner instanceof HTMLElement ? innerRect(owner) : undefined;
+    let left = ownerRect?.left ?? 0;
+    let top = ownerRect?.top ?? 0;
+    let right = ownerRect?.right ?? document.documentElement.clientWidth;
+    let bottom = ownerRect?.bottom ?? window.innerHeight;
     let parent = this.root.parentElement;
     while (parent && parent !== document.body && parent !== document.documentElement) {
       const style = getComputedStyle(parent);
-      const rect = parent.getBoundingClientRect();
+      const rect = innerRect(parent);
       if (/(auto|scroll|hidden|clip)/.test(style.overflowX)) {
-        left = Math.max(left, rect.left + parent.clientLeft);
-        right = Math.min(right, rect.left + parent.clientLeft + parent.clientWidth);
+        left = Math.max(left, rect.left);
+        right = Math.min(right, rect.right);
       }
       if (/(auto|scroll|hidden|clip)/.test(style.overflowY)) {
-        top = Math.max(top, rect.top + parent.clientTop);
-        bottom = Math.min(bottom, rect.top + parent.clientTop + parent.clientHeight);
+        top = Math.max(top, rect.top);
+        bottom = Math.min(bottom, rect.bottom);
       }
       parent = parent.parentElement;
     }
-    const scrollerRect = this.scroller.getBoundingClientRect();
-    const scrollerLeft = scrollerRect.left + this.scroller.clientLeft;
+    const scrollerRect = innerRect(this.scroller);
+    const scrollerLeft = scrollerRect.left;
     left = Math.max(0, left, rootRect.left, scrollerLeft);
-    right = Math.min(right, document.documentElement.clientWidth, scrollerLeft + this.scroller.clientWidth);
+    right = Math.min(right, document.documentElement.clientWidth, scrollerRect.right);
     top = Math.max(0, top) + this.probe.getBoundingClientRect().height;
     bottom = Math.min(bottom, window.innerHeight);
     this.clipHeader(left, top, right, bottom);
-    const previousLeft = this.runtime.getSnapshot().viewport.left;
+    const parentViewport = this.parent?.runtime.getSnapshot().viewport;
+    const parentLeft = this.parent?.surface?.getBoundingClientRect().left ?? rootRect.left;
+    const rightInset =
+      (this.root.getBoundingClientRect().right -
+        (this.scrollHost?.getBoundingClientRect().right ?? this.root.getBoundingClientRect().right)) /
+      this.scale;
+    const available = parentViewport
+      ? Math.max(
+          0,
+          (parentViewport.available ?? parentViewport.container) -
+            Math.max(0, (rootRect.left - parentLeft) / this.scale) -
+            rightInset,
+        )
+      : undefined;
+    const previousLeft = previous.left;
     const nextLeft = (left - rootRect.left) / this.scale;
-    this.runtime.updateViewport({
-      container: (this.parent ? this.root.clientWidth : this.scroller.clientWidth) / this.scale,
+    const viewport = {
+      container: ((this.parent ? this.root.clientWidth : this.scroller.clientWidth) * this.cssScale) / this.scale,
+      available,
       width: Math.max(0, right - left) / this.scale,
-      height: Math.max(0, bottom - top) / this.scale,
-      scroll: (top - rootRect.top) / this.scale,
+      height: Math.max(0, bottom - top) / this.scaleY,
+      scroll: (top - rootRect.top) / this.scaleY,
       left: nextLeft,
-      top: top / this.scale,
+      top: top / this.scaleY,
       screenLeft: left / this.scale,
+      originLeft: (this.fixedProbe?.getBoundingClientRect().left ?? 0) / this.scale,
+      originTop: (this.fixedProbe?.getBoundingClientRect().top ?? 0) / this.scaleY,
       scale: this.scale,
-    });
-    if (this.pointer && Math.abs(previousLeft - nextLeft) > 1e-7)
-      this.runtime.moveResize(this.pointerX(this.pointer.clientX));
+      scaleY: this.scaleY,
+    };
+    this.runtime.updateViewport(viewport);
+    this.syncHeaderScroll();
+    if (!this.pointer) return;
+    if (!this.runtime.getSnapshot().dragging) {
+      this.endResize(false);
+      return;
+    }
+    const environmentChanged =
+      previous.container !== viewport.container ||
+      previous.available !== viewport.available ||
+      previous.scale !== viewport.scale ||
+      (Math.abs(previousLeft - nextLeft) < 1e-7 && previous.screenLeft !== viewport.screenLeft);
+    if (environmentChanged) this.runtime.rebaseResize(this.pointerX(this.pointer.clientX));
+    else if (Math.abs(previousLeft - nextLeft) > 1e-7) this.runtime.moveResize(this.pointerX(this.pointer.clientX));
   }
 
   private scrollOwner(): HTMLElement | Window | undefined {
@@ -270,15 +428,42 @@ export class TableBrowser {
     return (clientX - (this.surface?.getBoundingClientRect().left ?? 0)) / this.scale;
   }
 
+  private revealFocusedCell(event: FocusEvent): void {
+    const target = event.target;
+    const state = this.runtime.getSnapshot();
+    if (
+      !(target instanceof HTMLElement) ||
+      !this.scroller ||
+      !state.regions ||
+      target.closest('[data-table="geometry"]') !== this.root ||
+      target.closest('[data-column-id]')?.getAttribute('data-column-region') !== 'center'
+    )
+      return;
+
+    const rect = target.getBoundingClientRect();
+    const start = rect.left / this.scale - state.viewport.screenLeft;
+    const end = rect.right / this.scale - state.viewport.screenLeft;
+    const region = state.regions.center;
+    const delta =
+      start < region.start
+        ? start - region.start
+        : end > region.end
+          ? Math.min(end - region.end, Math.max(0, start - region.start))
+          : 0;
+    if (delta !== 0) this.scroller.scrollBy({ left: (delta * this.scale) / this.cssScale });
+  }
+
   private clipHeader(left: number, top: number, right: number, bottom: number): void {
     const layer = this.header?.parentElement;
-    if (!layer || !this.scrollHost) return;
+    if (!layer || layer.dataset.tableHeaderPosition !== 'portal' || !this.scrollHost) return;
     const rect = this.scrollHost.getBoundingClientRect();
     const radius = getComputedStyle(this.scrollHost).borderRadius;
     const insets = [rect.top - top, right - rect.right, bottom - rect.bottom, rect.left - left];
+    const cssScale = this.fixedProbe ? elementScale(this.fixedProbe, 'X') : 1;
+    const cssScaleY = this.fixedProbe ? elementScale(this.fixedProbe, 'Y') : 1;
     layer.style.setProperty(
       '--table-header-clip',
-      `inset(${insets.map((value) => `${value}px`).join(' ')} round ${radius})`,
+      `inset(${insets.map((value, index) => `${value / (index % 2 ? cssScale : cssScaleY)}px`).join(' ')} round ${radius})`,
     );
   }
 
@@ -287,17 +472,21 @@ export class TableBrowser {
     this.pointer = undefined;
     if (cancel) this.runtime.cancelResize();
     else this.runtime.finishResize();
-    if (pointer && this.header?.hasPointerCapture(pointer.id)) this.header.releasePointerCapture(pointer.id);
+    if (pointer?.target.hasPointerCapture(pointer.id)) pointer.target.releasePointerCapture(pointer.id);
   }
 
   private flush(): void {
     this.frame = 0;
     this.refresh();
-    if (this.header) this.runtime.setHeaderHeight(this.header.getBoundingClientRect().height / this.scale);
+    if (this.header) this.runtime.setHeaderHeight(this.header.getBoundingClientRect().height / this.scaleY);
+    if (this.measurementVersion !== this.runtime.getSnapshot().version) {
+      this.measurementVersion = this.runtime.getSnapshot().version;
+      this.measurementReaders.forEach((measure) => measure());
+    }
     const entries = [...this.pending.values()];
     this.pending.clear();
     const correction = this.runtime.commitMeasurements(entries);
-    if (correction) this.scrollOwner()?.scrollBy({ top: correction * this.scale });
+    this.correctScroll(correction);
     this.refresh();
   }
 

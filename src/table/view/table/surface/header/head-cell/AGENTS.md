@@ -5,3 +5,14 @@
 - Context текущей колонки ограничен экземпляром HeadCell; он передаёт актуальную модель локальным controls без дублирования состояния и поиска по id.
 - `resize-handle` — приватный дочерний компонент с кнопкой, индикаторами и событием захвата. Не переносить его содержимое обратно в HeadCell.
 - Фасад экспортирует только HeadCell; Context и ResizeHandle не являются public API Table.
+
+- Горизонтальные pin удерживаются нативным sticky по готовому pinInset; не
+  компенсировать scroll через React transform. Непрозрачный фон и локальный z-index
+  закрывают центр. В портальном Header pin получают постоянные displayOffset;
+  scroll-transform применяется только к центральным ячейкам. Все размеры — numbers.
+
+- Разделитель pin повторяет legacy Table: --numbers-3 только справа у последнего
+  левого pin и слева у первого правого pin. Между pin одной группы полос нет.
+  Inset shadow рисует разделитель внутри заданной ширины, не меняя геометрию.
+
+- Grid placement и pin coordinates применяет browser TablePresentation; React inline geometry здесь не задавать.

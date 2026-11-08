@@ -1,9 +1,10 @@
 import React from 'react';
 import cn from 'classnames';
 
-import { useTableEnvironment, useTableSnapshot } from '../../../../../context/table-context';
+import { useTableEnvironment } from '../../../../../context/table-context';
 
 import { ExpandTrigger } from './expand-trigger';
+import { TreeTrigger } from './tree-trigger/index.ts';
 
 import s from './default.module.scss';
 
@@ -16,7 +17,6 @@ interface IProps {
 
 export const Cell: React.FC<IProps> = (props) => {
   const environment = useTableEnvironment();
-  const state = useTableSnapshot();
   const content = React.useRef<HTMLDivElement>(null);
   const align = environment.align(props.column.id);
   const wrapperClassName = cn(s.wrapper, {
@@ -26,10 +26,8 @@ export const Cell: React.FC<IProps> = (props) => {
   });
   React.useLayoutEffect(
     () =>
-      content.current
-        ? environment.browser.observeCell(content.current, props.row.id, props.column.id, state.version)
-        : undefined,
-    [environment.browser, props.row.id, props.column.id, state.version],
+      content.current ? environment.browser.observeCell(content.current, props.row.id, props.column.id) : undefined,
+    [environment.browser, props.row.id, props.column.id],
   );
   return (
     <div
@@ -37,10 +35,10 @@ export const Cell: React.FC<IProps> = (props) => {
       role="cell"
       aria-colindex={props.column.index + 1}
       data-column-id={props.column.id}
-      style={{ gridColumn: props.column.index + 1 }}
+      data-column-region={props.column.region}
     >
       <div ref={content} className={s.content}>
-        {environment.renderCell(props.row, props.column, ExpandTrigger)}
+        {environment.renderCell(props.row, props.column, ExpandTrigger, TreeTrigger)}
       </div>
     </div>
   );

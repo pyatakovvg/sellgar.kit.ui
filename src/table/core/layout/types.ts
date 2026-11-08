@@ -6,6 +6,8 @@ export interface GeometryColumn {
   max: number;
   manual?: number;
   resizable?: boolean;
+  /** Declaration metadata; ordinary layout math does not interpret pinning. */
+  pin?: 'left' | 'right';
 }
 
 export interface Layout {

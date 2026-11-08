@@ -1,6 +1,6 @@
 import React from 'react';
 
-import type { TableExpandTriggerProps } from '../../../configurator/types';
+import type { TableActionRenderer, TableExpandTriggerProps } from '../../../configurator/types';
 
 import type { TableRowEventTrigger } from '../../../configurator/table-props';
 import type { TableBrowser } from '../../../runtime/browser/table-browser';
@@ -15,6 +15,7 @@ export interface TableEnvironment {
   readonly stickyTop: string;
   readonly className?: string;
   readonly interactive: boolean;
+  readonly primaryAction: boolean;
   readonly delayClick: boolean;
   readonly expandable: boolean;
   readonly headerId: string;
@@ -23,10 +24,12 @@ export interface TableEnvironment {
   readonly surface: 'standalone' | 'embedded';
   align(columnId: string): 'left' | 'center' | 'right' | undefined;
   renderHeader(columnId: string): React.ReactNode;
+  headerActions(columnId: string): readonly TableActionRenderer[];
   renderCell(
     row: TableRowGeometry,
     column: TableColumnGeometry,
     expandTrigger: React.FC<TableExpandTriggerProps>,
+    treeTrigger: React.FC,
   ): React.ReactNode;
   renderEmpty(): React.ReactNode;
   renderExpanded(rowId: string): React.ReactNode;

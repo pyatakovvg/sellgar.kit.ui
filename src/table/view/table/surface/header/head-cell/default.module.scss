@@ -9,6 +9,23 @@
   border-bottom: var(--numbers-1) solid var(--border-base-divider);
   box-sizing: border-box;
   overflow: hidden;
+
+  &[data-column-region='left'],
+  &[data-column-region='right'] {
+    z-index: 1;
+  }
+
+  &[data-column-region='left']:not(:has(+ [data-column-region='left'])) {
+    box-shadow: inset calc(-1 * var(--numbers-3)) 0 var(--border-base-divider);
+  }
+
+  &[data-column-region='right'] {
+    box-shadow: inset var(--numbers-3) 0 var(--border-base-divider);
+  }
+
+  &[data-column-region='right'] + &[data-column-region='right'] {
+    box-shadow: none;
+  }
 }
 
 .resizable {

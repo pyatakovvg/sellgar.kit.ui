@@ -2,7 +2,6 @@ import React from 'react';
 import cn from 'classnames';
 
 import { useTableEnvironment, useTableSnapshot } from '../../../../context/table-context';
-import { numbers } from '../../../../serializer/numbers';
 import { useTableRow } from '../context/row-context';
 import { Cell } from './cell';
 
@@ -12,6 +11,7 @@ export const Line: React.FC = () => {
   const environment = useTableEnvironment();
   const state = useTableSnapshot();
   const row = useTableRow();
+  const latestEnvironment = React.useRef(environment);
   const timer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const wrapperClassName = cn(s.wrapper, { [s.interactive]: environment.interactive });
 
@@ -21,13 +21,16 @@ export const Line: React.FC = () => {
   };
 
   React.useEffect(() => () => clearTimeout(timer.current), []);
+  React.useLayoutEffect(() => {
+    latestEnvironment.current = environment;
+  }, [environment]);
 
   const handleClick: React.MouseEventHandler<HTMLDivElement> = (event) => {
     cancelClick();
-    if (environment.delayClick) {
+    if (environment.delayClick && event.detail !== 0) {
       timer.current = setTimeout(() => {
         timer.current = undefined;
-        environment.rowEvent(row.id, 'click', event);
+        latestEnvironment.current.rowEvent(row.id, 'click', event);
       }, 220);
     } else environment.rowEvent(row.id, 'click', event);
   };
@@ -42,17 +45,34 @@ export const Line: React.FC = () => {
     environment.rowEvent(row.id, 'contextMenu', event);
   };
 
+  const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (event) => {
+    if (
+      !environment.primaryAction ||
+      event.target !== event.currentTarget ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.shiftKey ||
+      (event.key !== 'Enter' && event.key !== ' ')
+    )
+      return;
+    event.preventDefault();
+    if (!event.repeat) event.currentTarget.click();
+  };
+
   return (
     <div
       className={wrapperClassName}
       role="row"
+      tabIndex={environment.primaryAction ? 0 : undefined}
+      onKeyDown={handleKeyDown}
       aria-rowindex={row.index + 2}
       data-row-id={row.id}
-      aria-expanded={environment.expandable ? row.expanded : undefined}
+      data-table-line={row.id}
+      aria-expanded={row.treeExpanded ?? (environment.expandable ? row.expanded : undefined)}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
-      style={{ height: numbers(row.contentHeight), gridTemplateColumns: state.widths.map(numbers).join(' ') }}
     >
       {state.columns.map((column) => (
         <Cell row={row} column={column} key={column.id} />

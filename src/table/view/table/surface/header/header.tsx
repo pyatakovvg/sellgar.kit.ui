@@ -1,52 +1,44 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 
 import { useTableEnvironment, useTableSnapshot } from '../../context/table-context';
-import { numbers } from '../../serializer/numbers';
 import { HeadCell } from './head-cell';
+import { useHeaderMount } from './hooks/use-header-mount.hook';
 
 import s from './default.module.scss';
 
-export const Header: React.FC = () => {
+interface IProps {
+  portal: HTMLElement | null;
+}
+
+export const Header: React.FC<IProps> = (props) => {
   const environment = useTableEnvironment();
   const state = useTableSnapshot();
   const root = React.useRef<HTMLDivElement>(null);
+  const { slot, mount } = useHeaderMount(environment.browser, props.portal, !state.error);
+
   React.useLayoutEffect(
     () => (root.current ? environment.browser.attachHeader(root.current) : undefined),
-    [environment.browser, state.error],
+    [environment.browser, mount, state.error],
   );
+
+  React.useLayoutEffect(() => environment.browser.present());
 
   if (state.error) return null;
 
   return (
-    <div
-      id={environment.headerId}
-      className={s.wrapper}
-      role="rowgroup"
-      data-table-header-layer="true"
-      style={{
-        left: numbers(state.viewport.screenLeft),
-        top: numbers(state.viewport.top),
-        width: numbers(state.viewport.width),
-        height: numbers(state.viewport.height),
-      }}
-    >
-      <div
-        ref={root}
-        className={s.header}
-        role="row"
-        aria-rowindex={1}
-        data-table-header="true"
-        data-dragging={state.dragging}
-        style={{
-          width: numbers(state.total),
-          gridTemplateColumns: state.widths.map(numbers).join(' '),
-          transform: `translate(${numbers(-state.viewport.left)}, ${numbers(state.headerTop)})`,
-        }}
-      >
-        {state.columns.map((column) => (
-          <HeadCell column={column} key={column.id} />
-        ))}
-      </div>
+    <div ref={slot} data-table-header-slot="true">
+      {mount &&
+        createPortal(
+          <div id={environment.headerId} className={s.wrapper} role="rowgroup" data-table-header-layer="true">
+            <div ref={root} className={s.header} role="row" aria-rowindex={1} data-table-header="true">
+              {state.columns.map((column) => (
+                <HeadCell column={column} key={column.id} />
+              ))}
+            </div>
+          </div>,
+          mount,
+        )}
     </div>
   );
 };

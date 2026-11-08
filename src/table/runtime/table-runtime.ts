@@ -1,16 +1,11 @@
 import { Axis } from '../core/geometry/axis';
 import { headerViewportTop } from '../core/geometry/header';
-import { automatic, clamp, resize, resizeBounds, resizeDirections } from '../core/layout/column-layout';
+import { ColumnRuntime } from './columns/column-runtime';
 import { RowMeasurements } from './measurements/row-measurements';
+import { visibleTreeIds } from '../core/tree/visible-tree-ids';
 
-import type { GeometryColumn, Layout, LayoutAnchor } from '../core/layout/types';
-import type {
-  TableMeasurement,
-  TableResizeOperation,
-  TableRuntimeOptions,
-  TableSnapshot,
-  TableViewport,
-} from './types';
+import type { GeometryColumn } from '../core/layout/types';
+import type { TableMeasurement, TableRuntimeOptions, TableSnapshot, TableViewport } from './types';
 
 const INITIAL_VIEWPORT: TableViewport = {
   container: 0,
@@ -23,25 +18,30 @@ const INITIAL_VIEWPORT: TableViewport = {
   scale: 1,
 };
 
+interface RowAnchor {
+  readonly ids: readonly string[];
+  readonly index: number;
+  readonly offset: number;
+  readonly inner: number;
+}
+
 export class TableRuntime {
-  private columns: GeometryColumn[] = [];
-  private layout: Layout = { widths: [], base: [], total: 0, overflow: 0, underfill: 0 };
-  private anchor?: LayoutAnchor;
-  private readonly nestedWidths = new Map<string, number>();
   private rowIds: readonly string[] = [];
+  private allRowIds: readonly string[] = [];
+  private readonly treeToggled = new Set<string>();
+  private treeBranches = new Set<string>();
   private rowIndex = new Map<string, number>();
   private rowAxis = new Axis([]);
-  private columnAxis = new Axis([]);
   private readonly measurements = new RowMeasurements();
   private readonly listeners = new Set<() => void>();
   private viewport = INITIAL_VIEWPORT;
   private options: TableRuntimeOptions = { rowHeight: 54, minRowHeight: 54, overscan: 3, virtual: true, sticky: true };
+  private readonly columnRuntime = new ColumnRuntime(INITIAL_VIEWPORT, this.options);
+  private columnRevision = 0;
   private headerHeight = 28;
+  private emptyHeight = 0;
   private version = 0;
-  private schema = '';
-  private operation?: TableResizeOperation;
   private readonly expanded = new Set<string>();
-  private error?: string;
   private snapshot: TableSnapshot = {
     columns: [],
     rows: [],
@@ -53,6 +53,7 @@ export class TableRuntime {
     bodyHeight: 0,
     headerHeight: 28,
     headerTop: 0,
+    headerFloating: false,
     viewport: INITIAL_VIEWPORT,
     version: 0,
     dragging: false,
@@ -72,7 +73,7 @@ export class TableRuntime {
     rowIds: readonly string[],
     changedRows: readonly string[],
     options: TableRuntimeOptions,
-  ): void {
+  ): number {
     if (
       !Number.isFinite(options.rowHeight) ||
       options.rowHeight <= 0 ||
@@ -85,72 +86,40 @@ export class TableRuntime {
         'Table row estimates and minimum height must be positive; overscan must be a non-negative integer.',
       );
     }
+    const rowAnchor = this.captureRowAnchor();
+    const metricsChanged =
+      options.rowHeight !== this.options.rowHeight || options.minRowHeight !== this.options.minRowHeight;
+    const oldHeights = metricsChanged ? new Map<string, number>() : this.contentHeights();
     this.options = options;
-    const schema = columns
-      .map((column) => [column.id, column.mode, column.width, column.floor, column.max].join(':'))
-      .join('|');
-    const oldHeights = new Map(
-      this.rowIds.map((id, index) => [
-        id,
-        this.rowAxis.sizes[index] - (this.expanded.has(id) ? this.measurements.expandedHeight(id) : 0),
-      ]),
-    );
-    this.rowIds = rowIds;
-    this.rowIndex = new Map(rowIds.map((id, index) => [id, index]));
-    for (const id of this.expanded) if (!options.expansion || !this.rowIndex.has(id)) this.expanded.delete(id);
-    this.rowAxis = new Axis(
-      rowIds.map(
-        (id) =>
-          (oldHeights.get(id) ?? options.rowHeight) +
-          (this.expanded.has(id) ? this.measurements.expandedHeight(id) : 0),
-      ),
-    );
-    this.measurements.retain(new Set(rowIds));
-    if (changedRows.length) {
+    this.allRowIds = rowIds;
+    if (rowIds.length) this.emptyHeight = 0;
+    this.treeBranches = new Set(options.tree?.nodes.filter((node) => node.hasChildren).map((node) => node.nodeId));
+    const retained = new Set(rowIds);
+    for (const id of this.treeToggled) if (!options.tree || !retained.has(id)) this.treeToggled.delete(id);
+    for (const id of this.expanded) if (!options.expansion || !retained.has(id)) this.expanded.delete(id);
+    this.measurements.retain(retained);
+    this.updateVisibleRows(oldHeights);
+    if (changedRows.length || metricsChanged) {
       this.version++;
       this.measurements.invalidate(changedRows);
     }
-    if (schema !== this.schema) {
-      this.operation = undefined;
-      this.schema = schema;
-      this.columns = columns.map((column) => ({ ...column }));
-      this.anchor = undefined;
-      this.measurements.invalidate();
-      this.version++;
-    } else {
-      if (this.operation && columns[this.operation.index].resizable !== true) this.cancelResize();
-      this.columns.forEach((column, index) => {
-        column.resizable = columns[index].resizable === true;
-      });
-    }
-    this.reflow();
+    this.columnRuntime.configure(columns, options);
+    const correction = this.restoreRowAnchor(rowAnchor);
+    this.publish();
+    return correction;
   }
 
   updateViewport(viewport: TableViewport): void {
     const previous = this.viewport;
     if (Object.keys(viewport).every((key) => Reflect.get(previous, key) === Reflect.get(viewport, key))) return;
     this.viewport = viewport;
-    if (Math.abs(previous.container - viewport.container) > 1e-7) this.reflow();
-    else this.publish();
+    this.columnRuntime.updateViewport(viewport);
+    this.publish();
   }
 
   setNestedWidth(id: string, width: number | undefined): void {
-    if (width !== undefined && (!Number.isFinite(width) || width < 0))
-      throw new RangeError('Nested table width must be finite and non-negative.');
-    if (this.nestedWidths.get(id) === width) return;
-    if (width === undefined) this.nestedWidths.delete(id);
-    else this.nestedWidths.set(id, width);
-    this.operation = undefined;
-    this.reflow();
-  }
-
-  private minimumWidth(): number {
-    const own = this.columns.reduce((sum, column) => sum + (column.mode === 'fixed' ? column.width : column.floor), 0);
-    return Math.max(own, 0, ...this.nestedWidths.values());
-  }
-
-  private layoutContainer(): number {
-    return Math.max(this.viewport.container, 0, ...this.nestedWidths.values());
+    this.columnRuntime.setNestedWidth(id, width);
+    this.publish();
   }
 
   setHeaderHeight(height: number): void {
@@ -160,55 +129,78 @@ export class TableRuntime {
   }
 
   beginResize(columnId: string, x: number): boolean {
-    const index = this.columns.findIndex((column) => column.id === columnId);
-    if (index < 0 || index === this.columns.length - 1 || this.operation) return false;
-    const allowed = resizeDirections(this.columns, this.layout, this.layoutContainer(), index);
-    if (!allowed.left && !allowed.right) return false;
-    this.operation = {
-      index,
-      startX: x,
-      startWidth: this.layout.widths[index],
-      container: this.layoutContainer(),
-      columns: this.columns.map((column) => ({ ...column })),
-      layout: this.layout,
-      anchor: this.anchor,
-    };
-    this.publish();
-    return true;
+    const accepted = this.columnRuntime.beginResize(columnId, x);
+    if (accepted) this.publish();
+    return accepted;
+  }
+
+  beginPinResize(columnId: string, x: number, edge: 'left' | 'right'): boolean {
+    const accepted = this.columnRuntime.beginPinResize(columnId, x, edge);
+    if (accepted) this.publish();
+    return accepted;
   }
 
   moveResize(x: number): void {
-    const operation = this.operation;
-    if (!operation) return;
-    const bounds = resizeBounds(this.columns, this.layout, this.layoutContainer(), operation.index);
-    const requested = clamp(operation.startWidth + x - operation.startX, bounds.min, bounds.max);
-    const next = resize(this.columns, this.layout, this.layoutContainer(), operation.index, requested);
-    this.columns = next.columns;
-    this.apply(next.layout);
+    this.columnRuntime.moveResize(x);
+    this.publish();
   }
 
   finishResize(): void {
-    const operation = this.operation;
-    if (!operation) return;
-    this.operation = undefined;
-    if (this.columns[operation.index].mode === 'fixed') {
-      this.anchor = { container: this.layoutContainer(), bases: this.layout.base.slice() };
-    }
+    this.columnRuntime.finishResize();
     this.publish();
   }
 
   cancelResize(): void {
-    const operation = this.operation;
-    if (!operation) return;
-    this.operation = undefined;
-    this.columns = operation.columns;
-    this.anchor = operation.anchor;
-    if (operation.container === this.layoutContainer()) this.apply(operation.layout);
-    else this.reflow();
+    this.columnRuntime.cancelResize();
+    this.publish();
+  }
+
+  rebaseResize(x: number): void {
+    this.columnRuntime.rebaseResize(x);
   }
 
   isExpanded(rowId: string): boolean {
     return this.expanded.has(rowId);
+  }
+
+  isTreeExpanded(rowId: string): boolean {
+    return Boolean(this.options.tree?.defaultExpanded) !== this.treeToggled.has(rowId);
+  }
+
+  toggleTree(rowId: string): number {
+    if (!this.treeBranches.has(rowId) || !this.rowIndex.has(rowId)) return 0;
+    const anchor = this.captureRowAnchor();
+    if (!this.treeToggled.delete(rowId)) this.treeToggled.add(rowId);
+    this.updateVisibleRows();
+    const correction = this.restoreRowAnchor(anchor, rowId);
+    this.version++;
+    this.publish();
+    return correction;
+  }
+
+  private contentHeights(): Map<string, number> {
+    return new Map(
+      this.rowIds.map((id, index) => [
+        id,
+        this.rowAxis.sizes[index] - (this.expanded.has(id) ? this.measurements.expandedHeight(id) : 0),
+      ]),
+    );
+  }
+
+  private updateVisibleRows(oldHeights = this.contentHeights()): void {
+    this.rowIds = this.options.tree
+      ? visibleTreeIds(this.options.tree.nodes, this.treeToggled, Boolean(this.options.tree.defaultExpanded))
+      : this.allRowIds;
+    this.rowIndex = new Map(this.rowIds.map((id, index) => [id, index]));
+    this.rowAxis = new Axis(
+      this.rowIds.map(
+        (id) =>
+          Math.max(
+            this.options.minRowHeight,
+            oldHeights.get(id) ?? this.measurements.height(id, this.options.minRowHeight) ?? this.options.rowHeight,
+          ) + (this.expanded.has(id) ? this.measurements.expandedHeight(id) : 0),
+      ),
+    );
   }
 
   toggleExpanded(rowId: string): number {
@@ -230,7 +222,13 @@ export class TableRuntime {
     return this.updateRowGeometry(() => {
       let changed = false;
       for (const entry of entries) {
-        if (entry.version !== this.version) continue;
+        if (entry.version !== this.version || !Number.isFinite(entry.height) || entry.height < 0) continue;
+        if ('kind' in entry && entry.kind === 'empty') {
+          if (this.rowIds.length || Math.abs(this.emptyHeight - entry.height) < 0.1) continue;
+          this.emptyHeight = entry.height;
+          changed = true;
+          continue;
+        }
         const index = this.rowIndex.get(entry.rowId);
         if (index === undefined || !Number.isFinite(entry.height) || entry.height < 0) continue;
         const expandedHeight = this.expanded.has(entry.rowId) ? this.measurements.expandedHeight(entry.rowId) : 0;
@@ -253,45 +251,41 @@ export class TableRuntime {
   }
 
   private updateRowGeometry(update: () => boolean): number {
-    const top = this.visibleTop();
-    const anchorIndex = this.rowAxis.at(top);
-    const previousOffset = anchorIndex < 0 ? 0 : this.rowAxis.offset(anchorIndex);
-    const inner = top - previousOffset;
+    const anchor = this.captureRowAnchor();
     if (!update()) return 0;
-    let correction = 0;
-    if (anchorIndex >= 0) {
-      correction =
-        this.rowAxis.offset(anchorIndex) -
-        previousOffset +
-        Math.min(inner, Math.max(0, this.rowAxis.sizes[anchorIndex] - 0.1)) -
-        inner;
-      this.viewport = { ...this.viewport, scroll: this.viewport.scroll + correction };
-    }
+    const correction = this.restoreRowAnchor(anchor);
     this.publish();
     return correction;
   }
 
-  private reflow(): void {
-    try {
-      this.apply(automatic(this.columns, this.layoutContainer(), this.anchor));
-    } catch (error) {
-      this.error = error instanceof Error ? error.message : 'Invalid table geometry.';
-      this.publish();
-    }
+  private captureRowAnchor(): RowAnchor | undefined {
+    if (this.viewport.scroll < 0) return;
+    const top = this.visibleTop();
+    const index = this.rowAxis.at(top);
+    if (index < 0) return;
+    const offset = this.rowAxis.offset(index);
+    return { ids: this.rowIds, index, offset, inner: top - offset };
   }
 
-  private apply(layout: Layout): void {
-    const changed =
-      layout.widths.length !== this.layout.widths.length ||
-      layout.widths.some((width, index) => Math.abs(width - this.layout.widths[index]) > 1e-7);
-    this.layout = layout;
-    this.error = undefined;
-    this.columnAxis = new Axis(layout.widths);
-    if (changed) {
-      this.version++;
-      this.measurements.invalidate();
-    }
-    this.publish();
+  private restoreRowAnchor(anchor: RowAnchor | undefined, fallbackId?: string): number {
+    if (!anchor || !this.rowIds.length) return 0;
+    const id = this.rowIndex.has(anchor.ids[anchor.index])
+      ? anchor.ids[anchor.index]
+      : (fallbackId ??
+        anchor.ids.slice(anchor.index + 1).find((id) => this.rowIndex.has(id)) ??
+        anchor.ids
+          .slice(0, anchor.index)
+          .reverse()
+          .find((id) => this.rowIndex.has(id)));
+    const index = id === undefined ? undefined : this.rowIndex.get(id);
+    if (index === undefined) return 0;
+    const inner =
+      fallbackId && !this.rowIndex.has(anchor.ids[anchor.index])
+        ? 0
+        : Math.min(anchor.inner, Math.max(0, this.rowAxis.sizes[index] - 0.1));
+    const correction = this.rowAxis.offset(index) - anchor.offset + inner - anchor.inner;
+    this.viewport = { ...this.viewport, scroll: this.viewport.scroll + correction };
+    return correction;
   }
 
   private visibleTop(): number {
@@ -300,24 +294,25 @@ export class TableRuntime {
   }
 
   private publish(): void {
-    const { scroll, height, left, width } = this.viewport;
-    const bodyHeight = this.rowIds.length ? this.rowAxis.total : this.options.rowHeight;
+    if (this.columnRevision !== this.columnRuntime.revision) {
+      this.columnRevision = this.columnRuntime.revision;
+      this.version++;
+      this.measurements.invalidate();
+    }
+    const { scroll, height } = this.viewport;
+    const bodyHeight = this.rowIds.length
+      ? this.rowAxis.total
+      : Math.max(this.options.rowHeight, this.options.minRowHeight, this.emptyHeight);
     const visibleRows = this.options.virtual
       ? this.rowAxis.range(this.visibleTop(), scroll + height - this.headerHeight, this.options.overscan)
       : this.rowIds.map((_, index) => index);
-    const expandedRows = [...this.expanded].map((id) => this.rowIndex.get(id)!);
+    const expandedRows = [...this.expanded].flatMap((id) => {
+      const index = this.rowIndex.get(id);
+      return index === undefined ? [] : [index];
+    });
     const rows = [...new Set([...visibleRows, ...expandedRows])].sort((a, b) => a - b);
-    const columns = this.options.virtual
-      ? this.columnAxis.range(Math.max(0, left), left + width, 1)
-      : this.columns.map((_, index) => index);
     this.snapshot = {
-      columns: columns.map((index) => ({
-        id: this.columns[index].id,
-        index,
-        width: this.layout.widths[index],
-        ...resizeDirections(this.columns, this.layout, this.layoutContainer(), index),
-        resizable: this.columns[index].resizable === true && index < this.columns.length - 1,
-      })),
+      columns: this.columnRuntime.visibleColumns(),
       rows: rows.map((index) => ({
         id: this.rowIds[index],
         index,
@@ -327,21 +322,25 @@ export class TableRuntime {
           this.rowAxis.sizes[index] -
           (this.expanded.has(this.rowIds[index]) ? this.measurements.expandedHeight(this.rowIds[index]) : 0),
         expanded: this.expanded.has(this.rowIds[index]),
+        treeExpanded: this.treeBranches.has(this.rowIds[index]) ? this.isTreeExpanded(this.rowIds[index]) : undefined,
       })),
-      widths: this.layout.widths,
+      widths: this.columnRuntime.widths,
       rowCount: this.rowIds.length,
-      columnCount: this.columns.length,
-      total: this.layout.total,
-      minimumWidth: this.minimumWidth(),
+      columnCount: this.columnRuntime.count,
+      total: this.columnRuntime.total,
+      minimumWidth: this.columnRuntime.minimumWidth(),
       bodyHeight,
       headerHeight: this.headerHeight,
       headerTop: this.options.sticky
         ? headerViewportTop(scroll, 0, this.headerHeight, this.headerHeight + bodyHeight)
         : -scroll,
+      headerFloating: this.options.sticky && scroll > 0 && scroll < this.headerHeight + bodyHeight,
       viewport: this.viewport,
       version: this.version,
-      dragging: Boolean(this.operation),
-      error: this.error,
+      dragging: this.columnRuntime.dragging,
+      error: this.columnRuntime.error,
+      pinning: this.columnRuntime.pinning,
+      regions: this.columnRuntime.regions,
     };
     this.listeners.forEach((listener) => listener());
   }

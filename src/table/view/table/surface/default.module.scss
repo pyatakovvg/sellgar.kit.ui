@@ -10,6 +10,10 @@
   color: var(--text-base-primary);
   font-size: var(--numbers-14);
   line-height: var(--numbers-20);
+
+  &[data-dragging='true'] {
+    cursor: col-resize;
+  }
 }
 
 .standalone {
@@ -40,6 +44,8 @@
   position: relative;
 }
 
-.space {
+// Keep expanded descendants mounted: their constraints caused the error.
+.failed {
+  visibility: hidden;
   pointer-events: none;
 }

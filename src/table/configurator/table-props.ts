@@ -64,6 +64,8 @@ export interface TableLayoutConfig {
   scroll?: TableLayoutScroll;
   stickyHeader?: boolean | TableStickyHeaderConfig;
   virtualization?: TableLayoutVirtualization;
+  /** Explicit reserve for the center viewport, in logical numbers units. */
+  pinning?: { reserve: number };
 }
 
 export interface TableProps<T extends object> {

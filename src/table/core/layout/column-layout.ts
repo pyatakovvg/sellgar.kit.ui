@@ -19,6 +19,24 @@ export const distribute = (target: number, lows: number[], highs: number[]): num
   return lows.map((low, index) => clamp((left + right) / 2, low, highs[index]));
 };
 
+// Apply equal deltas to the existing allocation, retaining directed differences.
+const redistribute = (target: number, current: number[], lows: number[], highs: number[]): number[] => {
+  if (Math.abs(target - current.reduce((sum, width) => sum + width, 0)) < 1e-7) return current.slice();
+  const minimum = lows.reduce((sum, width) => sum + width, 0);
+  const maximum = highs.reduce((sum, width) => sum + width, 0);
+  if (target <= minimum) return lows.slice();
+  if (target >= maximum) return highs.slice();
+  let left = -Math.max(0, ...current);
+  let right = Math.max(0, target);
+  for (let i = 0; i < 64; i++) {
+    const delta = (left + right) / 2;
+    const total = current.reduce((sum, width, index) => sum + clamp(width + delta, lows[index], highs[index]), 0);
+    if (total < target) left = delta;
+    else right = delta;
+  }
+  return current.map((width, index) => clamp(width + (left + right) / 2, lows[index], highs[index]));
+};
+
 export const result = (columns: GeometryColumn[], container: number, base: number[], actual?: number[]): Layout => {
   const precise =
     actual ??
@@ -53,16 +71,48 @@ export const automatic = (columns: GeometryColumn[], container: number, anchor?:
     const prior = autos.reduce((sum, index) => sum + anchor.bases[index], 0);
     target = container < anchor.container ? prior + container - anchor.container : Math.max(prior, target);
   }
-  const allocated = distribute(
-    target,
-    autos.map((i) => columns[i].floor),
-    autos.map((i) => columns[i].max),
-  );
+  const lows = autos.map((i) => columns[i].floor);
+  const highs = autos.map((i) => columns[i].max);
+  const allocated = anchor
+    ? redistribute(
+        target,
+        autos.map((i) => anchor.bases[i]),
+        lows,
+        highs,
+      )
+    : distribute(target, lows, highs);
   const base = columns.map((column) => column.width);
   autos.forEach((index, i) => {
     base[index] = allocated[i];
   });
   return result(columns, container, base);
+};
+
+// Nested tables share an assigned surface but calculate their own demand from
+// the viewport. Filling a wider shared surface must not increase that demand.
+export const sharedLayout = (
+  columns: GeometryColumn[],
+  container: number,
+  available: number,
+  anchor?: LayoutAnchor,
+): Layout => {
+  const layout = automatic(columns, available, anchor);
+  if (layout.total >= container - 1e-7) return result(columns, container, layout.base, layout.widths);
+  const autos = columns.map((column, index) => (column.mode === 'auto' ? index : -1)).filter((index) => index >= 0);
+  const fixed = columns.reduce((sum, column) => sum + (column.mode === 'fixed' ? column.width : 0), 0);
+  const allocated = redistribute(
+    container - fixed,
+    autos.map((i) => layout.widths[i]),
+    autos.map((i) => layout.widths[i]),
+    autos.map((i) => columns[i].max),
+  );
+  const widths = layout.widths.slice();
+  const base = layout.base.slice();
+  autos.forEach((index, offset) => {
+    if (allocated[offset] > widths[index] + 1e-7) base[index] = allocated[offset];
+    widths[index] = allocated[offset];
+  });
+  return result(columns, container, base, widths);
 };
 
 export const resizeBounds = (
@@ -122,27 +172,21 @@ const resizeMutable = (
   const delta = width - widths[index];
   column.width = width;
   widths[index] = width;
-  const before = right.reduce((sum, i) => sum + widths[i], 0);
-  const needed = delta >= 0 ? before - delta : before + Math.max(0, container - layout.total - delta);
-  const allocation = distribute(
-    needed,
-    right.map((i) => Math.max(columns[i].floor, columns[i].manual ?? 0)),
-    right.map((i) => columns[i].max),
-  );
   const baseBefore = right.reduce((sum, i) => sum + layout.base[i], 0);
   const baseTotal = columns.reduce(
     (sum, item, i) => sum + (item.mode === 'fixed' ? layout.widths[i] : layout.base[i]),
     0,
   );
   const baseNeeded = delta >= 0 ? baseBefore - delta : baseBefore + Math.max(0, container - baseTotal - delta);
-  const baseAllocation = distribute(
+  const baseAllocation = redistribute(
     baseNeeded,
+    right.map((i) => base[i]),
     right.map((i) => columns[i].floor),
     right.map((i) => columns[i].max),
   );
   right.forEach((i, offset) => {
-    widths[i] = allocation[offset];
     base[i] = baseAllocation[offset];
+    widths[i] = Math.max(base[i], columns[i].manual ?? 0);
   });
   base[index] = width;
   return result(columns, container, base, widths);

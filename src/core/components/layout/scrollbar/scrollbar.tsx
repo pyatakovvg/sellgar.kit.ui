@@ -9,6 +9,7 @@ import {
 } from './geometry';
 import type { ScrollbarGeometry } from './geometry';
 import { useScrollbarGeometry } from './hooks';
+import { ThumbMotion } from './thumb-motion';
 
 import cn from 'classnames';
 import s from './default.module.scss';
@@ -24,10 +25,10 @@ interface IThumbState {
 }
 
 interface IScrollbarState {
-  readonly horizontal: IThumbState;
+  readonly horizontal: boolean;
   readonly isHorizontalFloating: boolean;
   readonly isAwake: boolean;
-  readonly vertical: IThumbState;
+  readonly vertical: boolean;
 }
 
 interface IDragState {
@@ -54,10 +55,10 @@ const initialThumbState: IThumbState = {
 };
 
 const initialState: IScrollbarState = {
-  horizontal: initialThumbState,
+  horizontal: false,
   isHorizontalFloating: false,
   isAwake: false,
-  vertical: initialThumbState,
+  vertical: false,
 };
 
 const getThumbState = (
@@ -83,12 +84,11 @@ const getThumbState = (
   };
 };
 
-const createState = (
+const createThumbs = (
   viewport: HTMLDivElement,
   horizontalTrack: HTMLDivElement,
   geometry: ScrollbarGeometry,
-  isAwake: boolean,
-): IScrollbarState => {
+): { horizontal: IThumbState; vertical: IThumbState } => {
   const verticalTrackSize = Math.max(0, viewport.clientHeight - TRACK_OFFSET * 2);
   const horizontalTrackSize = horizontalTrack.clientWidth;
 
@@ -101,8 +101,6 @@ const createState = (
           horizontalTrackSize,
         )
       : initialThumbState,
-    isHorizontalFloating: geometry.floating,
-    isAwake,
     vertical: getThumbState(viewport.clientHeight, viewport.scrollHeight, viewport.scrollTop, verticalTrackSize),
   };
 };
@@ -111,12 +109,8 @@ const isStateEqual = (left: IScrollbarState, right: IScrollbarState) => {
   return (
     left.isAwake === right.isAwake &&
     left.isHorizontalFloating === right.isHorizontalFloating &&
-    left.vertical.isVisible === right.vertical.isVisible &&
-    left.vertical.offset === right.vertical.offset &&
-    left.vertical.size === right.vertical.size &&
-    left.horizontal.isVisible === right.horizontal.isVisible &&
-    left.horizontal.offset === right.horizontal.offset &&
-    left.horizontal.size === right.horizontal.size
+    left.vertical === right.vertical &&
+    left.horizontal === right.horizontal
   );
 };
 
@@ -218,6 +212,10 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, IProps>(
     const contentRef = React.useRef<HTMLDivElement>(null);
     const verticalTrackRef = React.useRef<HTMLDivElement>(null);
     const horizontalTrackRef = React.useRef<HTMLDivElement>(null);
+    const horizontalThumbRef = React.useRef<HTMLDivElement>(null);
+    const verticalThumbRef = React.useRef<HTMLDivElement>(null);
+    const thumbsRef = React.useRef({ horizontal: initialThumbState, vertical: initialThumbState });
+    const [thumbMotion] = React.useState(() => new ThumbMotion());
     const hideTimerRef = React.useRef<number | null>(null);
     const focusFrameRef = React.useRef<number | null>(null);
     const dragStateRef = React.useRef<IDragState | null>(null);
@@ -234,19 +232,32 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, IProps>(
       hideTimerRef.current = null;
     }, []);
 
-    const updateState = React.useCallback((isAwake: boolean) => {
-      const viewport = viewportRef.current;
-      const horizontalTrack = horizontalTrackRef.current;
+    const updateState = React.useCallback(
+      (isAwake: boolean) => {
+        const viewport = viewportRef.current;
+        const horizontalTrack = horizontalTrackRef.current;
 
-      if (!viewport || !horizontalTrack) {
-        return;
-      }
+        if (!viewport || !horizontalTrack) {
+          return;
+        }
 
-      awakeRef.current = isAwake;
-      const nextState = createState(viewport, horizontalTrack, geometryRef.current, isAwake);
+        awakeRef.current = isAwake;
+        const thumbs = createThumbs(viewport, horizontalTrack, geometryRef.current);
+        thumbsRef.current = thumbs;
+        if (horizontalThumbRef.current)
+          thumbMotion.sync(horizontalThumbRef.current, viewport, 'horizontal', thumbs.horizontal);
+        if (verticalThumbRef.current) thumbMotion.sync(verticalThumbRef.current, viewport, 'vertical', thumbs.vertical);
+        const nextState: IScrollbarState = {
+          horizontal: thumbs.horizontal.isVisible,
+          vertical: thumbs.vertical.isVisible,
+          isAwake,
+          isHorizontalFloating: geometryRef.current.floating,
+        };
 
-      setState((previousState) => (isStateEqual(previousState, nextState) ? previousState : nextState));
-    }, []);
+        setState((previousState) => (isStateEqual(previousState, nextState) ? previousState : nextState));
+      },
+      [thumbMotion],
+    );
 
     const cancelDrag = React.useCallback(() => {
       const dragState = dragStateRef.current;
@@ -381,10 +392,29 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, IProps>(
 
     const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
       onScroll?.(event);
-      wake();
-      scheduleHide();
-      requestGeometryUpdate();
     };
+
+    React.useLayoutEffect(() => {
+      const viewport = viewportRef.current;
+      if (!viewport) return;
+      const scroll = () => {
+        wake();
+        scheduleHide();
+        requestGeometryUpdate();
+      };
+      viewport.addEventListener('scroll', scroll, { passive: true });
+      return () => viewport.removeEventListener('scroll', scroll);
+    }, [wake, scheduleHide, requestGeometryUpdate]);
+
+    React.useLayoutEffect(() => {
+      const viewport = viewportRef.current;
+      if (!viewport) return;
+      if (horizontalThumbRef.current)
+        thumbMotion.sync(horizontalThumbRef.current, viewport, 'horizontal', thumbsRef.current.horizontal);
+      if (verticalThumbRef.current)
+        thumbMotion.sync(verticalThumbRef.current, viewport, 'vertical', thumbsRef.current.vertical);
+    });
+    React.useEffect(() => () => thumbMotion.clear(), [thumbMotion]);
 
     const handleMouseEnter = (event: React.MouseEvent<HTMLDivElement>) => {
       onMouseEnter?.(event);
@@ -436,7 +466,6 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, IProps>(
       if (event.button !== 0 || dragStateRef.current) return;
       const viewport = viewportRef.current;
       const track = axis === 'vertical' ? verticalTrackRef.current : horizontalTrackRef.current;
-      const thumb = axis === 'vertical' ? state.vertical : state.horizontal;
 
       if (!viewport || !track) {
         return;
@@ -446,6 +475,7 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, IProps>(
       event.stopPropagation();
       event.currentTarget.setPointerCapture(event.pointerId);
       wake();
+      const thumb = thumbsRef.current[axis];
 
       dragStateRef.current = {
         axis,
@@ -465,7 +495,6 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, IProps>(
       if (event.button !== 0 || dragStateRef.current) return;
       const viewport = viewportRef.current;
       const track = axis === 'vertical' ? verticalTrackRef.current : horizontalTrackRef.current;
-      const thumb = axis === 'vertical' ? state.vertical : state.horizontal;
 
       if (!viewport || !track || event.target !== event.currentTarget) {
         return;
@@ -474,6 +503,7 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, IProps>(
       event.preventDefault();
       event.stopPropagation();
       wake();
+      const thumb = thumbsRef.current[axis];
 
       const trackRect = track.getBoundingClientRect();
       const pointerPosition = getPointerPosition(event, axis);
@@ -497,11 +527,11 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, IProps>(
 
     const rootClassName = cn(s.root, className);
     const verticalTrackClassName = cn(s.track, s.trackVertical, {
-      [s.trackAvailable]: state.vertical.isVisible,
+      [s.trackAvailable]: state.vertical,
       [s.trackAwake]: state.isAwake,
     });
     const horizontalTrackClassName = cn(s.track, s.trackHorizontal, {
-      [s.trackAvailable]: state.horizontal.isVisible,
+      [s.trackAvailable]: state.horizontal,
       [s.trackAwake]: state.isAwake || state.isHorizontalFloating,
     });
 
@@ -524,10 +554,7 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, IProps>(
       >
         <div
           className={cn(s.thumb, s.thumbHorizontal)}
-          style={{
-            transform: `translate3d(${state.horizontal.offset}px, 0, 0)`,
-            width: state.horizontal.size,
-          }}
+          ref={horizontalThumbRef}
           onPointerDown={(event) => handleThumbPointerDown(event, 'horizontal')}
         />
       </div>
@@ -566,10 +593,7 @@ export const Scrollbar = React.forwardRef<HTMLDivElement, IProps>(
         >
           <div
             className={cn(s.thumb, s.thumbVertical)}
-            style={{
-              height: state.vertical.size,
-              transform: `translate3d(0, ${state.vertical.offset}px, 0)`,
-            }}
+            ref={verticalThumbRef}
             onPointerDown={(event) => handleThumbPointerDown(event, 'vertical')}
           />
         </div>

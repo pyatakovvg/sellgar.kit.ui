@@ -72,7 +72,7 @@ Interaction AGENTS.
 ## Зависимости
 
 - Внешние runtime imports: `react`, `react-dom`, `classnames`.
-- Локальные imports: `./default.module.scss`, `./geometry`, `./hooks`.
+- Локальные imports: `./default.module.scss`, `./geometry`, `./hooks`, `./thumb-motion`.
 
 ## Правила изменений
 
@@ -98,3 +98,15 @@ Interaction AGENTS.
 - Package-local build/lint scripts отсутствуют. Для integration/public behavior использовать Admin UI build и browser smoke; `yarn build` в этом package не объявлять доступной проверкой.
 - Storybook scenario: `../../clients/storybook/src/kit/layout/scrollbar/scrollbar.stories.tsx`.
 - Для визуальных изменений проверить размеры, disabled/active states, DOM order, keyboard/focus behavior и responsive layout, если они применимы к компоненту.
+
+- `thumb-motion.ts` — приватный DOM-владелец размера и transform thumb. При наличии
+  ScrollTimeline связывает движение с фактическим source viewport по X/Y, включая
+  физическое направление RTL; при scroll эффект не пересоздаётся. Изменение range
+  обновляет keyframes, смена source/thumb и teardown отменяют прежние эффекты.
+  Без API применяется непосредственный transform. React хранит только видимость,
+  awake и floating состояние; не возвращать координаты thumb в React state/styles.
+- Drag читает актуальную измеренную геометрию из ref после wake, не из snapshot
+  последнего React render. Native scroll listener сохраняет синхронизацию без
+  участия React event dispatch; публичный onScroll продолжает вызываться.
+- Чистые DOM-проверки `__test__/thumb-motion.test.ts` включены в vitest.table.config.ts.
+  Это проверки браузерного helper, без монтирования React-компонентов.

@@ -15,4 +15,5 @@ export const createGeometryColumns = (definitions: readonly TableColumnDefinitio
       floor: column.minWidth ?? 0,
       max: column.maxWidth ?? Infinity,
       resizable: column.resizable === true,
+      ...(column.pinLeft ? { pin: 'left' as const } : column.pinRight ? { pin: 'right' as const } : {}),
     }));

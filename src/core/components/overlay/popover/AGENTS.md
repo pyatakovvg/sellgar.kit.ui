@@ -42,7 +42,7 @@ Floating interaction с compound Trigger/Content, controlled/uncontrolled open �
 - Consumer import: `import { Popover } from '@sellgar/kit'` или compound API ближайшего public-компонента.
 - Exported/source names: `usePopoverContext`, `Popover`.
 - Props из `IProps`: `initialOpen`, `open`, `placement`, `disabled`, `role`, `sizeToReference`, `onOpenChange`.
-- Props из `Popover.Trigger`: `icon`, `ariaLabel`, `tabIndex`, `onFocus`, `onBlur`, `onKeyDown`, `children`.
+- Props из `Popover.Trigger`: `icon`, `ariaLabel`, `tabIndex`, `role`, `onFocus`, `onBlur`, `onKeyDown`, `children`.
 - Локальных parts нет.
 
 ## Контракт изменения
@@ -52,6 +52,7 @@ Floating interaction с compound Trigger/Content, controlled/uncontrolled open �
 - Props contract: `initialOpen`, `open`, `placement`, `disabled`, `role`, `sizeToReference`, `onOpenChange`. Новые/изменённые props нужно отражать в story и документации.
 - Static/compound members являются частью API; их имена и типы нельзя менять незаметно.
 - `Popover.Trigger.tabIndex` управляет focus order reference-wrapper и не должен подменять open/focus lifecycle самого `Popover`.
+- `Popover.Trigger.role?: 'button'` позволяет standalone control явно задать button semantics без изменения DIV-wrapper. При отсутствии prop сохраняется reference role Floating UI, в том числе combobox у input-like consumers; не затирать его undefined-значением.
 - `Popover.Trigger.onFocus` и `Popover.Trigger.onBlur` нужны для parent interactions, которым нужно связать DOM focus reference-wrapper с собственным визуальным состоянием.
 - Focusable `Popover.Trigger` открывается и закрывается по `Enter`/`Space` через Floating UI reference lifecycle.
 

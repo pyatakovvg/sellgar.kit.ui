@@ -19,7 +19,7 @@
 - Визуальный контракт берётся из существующего Table: размеры sm/md/lg, фон header, типографика, padding, горизонтальные разделители, вертикальное выравнивание и hover. Экспериментальное оформление стенда не переносить.
 - Runtime создаётся на экземпляр Table. Идентичность строк задаёт `data.getRowId`; fallback сохраняет идентичность объекта через WeakMap. Не хранить состояние таблиц в singleton.
 - Browser-адаптер владеет DOM-подписками, нормализацией координат, захватом указателя и scroll anchoring. Core/runtime model не импортируют React, DOM и CSS.
-- Неподдерживаемые tree/selection/pinning/sort не имитировать заглушками. Границы текущего среза описаны в `README.md` и `docs/table-migration-contract.md`.
+- Неподдерживаемые selection/pin-resize/sort не имитировать заглушками. Границы текущего среза описаны в `README.md` и `docs/table-migration-contract.md`.
 
 ## Контракт и проверки
 
@@ -27,4 +27,37 @@
 
 При изменении exports проверять разрешение `@sellgar/kit/table`, TypeScript и Vite build. Сборка должна выпускать отдельные JavaScript entrypoint и декларации. Generated output не редактировать вручную и не включать в исходный change scope.
 
-- Resize включается только явным Column.resizable=true; последняя активная колонка игнорирует флаг. Проверка действует в runtime, а не только в отображении ручки. Отсутствие видимой auto является ошибкой схемы.
+- Resize включается только явным Column.resizable=true; без pin последняя активная колонка игнорирует флаг, при pin это правило относится к последней колонке центра. Проверка действует в runtime, а не только в отображении ручки. Отсутствие видимой auto является ошибкой схемы.
+
+- Tree поддерживается через core preorder/visibility и runtime disclosure по rowId.
+  `TreeTrigger` передаётся через Cell.render; не подключать legacy tree adapters.
+
+- `core/pinning` — отдельная чистая математика общего бюджета обеих сторон и
+  независимого resize pin. Читай его локальный AGENTS. Обычный `core/layout`
+  не импортировать в этот модуль. Есть бюджет/resize готовых ширин и инициализация
+  одного либо набора pin из auto.base/fixed.declaredWidth. Набор сжимает часть сверх
+  min пропорционально, не меняя существующие pin. Подключён к runtime и public Table. Pin-resize UI пока явно отклоняется.
+
+- `core/geometry/table-layout.ts` согласует готовые pinWidth с обычным состоянием
+  всей схемы. Pin исключаются из центра; бюджет берётся из видимого viewport,
+  общая поверхность вложенной таблицы передаётся отдельно. `projectColumns`
+  рассчитывает позиции при scroll без повторного расчёта ширин. Это внутренний
+  pure core, подключённый к runtime. View применяет готовый pinInset нативным
+  горизонтальным sticky, а displayOffset — для pin портального Header.
+  Читай локальный AGENTS геометрии.
+
+- `runtime/columns/column-runtime.ts` владеет состоянием колонок, resize и nested demand.
+  TableRuntime отвечает за строки/измерения и общий snapshot. Для pin обязателен
+  явный reserve и auto в центре. При нехватке бюджета pin целиком приостанавливаются
+  без потери сохранённых ширин и восстанавливаются при возвращении места.
+  Читай локальный AGENTS runtime/columns. Public Table передаёт явный
+  layout.pinning.reserve; новых controls pin/unpin или resize пока нет.
+
+- Критичная DOM-геометрия имеет одного владельца: `runtime/browser/table-presentation.ts`.
+  Он применяет snapshot синхронно при publish, до native scroll correction. View
+  не дублирует width/height/top/grid/pin/portal coordinates через React styles.
+  После React commit browser согласует только вновь смонтированный состав.
+  Токены сериализует `runtime/browser/numbers.ts`; DOM adapter не импортирует View.
+- Измерительные observers регистрируются по DOM identity; смена геометрического
+  epoch инициирует повторное измерение в browser flush без React re-registration.
+  Проверку версии входящих измерений в runtime сохранять.

@@ -7,6 +7,7 @@ import { RowIdentities } from '../../runtime/row-identities';
 import { TableRuntime } from '../../runtime/table-runtime';
 import { ExpandedTableContext, TableContext } from './context/table-context';
 import { Surface } from './surface';
+import { isInteractiveTarget } from './interaction/interactive-target';
 
 import type { TableConfigurationInput } from '../../configurator/types';
 import type { TableRuntimeOptions } from '../../runtime/types';
@@ -25,20 +26,28 @@ export const Table = <T extends object>(props: IProps<T>) => {
   const previousRows = React.useRef(new Map<string, T>());
   const configuration = React.useMemo(() => compileTableConfiguration(props), [props]);
   const records = React.useMemo(
-    () => identities.identify(configuration.data.nodes, configuration.data.getRowId),
-    [configuration.data.nodes, configuration.data.getRowId, identities],
+    () =>
+      identities.identify(
+        configuration.data.nodes,
+        configuration.data.getRowId,
+        configuration.tree?.isUse ? (row) => Reflect.get(row, configuration.tree!.accessor) ?? [] : undefined,
+      ),
+    [configuration.data.nodes, configuration.data.getRowId, configuration.tree, identities],
   );
   const recordsById = React.useMemo(() => new Map(records.map((record) => [record.id, record])), [records]);
 
   if (
-    configuration.tree?.isUse ||
     configuration.select?.isUse ||
     configuration.lastRowTrigger ||
-    configuration.columns.some((column) => column.pinLeft || column.pinRight || column.sort)
+    configuration.columns.some((column) => column.sort)
   ) {
     throw new Error(
-      'This Table slice supports rows, expansion, geometry, resizing and virtualization; tree/selection/pinning/sort are not implemented.',
+      'This Table slice supports rows, tree, expansion, geometry, resizing and virtualization; selection/sort are not implemented.',
     );
+  }
+
+  if (configuration.columns.some((column) => (column.pinLeft || column.pinRight) && column.resizable === true)) {
+    throw new Error('Pin resize controls require an agreed handle edge; pin columns currently render without resize.');
   }
 
   React.useLayoutEffect(() => {
@@ -54,18 +63,26 @@ export const Table = <T extends object>(props: IProps<T>) => {
       virtual: typeof virtual === 'object' ? virtual.enabled !== false : virtual !== false,
       sticky: configuration.layout?.stickyHeader !== false,
       expansion: Boolean(configuration.renderers.expanded),
+      pinning: configuration.layout?.pinning,
+      tree: configuration.tree?.isUse
+        ? {
+            nodes: records.map((record) => record.node),
+            defaultExpanded: configuration.tree.defaultExpanded,
+          }
+        : undefined,
     };
     const changed = records
       .filter((record) => previousRows.current.get(record.id) !== record.data)
       .map((record) => record.id);
     previousRows.current = new Map(records.map((record) => [record.id, record.data]));
-    runtime.configure(
+    const correction = runtime.configure(
       columns,
       records.map((record) => record.id),
       changed,
       options,
     );
-  }, [configuration, records, runtime]);
+    browser.correctScroll(correction);
+  }, [configuration, records, runtime, browser]);
 
   const environment = React.useMemo<TableEnvironment>(
     () => ({
@@ -84,41 +101,29 @@ export const Table = <T extends object>(props: IProps<T>) => {
       surface: configuration.surface ?? 'standalone',
       align: (columnId) => configuration.columns.find((column) => column.columnId === columnId)?.align,
       interactive: Boolean(configuration.row?.handlers),
+      primaryAction: Boolean(configuration.row?.handlers?.click),
       delayClick: Boolean(configuration.row?.handlers?.click && configuration.row.handlers.doubleClick),
       expandable: Boolean(configuration.renderers.expanded),
       renderHeader: (columnId) => configuration.renderers.columns.get(columnId)?.header,
+      headerActions: (columnId) => configuration.renderers.columns.get(columnId)?.actions ?? [],
       renderEmpty: () => configuration.renderers.empty?.() ?? 'Нет данных',
       renderExpanded: (rowId) => {
         const record = recordsById.get(rowId);
         if (!record) return null;
         return configuration.renderers.expanded?.({
           row: record.data,
-          node: {
-            nodeId: rowId,
-            data: record.data,
-            index: record.index,
-            depth: 0,
-            parentNodeId: null,
-            hasChildren: false,
-          },
+          node: record.node,
           nodeId: rowId,
           rowIndex: record.index,
           lineId: rowId,
         });
       },
-      renderCell: (row, column, ExpandTrigger) => {
+      renderCell: (row, column, ExpandTrigger, TreeTrigger) => {
         const record = recordsById.get(row.id);
         if (!record) return null;
         return configuration.renderers.columns.get(column.id)?.cell({
           row: record.data,
-          node: {
-            nodeId: row.id,
-            data: record.data,
-            index: record.index,
-            depth: 0,
-            parentNodeId: null,
-            hasChildren: false,
-          },
+          node: record.node,
           nodeId: row.id,
           rowIndex: record.index,
           rowSelected: false,
@@ -127,6 +132,7 @@ export const Table = <T extends object>(props: IProps<T>) => {
           cellId: JSON.stringify([row.id, column.id]),
           lineId: row.id,
           ExpandTrigger,
+          TreeTrigger,
         });
       },
       rowEvent: (rowId, trigger, event) => {
@@ -134,12 +140,7 @@ export const Table = <T extends object>(props: IProps<T>) => {
         if (!record) return;
         const options = configuration.row;
         if (options?.isInteractiveTarget?.(event.target)) return;
-        if (
-          !options?.disableDefaultInteractiveGuard &&
-          event.target instanceof Element &&
-          event.target.closest('a,button,input,select,textarea,[contenteditable="true"],[role="button"]')
-        )
-          return;
+        if (!options?.disableDefaultInteractiveGuard && isInteractiveTarget(event.target)) return;
         options?.handlers?.[trigger]?.({
           row: record.data,
           rowIndex: record.index,

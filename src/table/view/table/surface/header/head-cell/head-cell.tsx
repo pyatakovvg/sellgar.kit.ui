@@ -3,6 +3,7 @@ import cn from 'classnames';
 
 import { useTableEnvironment } from '../../../context/table-context';
 import { HeadCellContext } from './context/head-cell-context';
+import { HeaderActions } from './header-actions';
 import { ResizeHandle } from './resize-handle';
 
 import s from './default.module.scss';
@@ -30,9 +31,10 @@ export const HeadCell: React.FC<IProps> = (props) => {
         role="columnheader"
         aria-colindex={props.column.index + 1}
         data-column-id={props.column.id}
-        style={{ gridColumn: props.column.index + 1 }}
+        data-column-region={props.column.region}
       >
         <div className={s.label}>{environment.renderHeader(props.column.id)}</div>
+        {environment.headerActions(props.column.id).length > 0 && <HeaderActions />}
         {props.column.resizable && (
           <div className={s.resize}>
             <ResizeHandle />
