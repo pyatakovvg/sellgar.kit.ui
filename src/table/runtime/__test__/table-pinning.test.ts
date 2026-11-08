@@ -94,8 +94,67 @@ describe('Table runtime declarative pinning', () => {
     });
   });
 
-  it('requires an explicit reserve and an automatic center', () => {
-    expect(createRuntime(COLUMNS, { ...OPTIONS, pinning: undefined }).getSnapshot().error).toMatch(/explicit.*reserve/);
+  it('publishes physical direction indicators for each pin handle edge at min and max', () => {
+    const runtime = createRuntime();
+    const pin = (id: string) => runtime.getSnapshot().columns.find((column) => column.id === id)!;
+    expect(pin('left')).toMatchObject({ resizeEdge: 'right', left: true, right: true });
+    expect(pin('right')).toMatchObject({ resizeEdge: 'left', left: true, right: true, resizable: true });
+    expect(runtime.beginPinResize('right', 900, 'left')).toBe(true);
+    runtime.moveResize(2000);
+    expect(pin('right')).toMatchObject({ width: 0, left: true, right: false });
+    runtime.moveResize(-1000);
+    expect(pin('right')).toMatchObject({ width: 750, left: false, right: true });
+    runtime.cancelResize();
+    expect(runtime.beginPinResize('left', 200, 'right')).toBe(true);
+    runtime.moveResize(-1000);
+    expect(pin('left')).toMatchObject({ width: 0, left: false, right: true });
+    runtime.moveResize(2000);
+    expect(pin('left')).toMatchObject({ width: 850, left: true, right: false });
+  });
+
+  it.each([
+    { pinning: undefined, reserve: 50, maximum: 850 },
+    { pinning: {}, reserve: 50, maximum: 850 },
+    { pinning: { reserve: undefined }, reserve: 50, maximum: 850 },
+    { pinning: { reserve: 0 }, reserve: 0, maximum: 900 },
+    { pinning: { reserve: 100 }, reserve: 100, maximum: 800 },
+  ])('uses reserve $reserve for pinning=$pinning', ({ pinning, reserve, maximum }) => {
+    const runtime = createRuntime(COLUMNS, { ...OPTIONS, pinning });
+    expect(runtime.getSnapshot()).toMatchObject({ error: undefined, pinning: { status: 'active', reserve } });
+    expect(runtime.beginPinResize('left', 200, 'right')).toBe(true);
+    runtime.moveResize(10000);
+    expect(widths(runtime).left).toBe(maximum);
+    expect(widths(runtime).right).toBe(100);
+  });
+
+  it.each([-1, NaN, Infinity])(
+    'rejects invalid explicit reserve %s instead of replacing it with the default',
+    (reserve) => {
+      expect(createRuntime(COLUMNS, { ...OPTIONS, pinning: { reserve } }).getSnapshot().error).toMatch(/reserve/);
+    },
+  );
+
+  it('treats omitted reserve and explicit 50 as the same resize environment', () => {
+    const runtime = createRuntime(COLUMNS, { ...OPTIONS, pinning: undefined });
+    expect(runtime.beginPinResize('left', 200, 'right')).toBe(true);
+    runtime.moveResize(300);
+    runtime.configure(COLUMNS, ['row'], [], OPTIONS);
+    expect(runtime.getSnapshot().dragging).toBe(true);
+    expect(widths(runtime).left).toBe(300);
+    runtime.cancelResize();
+    expect(widths(runtime).left).toBe(200);
+  });
+
+  it('uses the default reserve for the shared suspension and restoration threshold', () => {
+    const runtime = createRuntime(COLUMNS, { ...OPTIONS, pinning: undefined });
+    const saved = runtime.getSnapshot().pinning!.columns;
+    runtime.updateViewport({ ...VIEWPORT, width: 349, container: 349 });
+    expect(runtime.getSnapshot().pinning).toMatchObject({ status: 'suspended', reserve: 50, columns: saved });
+    runtime.updateViewport({ ...VIEWPORT, width: 350, container: 350 });
+    expect(runtime.getSnapshot().pinning).toMatchObject({ status: 'active', reserve: 50, columns: saved });
+  });
+
+  it('requires an automatic center', () => {
     expect(createRuntime([auto('left', 0, 'left'), fixed('center', 200)]).getSnapshot().error).toMatch(
       /automatic center/,
     );

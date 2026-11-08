@@ -25,16 +25,12 @@ export const Table = <T extends object>(props: IProps<T>) => {
   const headerId = React.useId();
   const previousRows = React.useRef(new Map<string, T>());
   const configuration = React.useMemo(() => compileTableConfiguration(props), [props]);
-  const records = React.useMemo(
-    () =>
-      identities.identify(
-        configuration.data.nodes,
-        configuration.data.getRowId,
-        configuration.tree?.isUse ? (row) => Reflect.get(row, configuration.tree!.accessor) ?? [] : undefined,
-      ),
-    [configuration.data.nodes, configuration.data.getRowId, configuration.tree, identities],
+  const records = identities.identify(
+    configuration.data.nodes,
+    configuration.data.getRowId,
+    configuration.tree?.isUse ? (row) => Reflect.get(row, configuration.tree!.accessor) ?? [] : undefined,
   );
-  const recordsById = React.useMemo(() => new Map(records.map((record) => [record.id, record])), [records]);
+  const recordsById = new Map(records.map((record) => [record.id, record]));
 
   if (
     configuration.select?.isUse ||
@@ -44,10 +40,6 @@ export const Table = <T extends object>(props: IProps<T>) => {
     throw new Error(
       'This Table slice supports rows, tree, expansion, geometry, resizing and virtualization; selection/sort are not implemented.',
     );
-  }
-
-  if (configuration.columns.some((column) => (column.pinLeft || column.pinRight) && column.resizable === true)) {
-    throw new Error('Pin resize controls require an agreed handle edge; pin columns currently render without resize.');
   }
 
   React.useLayoutEffect(() => {

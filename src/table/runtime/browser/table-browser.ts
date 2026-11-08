@@ -4,7 +4,7 @@ import { HeaderScroll } from './header-scroll';
 import { observePosition } from './position-observer';
 import { TablePresentation } from './table-presentation';
 
-import type { TableMeasurement } from '../types';
+import type { TableColumnGeometry, TableMeasurement } from '../types';
 import type { HeaderPlacement } from './table-presentation';
 
 const ANCHOR_LEASES = new WeakMap<HTMLElement, { count: number; previous: string }>();
@@ -55,7 +55,7 @@ export class TableBrowser {
   private scale = 1;
   private cssScale = 1;
   private scaleY = 1;
-  private pointer?: { id: number; clientX: number; target: HTMLElement };
+  private pointer?: { id: number; clientX: number; target: HTMLElement; pinned: boolean };
   private readonly pending = new Map<string, TableMeasurement>();
   private readonly measurementReaders = new Map<HTMLElement, () => void>();
   private measurementVersion = -1;
@@ -249,14 +249,18 @@ export class TableBrowser {
 
   beginResize(columnId: string, event: PointerEvent): void {
     if (!event.isPrimary || event.button !== 0 || this.pointer || !this.header || !this.root) return;
-    if (!this.runtime.beginResize(columnId, this.pointerX(event.clientX))) return;
+    const column = this.runtime.getSnapshot().columns.find((item) => item.id === columnId);
+    if (!column) return;
+    const pinned = column.region !== 'center';
+    if (!this.beginColumnResize(column, this.pointerX(event.clientX, pinned))) return;
     event.preventDefault();
-    this.pointer = { id: event.pointerId, clientX: event.clientX, target: this.root };
+    this.pointer = { id: event.pointerId, clientX: event.clientX, target: this.root, pinned };
     this.root.setPointerCapture(event.pointerId);
   }
 
   resizeBy(columnId: string, delta: number): void {
-    if (!this.runtime.beginResize(columnId, 0)) return;
+    const column = this.runtime.getSnapshot().columns.find((item) => item.id === columnId);
+    if (!column || !this.beginColumnResize(column, 0)) return;
     this.runtime.moveResize(delta);
     this.runtime.finishResize();
   }
@@ -415,16 +419,25 @@ export class TableBrowser {
       previous.container !== viewport.container ||
       previous.available !== viewport.available ||
       previous.scale !== viewport.scale ||
+      (this.pointer.pinned && (previous.width !== viewport.width || previous.screenLeft !== viewport.screenLeft)) ||
       (Math.abs(previousLeft - nextLeft) < 1e-7 && previous.screenLeft !== viewport.screenLeft);
     if (environmentChanged) this.runtime.rebaseResize(this.pointerX(this.pointer.clientX));
-    else if (Math.abs(previousLeft - nextLeft) > 1e-7) this.runtime.moveResize(this.pointerX(this.pointer.clientX));
+    else if (!this.pointer.pinned && Math.abs(previousLeft - nextLeft) > 1e-7)
+      this.runtime.moveResize(this.pointerX(this.pointer.clientX));
   }
 
   private scrollOwner(): HTMLElement | Window | undefined {
     return this.parent?.scrollOwner() ?? this.owner;
   }
 
-  private pointerX(clientX: number): number {
+  private beginColumnResize(column: TableColumnGeometry, x: number): boolean {
+    return column.region === 'center'
+      ? this.runtime.beginResize(column.id, x)
+      : this.runtime.beginPinResize(column.id, x, column.resizeEdge);
+  }
+
+  private pointerX(clientX: number, pinned = this.pointer?.pinned ?? false): number {
+    if (pinned) return clientX / this.scale - this.runtime.getSnapshot().viewport.screenLeft;
     return (clientX - (this.surface?.getBoundingClientRect().left ?? 0)) / this.scale;
   }
 

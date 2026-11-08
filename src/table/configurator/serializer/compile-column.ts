@@ -4,6 +4,7 @@ import { Actions } from '../actions/actions';
 import { Cell } from '../cell/cell';
 import { Head } from '../head/head';
 import { compileActions } from './compile-actions';
+import { resolveColumnSize } from './resolve-column-size';
 import { visitDeclarations } from './visit-declarations';
 
 import type { TableColumnDefinition } from '../../core/column';
@@ -61,9 +62,12 @@ export const compileColumn = <T>(
     column: {
       columnId,
       sourceIndex,
-      width: props.width,
-      minWidth: props.minWidth,
-      maxWidth: props.maxWidth,
+      width:
+        typeof props.width === 'string' && /^\s*var\(\s*--numbers-/.test(props.width)
+          ? resolveColumnSize(props.width, columnId, 'width')
+          : props.width,
+      minWidth: resolveColumnSize(props.minWidth, columnId, 'minWidth'),
+      maxWidth: resolveColumnSize(props.maxWidth, columnId, 'maxWidth'),
       align: props.align,
       order: props.order,
       visible: props.visible,

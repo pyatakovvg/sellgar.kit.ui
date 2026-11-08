@@ -2,7 +2,7 @@ export type TableColumnId = string;
 export type TableTextAlign = 'left' | 'center' | 'right';
 export type TableSortDirection = 'asc' | 'desc';
 
-/** Numbers use the theme's logical numbers units. Strings retain the existing declaration API. */
+/** Normalized logical numbers units or a legacy automatic width declaration. */
 export type TableColumnWidth = number | string;
 
 export interface TableColumnSortConfig {

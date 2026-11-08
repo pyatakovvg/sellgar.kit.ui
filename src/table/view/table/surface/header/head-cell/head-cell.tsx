@@ -32,6 +32,7 @@ export const HeadCell: React.FC<IProps> = (props) => {
         aria-colindex={props.column.index + 1}
         data-column-id={props.column.id}
         data-column-region={props.column.region}
+        data-resize-edge={props.column.resizeEdge}
       >
         <div className={s.label}>{environment.renderHeader(props.column.id)}</div>
         {environment.headerActions(props.column.id).length > 0 && <HeaderActions />}

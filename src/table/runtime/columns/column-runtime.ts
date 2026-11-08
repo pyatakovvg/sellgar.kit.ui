@@ -36,6 +36,8 @@ interface ResizeOperation {
   readonly rollback: Checkpoint;
 }
 
+const DEFAULT_PIN_RESERVE = 50;
+
 const EMPTY_LAYOUT: Layout = { base: [], widths: [], total: 0, overflow: 0, underfill: 0 };
 
 export class ColumnRuntime {
@@ -64,7 +66,7 @@ export class ColumnRuntime {
     const schema = JSON.stringify(
       columns.map(({ id, mode, width, floor, max, pin }) => [id, mode, width, floor, String(max), pin]),
     );
-    const changed = schema !== this.schema || options.pinning?.reserve !== this.options.pinning?.reserve;
+    const changed = schema !== this.schema || (options.pinning?.reserve ?? DEFAULT_PIN_RESERVE) !== this.reserve;
     if (changed && this.operation) this.restore(this.operation.rollback);
     this.options = options;
     if (changed) {
@@ -158,7 +160,7 @@ export class ColumnRuntime {
     return {
       status: this.geometry ? ('active' as const) : ('suspended' as const),
       columns: [...this.pins.values()],
-      reserve: this.options.pinning?.reserve ?? 0,
+      reserve: this.reserve,
     };
   }
 
@@ -208,15 +210,20 @@ export class ColumnRuntime {
       const source = this.columns[column.sourceIndex];
       const centerIndex = centerIndices.get(column.id) ?? -1;
       const isPin = column.region !== 'center';
+      const resizeEdge = column.region === 'right' ? 'left' : 'right';
+      const bounds = isPin ? pinResizeBounds([...this.pins.values()], this.pinViewport(), column.id) : undefined;
+      const canShrink = bounds ? column.width > bounds.min + 1e-7 : false;
+      const canGrow = bounds ? column.width < bounds.max - 1e-7 : false;
       return [
         {
           ...column,
           index,
+          resizeEdge,
           ...(isPin
             ? {
-                left: false,
-                right: false,
-                resizeBounds: pinResizeBounds([...this.pins.values()], this.pinViewport(), column.id),
+                left: resizeEdge === 'left' ? canGrow : canShrink,
+                right: resizeEdge === 'left' ? canShrink : canGrow,
+                resizeBounds: bounds,
               }
             : resizeDirections(working, this.layout, this.resizeContainer(), centerIndex)),
           resizable: source.resizable === true && (isPin || centerIndex < working.length - 1),
@@ -368,8 +375,12 @@ export class ColumnRuntime {
       : Math.max(this.viewport.available ?? this.viewport.container, 0, ...this.nestedWidths.values());
   }
 
+  private get reserve(): number {
+    return this.options.pinning?.reserve ?? DEFAULT_PIN_RESERVE;
+  }
+
   private pinViewport(): PinningViewport {
-    return { width: this.viewport.width, reserve: this.options.pinning!.reserve };
+    return { width: this.viewport.width, reserve: this.reserve };
   }
 
   private currentAnchor(pinned = Boolean(this.geometry)): LayoutAnchor | undefined {
@@ -404,9 +415,9 @@ export class ColumnRuntime {
 
   private preparePins(): boolean {
     if (!this.hasPins()) return false;
-    const reserve = this.options.pinning?.reserve;
-    if (reserve === undefined || !Number.isFinite(reserve) || reserve < 0)
-      throw new RangeError('Pinned columns require an explicit finite non-negative center reserve.');
+    const reserve = this.reserve;
+    if (!Number.isFinite(reserve) || reserve < 0)
+      throw new RangeError('Pinned columns require a finite non-negative center reserve.');
     if (!this.columns.some((column) => !column.pin && column.mode === 'auto'))
       throw new Error('Pinned table geometry must retain an automatic center column.');
     if (this.viewport.width === 0 || this.viewport.width < reserve) return false;

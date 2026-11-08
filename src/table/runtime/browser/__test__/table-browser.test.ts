@@ -11,6 +11,8 @@ let observers: { elements: Set<Element>; notify(): void }[];
 beforeEach(() => {
   frames = new Map();
   observers = [];
+  // jsdom has a zero-width viewport by default; handles require visible geometry.
+  vi.spyOn(document.documentElement, 'clientWidth', 'get').mockReturnValue(2400);
   let sequence = 0;
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
     frames.set(++sequence, callback);
@@ -96,7 +98,7 @@ const fixture = (internal = true, initialScale = 2) => {
   );
   const browser = new TableBrowser(runtime);
   releases.push(browser.attach(root, surface, probe, scroller, internal));
-  return { browser, runtime, geometry, root, surface, probe, ownerScroll, internalScroll };
+  return { browser, runtime, geometry, root, surface, probe, scroller, ownerScroll, internalScroll };
 };
 
 describe('Table browser coordinate spaces', () => {
@@ -205,5 +207,108 @@ describe('Table browser coordinate spaces', () => {
     expect(runtime.getSnapshot().widths).toEqual([210, 390]);
     root.dispatchEvent(Object.defineProperty(new Event('pointercancel'), 'pointerId', { value: 1 }));
     expect(runtime.getSnapshot()).toMatchObject({ dragging: false, widths: [200, 400] });
+  });
+
+  it.each(['left', 'right'] as const)(
+    'routes the %s pin handle through mirrored resize, ignoring shared horizontal scroll during capture',
+    (side) => {
+      vi.spyOn(document.documentElement, 'clientWidth', 'get').mockReturnValue(1200);
+      const { browser, runtime, root, surface, scroller } = fixture(true, 1);
+      runtime.configure(
+        [
+          { id: 'left', mode: 'fixed', width: 100, floor: 50, max: Infinity, resizable: true, pin: 'left' },
+          { id: 'auto', mode: 'auto', width: 0, floor: 0, max: Infinity },
+          { id: 'right', mode: 'fixed', width: 100, floor: 50, max: Infinity, resizable: true, pin: 'right' },
+        ],
+        ['row'],
+        [],
+        { rowHeight: 40, minRowHeight: 40, overscan: 0, virtual: true, sticky: true, pinning: { reserve: 50 } },
+      );
+      const header = document.createElement('div');
+      surface.append(header);
+      box(header, 600, 28, () => 1);
+      releases.push(browser.attachHeader(header));
+      vi.mocked(surface.getBoundingClientRect).mockImplementation(() =>
+        DOMRect.fromRect({ x: -scroller.scrollLeft, width: 600, height: 400 }),
+      );
+      const start = side === 'left' ? 100 : 500;
+      const sign = side === 'left' ? 1 : -1;
+      const down = new MouseEvent('pointerdown', { clientX: start, button: 0 });
+      Object.defineProperties(down, { isPrimary: { value: true }, pointerId: { value: 9 } });
+      browser.beginResize(side, down as PointerEvent);
+      expect(runtime.getSnapshot().dragging).toBe(true);
+      expect(root.setPointerCapture).toHaveBeenCalledWith(9);
+      const move = (width: number) => {
+        const event = new MouseEvent('pointermove', { clientX: start + sign * (width - 100), buttons: 1 });
+        Object.defineProperty(event, 'pointerId', { value: 9 });
+        root.dispatchEvent(event);
+      };
+      const activeWidth = () => runtime.getSnapshot().columns.find((column) => column.id === side)!.width;
+      move(200);
+      expect(activeWidth()).toBe(200);
+      scroller.scrollLeft = 120;
+      browser.refresh();
+      move(200);
+      expect(activeWidth()).toBe(200);
+      for (const [request, width] of [
+        [-200, 50],
+        [-150, 50],
+        [50, 50],
+        [80, 80],
+        [200, 200],
+        [1000, 450],
+        [800, 450],
+        [400, 400],
+      ]) {
+        move(request);
+        expect(activeWidth()).toBe(width);
+      }
+      const opposite = side === 'left' ? 'right' : 'left';
+      expect(runtime.getSnapshot().columns.find((column) => column.id === opposite)!.width).toBe(100);
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      expect(runtime.getSnapshot().dragging).toBe(false);
+      expect(activeWidth()).toBe(100);
+      browser.resizeBy(side, sign * 10);
+      expect(activeWidth()).toBe(110);
+      browser.resizeBy(side, -sign * 10);
+      expect(activeWidth()).toBe(100);
+    },
+  );
+
+  it('rebases a captured right pin on scale changes and commits pointerup without losing its initial cancel snapshot', () => {
+    vi.spyOn(document.documentElement, 'clientWidth', 'get').mockReturnValue(2400);
+    const { browser, runtime, geometry, root, surface } = fixture(true, 1);
+    runtime.configure(
+      [
+        { id: 'auto', mode: 'auto', width: 0, floor: 50, max: Infinity },
+        { id: 'right', mode: 'fixed', width: 100, floor: 50, max: Infinity, resizable: true, pin: 'right' },
+      ],
+      ['row'],
+      [],
+      { rowHeight: 40, minRowHeight: 40, overscan: 0, virtual: true, sticky: true, pinning: { reserve: 50 } },
+    );
+    const header = document.createElement('div');
+    surface.append(header);
+    box(header, 600, 28, () => geometry.scale);
+    releases.push(browser.attachHeader(header));
+    const down = new MouseEvent('pointerdown', { clientX: 500, button: 0 });
+    Object.defineProperties(down, { isPrimary: { value: true }, pointerId: { value: 7 } });
+    browser.beginResize('right', down as PointerEvent);
+    const move = (clientX: number) => {
+      const event = new MouseEvent('pointermove', { clientX, buttons: 1 });
+      Object.defineProperty(event, 'pointerId', { value: 7 });
+      root.dispatchEvent(event);
+    };
+    move(400);
+    expect(runtime.getSnapshot().columns.at(-1)!.width).toBe(200);
+    geometry.scale = 2;
+    browser.refresh();
+    move(400);
+    expect(runtime.getSnapshot().columns.at(-1)!.width).toBe(200);
+    move(380);
+    expect(runtime.getSnapshot().columns.at(-1)!.width).toBe(210);
+    root.dispatchEvent(Object.defineProperty(new Event('pointerup'), 'pointerId', { value: 7 }));
+    expect(runtime.getSnapshot().dragging).toBe(false);
+    expect(runtime.getSnapshot().columns.at(-1)!.width).toBe(210);
   });
 });

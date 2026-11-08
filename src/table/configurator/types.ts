@@ -56,7 +56,14 @@ export interface TableColumnScope<T> {
   Actions: React.FC<TableActionsProps>;
 }
 
-export interface TableColumnProps<T> extends Omit<TableColumnDefinition, 'columnId' | 'sourceIndex'> {
+export type TableColumnSize = number | `var(--numbers-${number})` | `var(--numbers-${number}_${number})`;
+
+export interface TableColumnProps<T> extends Omit<
+  TableColumnDefinition,
+  'columnId' | 'sourceIndex' | 'minWidth' | 'maxWidth'
+> {
+  minWidth?: TableColumnSize;
+  maxWidth?: TableColumnSize;
   children?: React.ReactNode | ((scope: TableColumnScope<T>) => React.ReactNode);
 }
 

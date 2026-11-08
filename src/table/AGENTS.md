@@ -9,6 +9,7 @@
 ## Границы
 
 - Публичные компоненты и типы экспортировать явно через `index.ts` по мере реализации.
+- Конфигуратор разрешает width/minWidth/maxWidth вида `var(--numbers-X)` в логические числа до core; числовой API сохраняется. Неизвестные numbers tokens отклоняются.
 - Конфигуратор владеет интерпретацией React-деклараций; React-типы и render callbacks не должны проникать в математическое ядро.
 - Core не зависит от React, DOM, CSS и runtime.
 - Runtime связывает core с измерениями и событиями среды, хранит состояние экземпляра.
@@ -19,7 +20,7 @@
 - Визуальный контракт берётся из существующего Table: размеры sm/md/lg, фон header, типографика, padding, горизонтальные разделители, вертикальное выравнивание и hover. Экспериментальное оформление стенда не переносить.
 - Runtime создаётся на экземпляр Table. Идентичность строк задаёт `data.getRowId`; fallback сохраняет идентичность объекта через WeakMap. Не хранить состояние таблиц в singleton.
 - Browser-адаптер владеет DOM-подписками, нормализацией координат, захватом указателя и scroll anchoring. Core/runtime model не импортируют React, DOM и CSS.
-- Неподдерживаемые selection/pin-resize/sort не имитировать заглушками. Границы текущего среза описаны в `README.md` и `docs/table-migration-contract.md`.
+- Неподдерживаемые selection/sort не имитировать заглушками. Границы текущего среза описаны в `README.md` и `docs/table-migration-contract.md`.
 
 ## Контракт и проверки
 
@@ -36,7 +37,7 @@
   независимого resize pin. Читай его локальный AGENTS. Обычный `core/layout`
   не импортировать в этот модуль. Есть бюджет/resize готовых ширин и инициализация
   одного либо набора pin из auto.base/fixed.declaredWidth. Набор сжимает часть сверх
-  min пропорционально, не меняя существующие pin. Подключён к runtime и public Table. Pin-resize UI пока явно отклоняется.
+  min пропорционально, не меняя существующие pin. Подключён к runtime и public Table. Pin-resize UI подключён через отдельную runtime-операцию.
 
 - `core/geometry/table-layout.ts` согласует готовые pinWidth с обычным состоянием
   всей схемы. Pin исключаются из центра; бюджет берётся из видимого viewport,
@@ -47,11 +48,11 @@
   Читай локальный AGENTS геометрии.
 
 - `runtime/columns/column-runtime.ts` владеет состоянием колонок, resize и nested demand.
-  TableRuntime отвечает за строки/измерения и общий snapshot. Для pin обязателен
-  явный reserve и auto в центре. При нехватке бюджета pin целиком приостанавливаются
+  TableRuntime отвечает за строки/измерения и общий snapshot. Для pin обязательна
+  auto в центре; reserve по умолчанию — 50 логических numbers. При нехватке бюджета pin целиком приостанавливаются
   без потери сохранённых ширин и восстанавливаются при возвращении места.
-  Читай локальный AGENTS runtime/columns. Public Table передаёт явный
-  layout.pinning.reserve; новых controls pin/unpin или resize пока нет.
+  Читай локальный AGENTS runtime/columns. Public Table передаёт
+  необязательный layout.pinning.reserve (включая 0); controls pin/unpin пока нет. Resize включается явно.
 
 - Критичная DOM-геометрия имеет одного владельца: `runtime/browser/table-presentation.ts`.
   Он применяет snapshot синхронно при publish, до native scroll correction. View

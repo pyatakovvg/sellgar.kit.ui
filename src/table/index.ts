@@ -15,6 +15,7 @@ export type {
   TableColumnProps,
   TableColumnRenderers,
   TableColumnScope,
+  TableColumnSize,
   TableConfiguration,
   TableConfigurationInput,
   TableData,

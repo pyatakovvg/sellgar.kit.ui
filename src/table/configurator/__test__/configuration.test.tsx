@@ -3,6 +3,8 @@ import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import { Cell, Column, Empty, Expand, Head, compileTableConfiguration } from '@sellgar/kit/table';
 
+import { createGeometryColumns } from '../../core/layout/create-columns';
+
 import type { TableCellRenderScope, TableConfigurationInput, TableExpandedRenderContext } from '@sellgar/kit/table';
 
 interface Product {
@@ -32,6 +34,99 @@ const context: TableCellRenderScope<Product> = {
 const automaticColumn = <Column key={'automatic'}>{({ Cell }) => <Cell />}</Column>;
 
 describe('Table configuration compiler', () => {
+  it('compiles numbers tokens into the same fixed/auto geometry as numeric declarations', () => {
+    const compile = (tokens: boolean) =>
+      compileTableConfiguration({
+        data,
+        children: (
+          <>
+            <Column
+              key={'status'}
+              width={tokens ? 'var(--numbers-24)' : 24}
+              minWidth={tokens ? 'var(--numbers-24)' : 24}
+              pinLeft
+            >
+              <Cell />
+            </Column>
+            <Column
+              key={'name'}
+              minWidth={tokens ? 'var(--numbers-120)' : 120}
+              maxWidth={tokens ? 'var(--numbers-600)' : 600}
+            >
+              <Cell />
+            </Column>
+          </>
+        ),
+      });
+    const numeric = compile(false);
+    const tokens = compile(true);
+    expect(tokens.columns).toEqual(numeric.columns);
+    expect(createGeometryColumns(tokens.columns)).toEqual(createGeometryColumns(numeric.columns));
+    expect(createGeometryColumns(tokens.columns).map((column) => column.mode)).toEqual(['fixed', 'auto']);
+  });
+
+  it.each([
+    ['var(--numbers-0)', 0],
+    ['var(--numbers-0_5)', 0.5],
+    ['var(--numbers-1_6)', 1.6],
+    ['var(--numbers-3000)', 3000],
+  ] as const)('accepts existing boundary and fractional token %s', (token, expected) => {
+    const configuration = compileTableConfiguration({
+      data,
+      children: (
+        <>
+          <Column width={token}>
+            <Cell />
+          </Column>
+          {automaticColumn}
+        </>
+      ),
+    });
+    expect(configuration.columns[0].width).toBe(expected);
+  });
+
+  it('checks min/max and the automatic column invariant after resolving tokens', () => {
+    expect(() =>
+      compileTableConfiguration({
+        data,
+        children: (
+          <Column width={'var(--numbers-24)'}>
+            <Cell />
+          </Column>
+        ),
+      }),
+    ).toThrow(/automatic/);
+    expect(() =>
+      compileTableConfiguration({
+        data,
+        children: (
+          <Column minWidth={'var(--numbers-300)'} maxWidth={'var(--numbers-200)'}>
+            <Cell />
+          </Column>
+        ),
+      }),
+    ).toThrow(/minWidth must not exceed/);
+  });
+
+  it.each(['var(--numbers-3001)', 'var(--numbers-0_4)', 'var(--numbers--24)', 'var(--numbers-bad)'])(
+    'rejects nonexistent or malformed numbers token %s',
+    (token) => {
+      expect(() =>
+        compileTableConfiguration({
+          data,
+          children: (
+            <>
+              <Column width={token}>
+                <Cell />
+              </Column>
+              {automaticColumn}
+            </>
+          ),
+        }),
+      ).toThrow(/numbers token/);
+    },
+  );
+
   it('requires explicit resize permission for each column', () => {
     const configuration = compileTableConfiguration({
       data,

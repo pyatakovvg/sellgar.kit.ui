@@ -81,14 +81,18 @@ export class TablePresentation {
       const column = columns.get(element.dataset.columnId!);
       setStyle(element, 'display', column ? '' : 'none');
       if (!column) continue;
-      this.column(element, column, floating && element.getAttribute('role') === 'columnheader');
+      this.column(element, column, floating && element.getAttribute('role') === 'columnheader', state.columnCount);
     }
     return moved;
   }
 
-  private column(element: HTMLElement, column: TableColumnGeometry, floating: boolean): void {
+  private column(element: HTMLElement, column: TableColumnGeometry, floating: boolean, count: number): void {
     element.dataset.columnRegion = column.region;
+    if (element.getAttribute('role') === 'columnheader') element.dataset.resizeEdge = column.resizeEdge;
     const pinned = column.region !== 'center';
+    // The handle crosses its cell edge; the neighbouring pin must not cover its outer half.
+    const stack = column.region === 'left' ? count - column.index + 1 : column.index + 1;
+    setStyle(element, 'z-index', pinned && element.getAttribute('role') === 'columnheader' ? String(stack) : '');
     setStyle(element, 'grid-column', pinned && floating ? '' : String(column.index + 1));
     setStyle(element, 'position', pinned ? (floating ? 'absolute' : 'sticky') : '');
     setStyle(

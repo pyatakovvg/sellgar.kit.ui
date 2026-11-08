@@ -10,7 +10,7 @@ export interface TableRuntimeOptions {
   readonly sticky: boolean;
   readonly expansion?: boolean;
   readonly tree?: { readonly nodes: readonly TreeNode[]; readonly defaultExpanded?: boolean };
-  readonly pinning?: { readonly reserve: number };
+  readonly pinning?: { readonly reserve?: number };
 }
 
 export interface TableViewport {
@@ -35,6 +35,7 @@ export interface TableColumnGeometry {
   readonly left: boolean;
   readonly right: boolean;
   readonly resizable: boolean;
+  readonly resizeEdge: 'left' | 'right';
   readonly sourceIndex: number;
   readonly region: ColumnRegion;
   readonly pinInset?: number;

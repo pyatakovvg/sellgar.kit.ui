@@ -214,6 +214,114 @@ describe('Table runtime instance lifecycle', () => {
 });
 
 describe('Table row identities', () => {
+  it('reads replacement, insertion, reorder and deletion from the same array while retaining object IDs', () => {
+    const registry = new RowIdentities();
+    const first = { name: 'shirt' };
+    const second = { name: 'trousers' };
+    const rows = [first, second];
+    const original = registry.identify(rows);
+    const jacket = { name: 'jacket' };
+    rows[1] = jacket;
+    const replaced = registry.identify(rows);
+    expect(replaced.map((row) => row.data)).toEqual([first, jacket]);
+    expect(replaced[0].id).toBe(original[0].id);
+    expect(replaced[1].id).not.toBe(original[1].id);
+    rows.push(second);
+    rows.reverse();
+    expect(registry.identify(rows).map((row) => row.id)).toEqual([original[1].id, replaced[1].id, original[0].id]);
+    rows.splice(1, 1);
+    expect(registry.identify(rows).map((row) => row.id)).toEqual([original[1].id, original[0].id]);
+  });
+
+  it('retains measured rows, expansion and an active resize when the same objects are read again', () => {
+    const registry = new RowIdentities();
+    const first = { name: 'shirt' };
+    const second = { name: 'trousers' };
+    const rows = [first, second];
+    const records = registry.identify(rows);
+    const runtime = new TableRuntime();
+    const options = { ...OPTIONS, expansion: true };
+    runtime.configure(
+      COLUMNS,
+      records.map((row) => row.id),
+      [],
+      options,
+    );
+    runtime.updateViewport(VIEWPORT);
+    runtime.toggleExpanded(records[0].id);
+    expect(runtime.beginResize('name', 0)).toBe(true);
+    runtime.moveResize(50);
+    runtime.commitMeasurements([
+      { rowId: records[0].id, columnId: 'name', height: 70, version: runtime.getSnapshot().version },
+      { kind: 'expanded', rowId: records[0].id, height: 80, version: runtime.getSnapshot().version },
+    ]);
+    const widths = runtime.getSnapshot().widths;
+    const before = runtime.getSnapshot().rows[0];
+    const next = registry.identify(rows);
+    runtime.configure(
+      COLUMNS,
+      next.map((row) => row.id),
+      [],
+      options,
+    );
+    expect(runtime.getSnapshot().dragging).toBe(true);
+    expect(runtime.getSnapshot().widths).toEqual(widths);
+    expect(runtime.getSnapshot().rows[0]).toMatchObject({
+      id: before.id,
+      expanded: true,
+      contentHeight: 70,
+      height: 150,
+    });
+    runtime.finishResize();
+    rows[1] = { name: 'jacket' };
+    const replaced = registry.identify(rows);
+    runtime.configure(
+      COLUMNS,
+      replaced.map((row) => row.id),
+      [replaced[1].id],
+      options,
+    );
+    expect(runtime.getSnapshot().rows[0]).toMatchObject({
+      id: before.id,
+      expanded: true,
+      contentHeight: 70,
+      height: 150,
+    });
+    expect(runtime.getSnapshot().rows[1]).toMatchObject({ id: replaced[1].id, expanded: false, height: 40 });
+  });
+
+  it('refreshes changed tree children while preserving existing branch identity and disclosure', () => {
+    interface Row {
+      name: string;
+      children: Row[];
+    }
+    const branch: Row = { name: 'branch', children: [{ name: 'child', children: [] }] };
+    const rows = [branch];
+    const registry = new RowIdentities();
+    const runtime = new TableRuntime();
+    const configure = () => {
+      const records = registry.identify(rows, undefined, (row) => row.children);
+      runtime.configure(
+        COLUMNS,
+        records.map((row) => row.id),
+        [],
+        { ...OPTIONS, tree: { nodes: records.map((row) => row.node), defaultExpanded: true } },
+      );
+      return records;
+    };
+    const before = configure();
+    runtime.updateViewport(VIEWPORT);
+    runtime.toggleTree(before[0].id);
+    branch.children.push({ name: 'new child', children: [] });
+    const after = configure();
+    expect(after.map((row) => row.data.name)).toEqual(['branch', 'child', 'new child']);
+    expect(after[0].id).toBe(before[0].id);
+    expect(after[1].id).toBe(before[1].id);
+    expect(runtime.getSnapshot().rows.map((row) => row.id)).toEqual([before[0].id]);
+    runtime.toggleTree(before[0].id);
+    expect(runtime.getSnapshot().rows.map((row) => row.id)).toEqual(after.map((row) => row.id));
+  });
+
   it('preserves object identity across reorders and accepts stable ids across refreshes', () => {
     const registry = new RowIdentities();
     const first = { uuid: 'a' };
