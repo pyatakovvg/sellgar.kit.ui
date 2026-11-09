@@ -68,8 +68,10 @@
 - ColumnSort в runtime/columns хранит активный запрос сортировки по columnId.
   Callbacks onToggle/onReset остаются внешним контрактом; Table не сортирует data.nodes.
   Скрытие/удаление/отключение sort освобождает активную колонку; default не вызывает onToggle.
-- LastRowObserver наблюдает реальную ячейку последней видимой data line через
-  IntersectionObserver с фактическим scroll owner. Виртуальное перемонтирование той же
+- LastRowObserver наблюдает последнюю видимую data line целиком через
+  IntersectionObserver с фактическим scroll owner. Threshold учитывает высоту,
+  а не площадь; горизонтальное обрезание строки не блокирует догрузку.
+  Native browser refresh запрашивает актуальное пересечение до срабатывания. Виртуальное перемонтирование той же
   строки не повторяет уведомление; новый последний rowId позволяет следующую догрузку.
 - useCellData/useRowExpanded экспортируются из @sellgar/kit/table и читают контекст
   нового экземпляра. Не использовать legacy hooks из основного @sellgar/kit с новой Table.

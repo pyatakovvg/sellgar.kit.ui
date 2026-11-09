@@ -28,19 +28,19 @@ export const Line: React.FC = () => {
 
   const lastRow = row.index === state.rowCount - 1;
   const lastRowEnabled = Boolean(environment.lastRowTrigger) && !state.error;
-  const firstColumnId = state.columns.find((column) => column.width > 0)?.id;
   const rootMargin = environment.lastRowTrigger?.rootMargin;
   const threshold = environment.lastRowTrigger?.threshold;
   React.useEffect(() => {
     if (!root.current || !lastRow || !lastRowEnabled) return;
-    const cell = Array.from(root.current.children).find(
-      (element) => element instanceof HTMLElement && element.dataset.columnId === firstColumnId,
+    return environment.browser.observeLastRow(
+      root.current,
+      row.id,
+      () => latestEnvironment.current.lastRowVisible(row.id),
+      {
+        rootMargin,
+        threshold,
+      },
     );
-    if (!(cell instanceof HTMLElement)) return;
-    return environment.browser.observeLastRow(cell, row.id, () => latestEnvironment.current.lastRowVisible(row.id), {
-      rootMargin,
-      threshold,
-    });
   }, [
     environment.browser,
     environment.scroll,
@@ -52,7 +52,6 @@ export const Line: React.FC = () => {
     row.contentHeight,
     state.viewport.scale,
     state.viewport.scaleY,
-    firstColumnId,
     rootMargin,
     threshold,
   ]);

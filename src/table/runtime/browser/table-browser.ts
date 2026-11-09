@@ -461,6 +461,7 @@ export class TableBrowser {
       scaleY: this.scaleY,
     };
     this.runtime.updateViewport(viewport);
+    this.lastRowObserver.refresh();
     this.syncHeaderScroll();
     if (!this.pointer) return;
     if (!this.runtime.getSnapshot().dragging) {

@@ -4,10 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LastRowObserver } from '../last-row-observer';
 
 let observers: {
-  notify(target: Element, intersecting?: boolean, ratio?: number): void;
+  notify(target: Element, intersecting?: boolean, verticalRatio?: number, horizontalRatio?: number): void;
   options?: IntersectionObserverInit;
   disconnect: ReturnType<typeof vi.fn>;
   observe: ReturnType<typeof vi.fn>;
+  unobserve: ReturnType<typeof vi.fn>;
 }[];
 
 beforeEach(() => {
@@ -17,6 +18,7 @@ beforeEach(() => {
     class {
       disconnect = vi.fn();
       observe = vi.fn();
+      unobserve = vi.fn();
       constructor(
         callback: IntersectionObserverCallback,
         readonly options?: IntersectionObserverInit,
@@ -25,9 +27,18 @@ beforeEach(() => {
           options,
           disconnect: this.disconnect,
           observe: this.observe,
-          notify: (target, isIntersecting = true, intersectionRatio = 1) =>
+          unobserve: this.unobserve,
+          notify: (target, isIntersecting = true, verticalRatio = 1, horizontalRatio = 1) =>
             callback(
-              [{ target, isIntersecting, intersectionRatio } as IntersectionObserverEntry],
+              [
+                {
+                  target,
+                  isIntersecting,
+                  intersectionRatio: verticalRatio * horizontalRatio,
+                  boundingClientRect: DOMRect.fromRect({ width: 2000, height: 54 }),
+                  intersectionRect: DOMRect.fromRect({ width: 2000 * horizontalRatio, height: 54 * verticalRatio }),
+                } as IntersectionObserverEntry,
+              ],
               this as unknown as IntersectionObserver,
             ),
         });
@@ -46,7 +57,7 @@ describe('Last data row visibility', () => {
     const callback = vi.fn();
     observer.observe(cell, 'last', root, callback, { rootMargin: 120, threshold: 0.5 });
     expect(observers[0].observe).toHaveBeenCalledExactlyOnceWith(cell);
-    expect(observers[0].options).toEqual({ root, rootMargin: '0px 0px 120px 0px', threshold: 0.5 });
+    expect(observers[0].options).toEqual({ root, rootMargin: '0px 0px 120px 0px', threshold: 0 });
     observers[0].notify(cell, true, 0.2);
     observers[0].notify(cell, false, 1);
     observers[0].notify(document.createElement('div'));
@@ -54,6 +65,38 @@ describe('Last data row visibility', () => {
     observers[0].notify(cell, true, 0.5);
     observers[0].notify(cell);
     expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([0.5, 1])(
+    'uses vertical visibility at threshold %s even when most of the row is horizontally clipped',
+    (threshold) => {
+      const observer = new LastRowObserver();
+      const row = document.createElement('div');
+      const callback = vi.fn();
+      observer.observe(row, 'wide-last', null, callback, { threshold });
+      observers[0].notify(row, true, threshold / 2, 0.1);
+      expect(callback).not.toHaveBeenCalled();
+      observers[0].notify(row, true, threshold, 0.1);
+      expect(callback).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('requests a fresh intersection after scrolling while below the vertical threshold, then stops after delivery', () => {
+    const observer = new LastRowObserver();
+    const row = document.createElement('div');
+    const callback = vi.fn();
+    observer.observe(row, 'last', null, callback, { threshold: 0.5 });
+    observers[0].notify(row, true, 0.2, 0.1);
+    observer.refresh();
+    expect(observers[0].unobserve).toHaveBeenCalledExactlyOnceWith(row);
+    expect(observers[0].observe).toHaveBeenCalledTimes(2);
+    observers[0].notify(row, true, 0.5, 0.1);
+    observer.refresh();
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(observers[0].observe).toHaveBeenCalledTimes(2);
+    observer.clear();
+    observer.refresh();
+    expect(observers[0].observe).toHaveBeenCalledTimes(2);
   });
 
   it('does not repeat a loaded last row across virtual unmounts but notifies the appended row', () => {
