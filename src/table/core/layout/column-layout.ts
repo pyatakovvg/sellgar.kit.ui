@@ -122,13 +122,15 @@ export const resizeBounds = (
   index: number,
 ): { min: number; max: number } => {
   const column = columns[index];
-  if (column.mode === 'auto') return { min: layout.base[index], max: column.max };
+  const removableOverflow = Math.max(0, layout.total - container);
+  if (column.mode === 'auto') {
+    return { min: Math.max(layout.base[index], layout.widths[index] - removableOverflow), max: column.max };
+  }
 
   const rightGrowth = columns.reduce(
     (sum, item, i) => (i > index && item.mode === 'auto' ? sum + item.max - layout.widths[i] : sum),
     0,
   );
-  const removableOverflow = Math.max(0, layout.total - container);
   return {
     min: Math.max(column.floor, layout.widths[index] - removableOverflow - rightGrowth),
     max: column.max,

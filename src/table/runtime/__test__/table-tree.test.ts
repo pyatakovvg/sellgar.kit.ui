@@ -4,6 +4,7 @@ import { RowIdentities } from '../row-identities';
 import { TableRuntime } from '../table-runtime';
 
 import type { GeometryColumn } from '../../core/layout/types';
+import type { TableTreeConfig } from '../../configurator/table-props';
 
 interface Item {
   id: string;
@@ -57,6 +58,36 @@ describe('Table tree', () => {
       ['e', 0, null, false],
     ]);
   });
+
+  it('reads nested children through a typed accessor and filters every level without changing source data', () => {
+    interface RecordNode {
+      id: string;
+      visible: boolean;
+      branch?: { items: readonly RecordNode[] };
+    }
+    const leaf: RecordNode = { id: 'leaf', visible: true };
+    const hidden: RecordNode = { id: 'hidden', visible: false };
+    const branch: RecordNode = { id: 'branch', visible: true, branch: { items: [leaf, hidden] } };
+    const root: RecordNode = { id: 'root', visible: true, branch: { items: [branch, hidden] } };
+    const tree: TableTreeConfig<RecordNode> = {
+      isUse: true,
+      accessor: (row) => row.branch?.items.filter((child) => child.visible) ?? null,
+    };
+    const identities = new RowIdentities();
+    const records = identities.identify([root], undefined, tree.accessor);
+
+    expect(records.map(({ data, node }) => [data.id, node.depth, node.hasChildren])).toEqual([
+      ['root', 0, true],
+      ['branch', 1, true],
+      ['leaf', 2, false],
+    ]);
+    expect(root.branch?.items).toEqual([branch, hidden]);
+    expect(branch.branch?.items).toEqual([leaf, hidden]);
+    expect(identities.identify([root], undefined, tree.accessor).map(({ id }) => id)).toEqual(
+      records.map(({ id }) => id),
+    );
+  });
+
   it('rejects cycles, duplicate descendant identities and invalid children', () => {
     const cyclic: Item = { id: 'a' };
     cyclic.children = [cyclic];

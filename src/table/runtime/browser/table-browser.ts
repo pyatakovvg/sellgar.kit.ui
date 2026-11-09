@@ -1,8 +1,10 @@
 import { TableRuntime } from '../table-runtime';
 import { elementScale } from './coordinate-space';
 import { HeaderScroll } from './header-scroll';
+import { LastRowObserver } from './last-row-observer';
 import { observePosition } from './position-observer';
 import { TablePresentation } from './table-presentation';
+import { ContentWidths } from './content-widths';
 
 import type { TableColumnGeometry, TableMeasurement } from '../types';
 import type { HeaderPlacement } from './table-presentation';
@@ -60,10 +62,12 @@ export class TableBrowser {
   private readonly measurementReaders = new Map<HTMLElement, () => void>();
   private measurementVersion = -1;
   private readonly headerScroll = new HeaderScroll();
+  private readonly lastRowObserver = new LastRowObserver();
   private readonly presentation = new TablePresentation();
   private headerPlacement?: HeaderPlacement;
   private presenting = false;
   private frame = 0;
+  private readonly contentWidths = new ContentWidths(() => this.schedule());
 
   constructor(private readonly runtime: TableRuntime) {}
 
@@ -86,6 +90,7 @@ export class TableBrowser {
     this.scrollHost = scrollHost;
     this.owner = internal ? scroller : findScrollOwner(root, 'Y');
     this.measurementVersion = -1;
+    const releaseContentWidths = this.contentWidths.attach(root);
     const unsubscribe = this.runtime.subscribe(() => this.present());
     const scrollElement = this.owner instanceof HTMLElement ? this.owner : document.documentElement;
     const releaseAnchor = acquireAnchor(scrollElement);
@@ -121,6 +126,8 @@ export class TableBrowser {
     root.addEventListener('pointerup', up);
     root.addEventListener('pointercancel', cancel);
     root.addEventListener('lostpointercapture', cancel);
+    const doubleClick = (event: MouseEvent) => this.resetFromDoubleClick(event);
+    root.addEventListener('dblclick', doubleClick);
     const focus = (event: FocusEvent) => this.revealFocusedCell(event);
     root.addEventListener('focusin', focus);
     window.addEventListener('scroll', refresh, true);
@@ -128,7 +135,9 @@ export class TableBrowser {
     this.refresh();
     return () => {
       this.endResize(true);
+      this.lastRowObserver.clear();
       this.headerScroll.clear();
+      releaseContentWidths();
       unsubscribe();
       observer.disconnect();
       releasePosition();
@@ -136,6 +145,7 @@ export class TableBrowser {
       root.removeEventListener('pointerup', up);
       root.removeEventListener('pointercancel', cancel);
       root.removeEventListener('lostpointercapture', cancel);
+      root.removeEventListener('dblclick', doubleClick);
       root.removeEventListener('focusin', focus);
       window.removeEventListener('scroll', refresh, true);
       window.removeEventListener('resize', refresh);
@@ -152,6 +162,22 @@ export class TableBrowser {
       this.owner = undefined;
       this.parent = undefined;
     };
+  }
+
+  observeLastRow(
+    element: HTMLElement,
+    rowId: string,
+    onVisible: () => void,
+    options: { readonly rootMargin?: number; readonly threshold?: number },
+  ): () => void {
+    const owner = this.scrollOwner();
+    return this.lastRowObserver.observe(
+      element,
+      rowId,
+      owner instanceof HTMLElement ? owner : null,
+      onVisible,
+      options,
+    );
   }
 
   observeNested(id: string, root: HTMLElement, runtime: TableRuntime): () => void {
@@ -265,8 +291,26 @@ export class TableBrowser {
     this.runtime.finishResize();
   }
 
-  observeCell(element: HTMLElement, rowId: string, columnId: string): () => void {
-    return this.observeMeasurement(element, JSON.stringify([rowId, columnId]), () => {
+  resetColumnWidth(columnId: string): void {
+    if (!this.pointer) this.runtime.resetColumnWidth(columnId);
+  }
+
+  private resetFromDoubleClick(event: MouseEvent): void {
+    const root = this.root;
+    if (!root) return;
+    // Pointer capture retargets native clicks to the stable table root.
+    const target =
+      event.target === root ? root.ownerDocument.elementFromPoint(event.clientX, event.clientY) : event.target;
+    const handle = target instanceof Element ? target.closest('[data-resize-column]') : null;
+    if (!handle || handle.closest('[data-table="geometry"]') !== root) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.resetColumnWidth(handle.getAttribute('data-resize-column')!);
+  }
+
+  observeCell(element: HTMLElement, rowId: string, columnId: string, measureContent = false): () => void {
+    const releaseContent = measureContent ? this.contentWidths.observe(element, columnId) : undefined;
+    const releaseHeight = this.observeMeasurement(element, JSON.stringify([rowId, columnId]), () => {
       const parent = element.parentElement;
       const style = parent ? getComputedStyle(parent) : undefined;
       const borders = style ? Number.parseFloat(style.borderTopWidth) + Number.parseFloat(style.borderBottomWidth) : 0;
@@ -278,6 +322,14 @@ export class TableBrowser {
           (element.getBoundingClientRect().height + borders * (parent ? elementScale(parent, 'Y') : 1)) / this.scaleY,
       };
     });
+    return () => {
+      releaseContent?.();
+      releaseHeight();
+    };
+  }
+
+  observeHeaderContent(element: HTMLElement, columnId: string): () => void {
+    return this.contentWidths.observe(element, columnId);
   }
 
   observeExpanded(element: HTMLElement, rowId: string): () => void {
@@ -486,12 +538,22 @@ export class TableBrowser {
     if (cancel) this.runtime.cancelResize();
     else this.runtime.finishResize();
     if (pointer?.target.hasPointerCapture(pointer.id)) pointer.target.releasePointerCapture(pointer.id);
+    this.schedule();
   }
 
   private flush(): void {
     this.frame = 0;
     this.refresh();
     if (this.header) this.runtime.setHeaderHeight(this.header.getBoundingClientRect().height / this.scaleY);
+    const state = this.runtime.getSnapshot();
+    if (!state.dragging) {
+      const widths = this.contentWidths.measure(
+        state.contentEpoch,
+        this.scale,
+        new Set(state.columns.filter((column) => column.measureContent).map((column) => column.id)),
+      );
+      if (widths.length) this.runtime.commitContentWidths(widths, state.contentEpoch);
+    }
     if (this.measurementVersion !== this.runtime.getSnapshot().version) {
       this.measurementVersion = this.runtime.getSnapshot().version;
       this.measurementReaders.forEach((measure) => measure());

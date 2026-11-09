@@ -102,6 +102,62 @@ const fixture = (internal = true, initialScale = 2) => {
 };
 
 describe('Table browser coordinate spaces', () => {
+  it('resets only its own resize control on native double click', () => {
+    const { browser, runtime, root, surface } = fixture();
+    root.dataset.table = 'geometry';
+    browser.resizeBy('fixed', 60);
+    const handle = document.createElement('button');
+    handle.dataset.resizeColumn = 'fixed';
+    surface.append(handle);
+    handle.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(runtime.getSnapshot().widths[0]).toBe(200);
+    browser.resizeBy('fixed', 60);
+    const nested = document.createElement('div');
+    nested.dataset.table = 'geometry';
+    surface.append(nested);
+    nested.append(handle);
+    handle.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(runtime.getSnapshot().widths[0]).toBe(260);
+  });
+
+  it('finds the handle under a double click retargeted to root by pointer capture', () => {
+    const { browser, runtime, root, surface } = fixture();
+    root.dataset.table = 'geometry';
+    browser.resizeBy('fixed', 60);
+    const handle = document.createElement('button');
+    handle.dataset.resizeColumn = 'fixed';
+    surface.append(handle);
+    const previous = Object.getOwnPropertyDescriptor(document, 'elementFromPoint');
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => handle });
+    try {
+      root.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, clientX: 100, clientY: 20 }));
+      expect(runtime.getSnapshot().widths[0]).toBe(200);
+    } finally {
+      if (previous) Object.defineProperty(document, 'elementFromPoint', previous);
+      else Reflect.deleteProperty(document, 'elementFromPoint');
+    }
+  });
+
+  it.each([true, false])('uses the actual last-row intersection owner when internal=%s', (internal) => {
+    const { browser, root, scroller } = fixture(internal);
+    let options: IntersectionObserverInit | undefined;
+    const disconnect = vi.fn();
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        observe = vi.fn();
+        disconnect = disconnect;
+        constructor(_callback: IntersectionObserverCallback, input?: IntersectionObserverInit) {
+          options = input;
+        }
+      },
+    );
+    browser.observeLastRow(document.createElement('div'), 'row', vi.fn(), { rootMargin: 60 });
+    expect(options?.root).toBe(internal ? scroller : root.parentElement);
+    releases.pop()?.();
+    expect(disconnect).toHaveBeenCalledTimes(1);
+  });
+
   it('reveals focused center controls behind pins without scrolling pins or nested tables', () => {
     vi.spyOn(document.documentElement, 'clientWidth', 'get').mockReturnValue(1200);
     const { browser, runtime, root, surface, internalScroll } = fixture();

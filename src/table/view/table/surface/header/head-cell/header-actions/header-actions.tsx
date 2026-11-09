@@ -15,7 +15,7 @@ export const HeaderActions: React.FC = () => {
   const actions = environment.headerActions(column.id);
 
   return (
-    <div className={s.wrapper}>
+    <div className={s.wrapper} data-table-header-control="true">
       <Popover open={open} onOpenChange={setOpen} placement="bottom-end">
         <Popover.Trigger role="button" ariaLabel={`Действия с колонкой ${column.index + 1}`} tabIndex={0}>
           <span className={s.trigger}>

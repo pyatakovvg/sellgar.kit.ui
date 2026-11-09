@@ -46,6 +46,7 @@ export class ColumnRuntime {
   private layout: Layout = EMPTY_LAYOUT;
   private geometry?: TableLayout;
   private pins = new Map<string, PinColumn>();
+  private readonly initialPinWidths = new Map<string, number>();
   private anchor?: LayoutAnchor;
   private centerAnchor?: LayoutAnchor;
   private operation?: ResizeOperation;
@@ -56,6 +57,10 @@ export class ColumnRuntime {
   private axis = new Axis([]);
   private failure?: string;
   private revisionValue = 0;
+  private readonly contentWidths = new Map<string, number>();
+  private readonly referenceWidths = new Map<string, number>();
+  private contentEpochValue = 0;
+  private contentResetPending = false;
 
   constructor(viewport: TableViewport, options: TableRuntimeOptions) {
     this.viewport = viewport;
@@ -64,7 +69,15 @@ export class ColumnRuntime {
 
   configure(columns: GeometryColumn[], options: TableRuntimeOptions): void {
     const schema = JSON.stringify(
-      columns.map(({ id, mode, width, floor, max, pin }) => [id, mode, width, floor, String(max), pin]),
+      columns.map(({ id, mode, width, floor, max, pin, measureContent }) => [
+        id,
+        mode,
+        width,
+        floor,
+        String(max),
+        pin,
+        measureContent,
+      ]),
     );
     const changed = schema !== this.schema || (options.pinning?.reserve ?? DEFAULT_PIN_RESERVE) !== this.reserve;
     if (changed && this.operation) this.restore(this.operation.rollback);
@@ -88,7 +101,13 @@ export class ColumnRuntime {
           : { ...column };
       });
       this.pins = retainedPins;
+      for (const id of this.initialPinWidths.keys()) if (!retainedPins.has(id)) this.initialPinWidths.delete(id);
       this.declarations = new Map(columns.map((column) => [column.id, { ...column }]));
+      this.contentWidths.clear();
+      this.referenceWidths.clear();
+      this.contentResetPending = true;
+      this.contentEpochValue++;
+      this.applyContentFloors();
       this.anchor = undefined;
       this.centerAnchor = undefined;
       this.geometry = undefined;
@@ -133,6 +152,49 @@ export class ColumnRuntime {
 
   get revision(): number {
     return this.revisionValue;
+  }
+
+  get contentEpoch(): number {
+    return this.contentEpochValue;
+  }
+
+  resetContentWidths(): void {
+    this.contentWidths.clear();
+    this.contentResetPending = true;
+    this.contentEpochValue++;
+    if (!this.operation && this.applyContentFloors()) this.reflow();
+  }
+
+  commitContentWidths(entries: readonly { columnId: string; width: number }[], epoch: number): void {
+    if (epoch !== this.contentEpochValue) return;
+    for (const { columnId, width } of entries) {
+      if (!Number.isFinite(width) || width < 0) throw new RangeError('Content widths must be finite and non-negative.');
+      if (this.declarations.get(columnId)?.measureContent !== true) continue;
+      this.contentWidths.set(columnId, Math.max(this.contentWidths.get(columnId) ?? 0, width));
+    }
+    if (!this.operation && this.applyContentFloors()) this.reflow();
+  }
+
+  private applyContentFloors(): boolean {
+    let changed = false;
+    for (const column of this.columns) {
+      const declared = this.declarations.get(column.id)!;
+      const measured = this.contentWidths.get(column.id);
+      const reference = this.referenceWidths.get(column.id);
+      const floor =
+        declared.measureContent && measured !== undefined && reference !== undefined
+          ? Math.max(declared.floor, Math.min(measured, reference, declared.max))
+          : declared.floor;
+      if (!this.contentResetPending && measured === undefined) continue;
+      if (Math.abs(column.floor - floor) < 1e-7) continue;
+      column.floor = floor;
+      if (column.mode === 'fixed') column.width = Math.max(column.width, floor);
+      const pin = this.pins.get(column.id);
+      if (pin) this.pins.set(column.id, { ...pin, minWidth: floor, width: Math.max(pin.width, floor) });
+      changed = true;
+    }
+    this.contentResetPending = false;
+    return changed;
   }
 
   get error(): string | undefined {
@@ -227,6 +289,7 @@ export class ColumnRuntime {
               }
             : resizeDirections(working, this.layout, this.resizeContainer(), centerIndex)),
           resizable: source.resizable === true && (isPin || centerIndex < working.length - 1),
+          measureContent: source.measureContent === true,
         },
       ];
     });
@@ -234,6 +297,36 @@ export class ColumnRuntime {
 
   beginResize(id: string, x: number): boolean {
     return this.begin(id, x, 'center', 'right');
+  }
+
+  resetColumnWidth(id: string): boolean {
+    if (this.failure || this.operation) return false;
+    const source = this.columns.find((column) => column.id === id);
+    if (!source || source.resizable !== true) return false;
+    const pin = this.geometry ? this.pins.get(id) : undefined;
+    if (pin) {
+      const target = this.initialPinWidths.get(id);
+      if (target === undefined) return false;
+      const edge = pin.side === 'right' ? 'left' : 'right';
+      if (!this.beginPinResize(id, 0, edge)) return false;
+      this.moveResize((target - pin.width) * (edge === 'left' ? -1 : 1));
+      this.finishResize();
+      return true;
+    }
+    const working = this.workingColumns();
+    const index = working.findIndex((column) => column.id === id);
+    if (index < 0 || index === working.length - 1) return false;
+    if (source.mode === 'auto') {
+      delete source.manual;
+      this.reflow();
+      return true;
+    }
+    const target = this.declarations.get(id)!.width;
+    const width = this.layout.widths[index];
+    if (!this.beginResize(id, 0)) return false;
+    this.moveResize(target - width);
+    this.finishResize();
+    return true;
   }
 
   beginPinResize(id: string, x: number, edge: 'left' | 'right'): boolean {
@@ -313,6 +406,7 @@ export class ColumnRuntime {
         this.centerAnchor = undefined;
       }
     }
+    if (this.applyContentFloors()) this.reflow();
   }
 
   cancelResize(): void {
@@ -323,6 +417,7 @@ export class ColumnRuntime {
     if (operation.rollback.container === this.resizeContainer() && operation.rollback.pinned === Boolean(this.geometry))
       this.applyCenter(operation.rollback.layout);
     else this.reflow();
+    if (this.applyContentFloors()) this.reflow();
   }
 
   rebaseResize(x: number): void {
@@ -454,6 +549,7 @@ export class ColumnRuntime {
           })),
         );
         this.pins = new Map(next.columns.map((column) => [column.id, column]));
+        missing.forEach((column) => this.initialPinWidths.set(column.id, this.pins.get(column.id)!.width));
       }
       return true;
     } catch (error) {
@@ -495,6 +591,18 @@ export class ColumnRuntime {
       );
     }
     this.failure = undefined;
+    if (this.viewport.width > 0) {
+      const working = this.workingColumns();
+      for (const column of this.columns) {
+        if (!column.measureContent || this.referenceWidths.has(column.id)) continue;
+        const index = working.findIndex((item) => item.id === column.id);
+        const reference =
+          column.mode === 'fixed'
+            ? this.declarations.get(column.id)!.width
+            : (this.pins.get(column.id)?.width ?? this.layout.base[index]);
+        if (reference > 0) this.referenceWidths.set(column.id, reference);
+      }
+    }
   }
 
   private applyCenter(layout: Layout): void {

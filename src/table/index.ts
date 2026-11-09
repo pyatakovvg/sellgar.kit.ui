@@ -54,3 +54,6 @@ export type {
   TableTextAlign,
 } from './core/column';
 export { Table } from './view/table';
+export { useCellData, useRowExpanded } from './view/table/context/cell-context';
+export type { TableCellData } from './view/table/context/cell-context';
+export { ExpandTrigger } from './view/table/surface/body/row/line/cell/expand-trigger';

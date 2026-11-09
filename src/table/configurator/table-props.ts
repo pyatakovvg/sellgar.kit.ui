@@ -33,7 +33,7 @@ export interface TableSelectConfig<T> {
 
 export interface TableTreeConfig<T> {
   isUse: boolean;
-  accessor: keyof T;
+  accessor: (row: T) => readonly T[] | null | undefined;
   defaultExpanded?: boolean;
 }
 

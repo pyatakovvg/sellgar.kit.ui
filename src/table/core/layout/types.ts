@@ -6,6 +6,8 @@ export interface GeometryColumn {
   max: number;
   manual?: number;
   resizable?: boolean;
+  /** Use measured content as the default floor when no explicit minWidth is supplied. */
+  measureContent?: boolean;
   /** Declaration metadata; ordinary layout math does not interpret pinning. */
   pin?: 'left' | 'right';
 }

@@ -8,7 +8,7 @@ import s from './default.module.scss';
 export const ResizeHandle: React.FC = () => {
   const environment = useTableEnvironment();
   const column = useHeadCellColumn();
-  const description = `Влево ${column.left ? 'можно' : 'нельзя'}, вправо ${column.right ? 'можно' : 'нельзя'}`;
+  const description = `Влево ${column.left ? 'можно' : 'нельзя'}, вправо ${column.right ? 'можно' : 'нельзя'}. Двойной клик — сброс ширины`;
 
   return (
     <button

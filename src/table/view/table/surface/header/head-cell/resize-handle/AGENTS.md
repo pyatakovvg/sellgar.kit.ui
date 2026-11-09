@@ -8,6 +8,10 @@
 
 - ArrowLeft/ArrowRight вызывают ту же runtime-операцию через browser.resizeBy с шагом 1;
   Shift задаёт 10. Последняя и запрещённые колонки по-прежнему запрещены runtime.
+- Двойной клик сбрасывает ширину через browser/runtime. Native dblclick делегируется
+  на стабильном root Table: pointer capture может перенаправить туда click target.
+  Browser распознаёт собственную ручку по data-resize-column и фактической точке,
+  не обрабатывает ручки вложенной таблицы. Подсказка кнопки сообщает о сбросе.
 - Недоступный индикатор использует серый token icon-base-secondary, доступный —
   зелёный icon-status-success; opacity одного акцентного цвета не заменяет этот контракт.
 

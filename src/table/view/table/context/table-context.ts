@@ -3,6 +3,8 @@ import React from 'react';
 import type { TableActionRenderer, TableExpandTriggerProps } from '../../../configurator/types';
 
 import type { TableRowEventTrigger } from '../../../configurator/table-props';
+import type { ColumnSortSnapshot } from '../../../runtime/columns/column-sort';
+import type { TableLastRowTriggerConfig } from '../../../configurator/table-props';
 import type { TableBrowser } from '../../../runtime/browser/table-browser';
 import type { TableRuntime } from '../../../runtime/table-runtime';
 import type { TableColumnGeometry, TableRowGeometry } from '../../../runtime/types';
@@ -18,6 +20,11 @@ export interface TableEnvironment {
   readonly primaryAction: boolean;
   readonly delayClick: boolean;
   readonly expandable: boolean;
+  readonly sort: ColumnSortSnapshot;
+  readonly lastRowTrigger?: Omit<TableLastRowTriggerConfig<unknown>, 'onLastRowVisible'>;
+  sortable(columnId: string): boolean;
+  toggleSort(columnId: string): void;
+  lastRowVisible(rowId: string): void;
   readonly headerId: string;
   readonly size: 'sm' | 'md' | 'lg';
   readonly tableStyle: 'primary' | 'secondary';

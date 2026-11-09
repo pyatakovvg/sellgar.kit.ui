@@ -307,6 +307,47 @@ describe('Table DOM geometry ownership without React commits', () => {
     }
   });
 
+  it('keeps boundary handles above transformed neighbours and both pin groups above the center', () => {
+    const { root, surface, runtime } = fixture();
+    const regions = ['left', 'left', 'center', 'center', 'right', 'right'] as const;
+    runtime.configure(
+      regions.map((region, index) => ({
+        id: `c${index}`,
+        mode: region === 'center' ? 'auto' : 'fixed',
+        width: region === 'center' ? 0 : 100,
+        floor: 0,
+        max: Infinity,
+        pin: region === 'center' ? undefined : region,
+        resizable: true,
+      })),
+      ['r0'],
+      [],
+      { rowHeight: 40, minRowHeight: 40, virtual: false, sticky: true, overscan: 0 },
+    );
+    const cells = regions.map((region, index) => {
+      const header = document.createElement('div');
+      const body = document.createElement('div');
+      for (const cell of [header, body]) {
+        cell.dataset.columnId = `c${index}`;
+        cell.dataset.columnRegion = region;
+        surface.append(cell);
+      }
+      header.setAttribute('role', 'columnheader');
+      header.style.transform = 'translateX(0px)';
+      body.setAttribute('role', 'cell');
+      return { header, body };
+    });
+
+    new TablePresentation().apply(root, surface, runtime.getSnapshot());
+
+    const levels = cells.map(({ header }) => Number(header.style.zIndex));
+    expect(levels[2]).toBeGreaterThan(levels[3]);
+    expect(levels[0]).toBeGreaterThan(levels[1]);
+    expect(levels[5]).toBeGreaterThan(levels[4]);
+    expect(Math.min(levels[0], levels[1], levels[4], levels[5])).toBeGreaterThan(Math.max(levels[2], levels[3]));
+    for (const { body } of cells) expect(body.style.zIndex).toBe('');
+  });
+
   it.each(['left', 'right'] as const)(
     'applies %s pin resize to header/body without React through limit overshoot and reversals',
     (side) => {

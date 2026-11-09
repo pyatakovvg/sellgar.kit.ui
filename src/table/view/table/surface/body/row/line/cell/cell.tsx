@@ -26,8 +26,10 @@ export const Cell: React.FC<IProps> = (props) => {
   });
   React.useLayoutEffect(
     () =>
-      content.current ? environment.browser.observeCell(content.current, props.row.id, props.column.id) : undefined,
-    [environment.browser, props.row.id, props.column.id],
+      content.current
+        ? environment.browser.observeCell(content.current, props.row.id, props.column.id, props.column.measureContent)
+        : undefined,
+    [environment.browser, props.row.id, props.column.id, props.column.measureContent],
   );
   return (
     <div

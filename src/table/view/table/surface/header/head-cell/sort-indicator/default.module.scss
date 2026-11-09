@@ -1,0 +1,11 @@
+.wrapper {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--numbers-20);
+  height: var(--numbers-20);
+  color: var(--icon-base-secondary);
+  font-size: var(--numbers-14);
+  line-height: 0;
+}

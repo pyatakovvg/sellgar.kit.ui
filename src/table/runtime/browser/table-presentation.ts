@@ -90,9 +90,10 @@ export class TablePresentation {
     element.dataset.columnRegion = column.region;
     if (element.getAttribute('role') === 'columnheader') element.dataset.resizeEdge = column.resizeEdge;
     const pinned = column.region !== 'center';
-    // The handle crosses its cell edge; the neighbouring pin must not cover its outer half.
-    const stack = column.region === 'left' ? count - column.index + 1 : column.index + 1;
-    setStyle(element, 'z-index', pinned && element.getAttribute('role') === 'columnheader' ? String(stack) : '');
+    // Header transforms isolate stacking: each handle must outpaint the cell across its edge.
+    const order = column.region === 'right' ? column.index + 1 : count - column.index + 1;
+    const stack = order + (pinned ? count : 0);
+    setStyle(element, 'z-index', element.getAttribute('role') === 'columnheader' ? String(stack) : '');
     setStyle(element, 'grid-column', pinned && floating ? '' : String(column.index + 1));
     setStyle(element, 'position', pinned ? (floating ? 'absolute' : 'sticky') : '');
     setStyle(

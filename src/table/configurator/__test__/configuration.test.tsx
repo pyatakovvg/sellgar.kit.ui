@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
-import { Cell, Column, Empty, Expand, Head, compileTableConfiguration } from '@sellgar/kit/table';
+import { Table, Cell, Column, Empty, Expand, Head, ExpandTrigger, compileTableConfiguration } from '@sellgar/kit/table';
 
 import { createGeometryColumns } from '../../core/layout/create-columns';
 
@@ -34,6 +34,42 @@ const context: TableCellRenderScope<Product> = {
 const automaticColumn = <Column key={'automatic'}>{({ Cell }) => <Cell />}</Column>;
 
 describe('Table configuration compiler', () => {
+  it.each([0, 24])('disables content measurement when minWidth is explicitly %s', (minimum) => {
+    const configuration = compileTableConfiguration({
+      data,
+      children: (
+        <Column minWidth={minimum}>
+          <Cell />
+        </Column>
+      ),
+    });
+    expect(createGeometryColumns(configuration.columns)[0]).toMatchObject({ floor: minimum });
+    expect(createGeometryColumns(configuration.columns)[0].measureContent).not.toBe(true);
+    const automatic = compileTableConfiguration({ data, children: automaticColumn });
+    expect(createGeometryColumns(automatic.columns)[0].measureContent).toBe(true);
+  });
+
+  it('accepts the compatible compound API with the same typed declaration identities', () => {
+    const configuration = compileTableConfiguration({
+      data,
+      children: (
+        <Table.Column<Product>>
+          {({ Cell }) => (
+            <>
+              <Table.Head label={'Товар'} />
+              <Cell render={({ row }) => row.name} />
+            </>
+          )}
+        </Table.Column>
+      ),
+    });
+    expect(configuration.renderers.columns.get('column:0')?.cell(context)).toBe(product.name);
+    expect(Table.Cell).toBe(Cell);
+    expect(Table.Empty).toBe(Empty);
+    expect(Table.Expand).toBe(Expand);
+    expect(Table.ExpandTrigger).toBe(ExpandTrigger);
+  });
+
   it('compiles numbers tokens into the same fixed/auto geometry as numeric declarations', () => {
     const compile = (tokens: boolean) =>
       compileTableConfiguration({
@@ -230,7 +266,8 @@ describe('Table configuration compiler', () => {
   it('сохраняет tree categories и остальные root options, не исполняя callbacks', () => {
     const onSelect = vi.fn();
     const onLastRowVisible = vi.fn();
-    const tree = { isUse: true, accessor: 'children', defaultExpanded: false } satisfies NonNullable<
+    const accessor = vi.fn((row: Product) => row.children);
+    const tree = { isUse: true, accessor, defaultExpanded: false } satisfies NonNullable<
       TableConfigurationInput<Product>['tree']
     >;
     const layout = { scroll: 'external', virtualization: { enabled: true, rowHeight: 32, overscan: 4 } } as const;
@@ -244,6 +281,7 @@ describe('Table configuration compiler', () => {
     });
 
     expect(configuration.tree).toBe(tree);
+    expect(accessor).not.toHaveBeenCalled();
     expect(configuration.layout).toBe(layout);
     expect(onSelect).not.toHaveBeenCalled();
     expect(onLastRowVisible).not.toHaveBeenCalled();
@@ -535,8 +573,31 @@ const verifyTypeErrors = (): void => {
 
   compileTableConfiguration({
     data,
-    // @ts-expect-error Tree accessor must be a key of Product.
-    tree: { isUse: true, accessor: 'missingField' },
+    // @ts-expect-error Tree accessor must be a function, not a field name.
+    tree: { isUse: true, accessor: 'children' },
+  });
+
+  compileTableConfiguration({
+    data,
+    tree: {
+      isUse: true,
+      accessor: (row) => {
+        expectTypeOf(row).toEqualTypeOf<Product>();
+        // @ts-expect-error Accessors cannot widen the inferred row type.
+        return row.missingField;
+      },
+    },
+  });
+
+  compileTableConfiguration({
+    data,
+    // @ts-expect-error Children must have the same type as the rows, not offers.
+    tree: { isUse: true, accessor: (row) => row.offers },
+  });
+
+  compileTableConfiguration({
+    data,
+    tree: { isUse: true, accessor: (row): readonly Product[] | null | undefined => row.children },
   });
 
   compileTableConfiguration({

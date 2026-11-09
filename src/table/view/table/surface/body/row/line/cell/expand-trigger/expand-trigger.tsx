@@ -17,7 +17,10 @@ export const ExpandTrigger: React.FC<TableExpandTriggerProps> = (props) => {
       type="button"
       aria-expanded={row.expanded}
       disabled={!environment.expandable}
-      onClick={() => environment.browser.toggleExpanded(row.id)}
+      onClick={(event) => {
+        event.stopPropagation();
+        environment.browser.toggleExpanded(row.id);
+      }}
     >
       {typeof props.children === 'function' ? props.children({ expanded: row.expanded }) : props.children}
     </button>

@@ -20,7 +20,7 @@
 - Визуальный контракт берётся из существующего Table: размеры sm/md/lg, фон header, типографика, padding, горизонтальные разделители, вертикальное выравнивание и hover. Экспериментальное оформление стенда не переносить.
 - Runtime создаётся на экземпляр Table. Идентичность строк задаёт `data.getRowId`; fallback сохраняет идентичность объекта через WeakMap. Не хранить состояние таблиц в singleton.
 - Browser-адаптер владеет DOM-подписками, нормализацией координат, захватом указателя и scroll anchoring. Core/runtime model не импортируют React, DOM и CSS.
-- Неподдерживаемые selection/sort не имитировать заглушками. Границы текущего среза описаны в `README.md` и `docs/table-migration-contract.md`.
+- Неподдерживаемый selection не имитировать заглушками; sort и lastRowTrigger реализованы. Границы текущего среза описаны в `README.md` и `docs/table-migration-contract.md`.
 
 ## Контракт и проверки
 
@@ -62,3 +62,16 @@
 - Измерительные observers регистрируются по DOM identity; смена геометрического
   epoch инициирует повторное измерение в browser flush без React re-registration.
   Проверку версии входящих измерений в runtime сохранять.
+
+## Сортировка, догрузка и контекст ячейки
+
+- ColumnSort в runtime/columns хранит активный запрос сортировки по columnId.
+  Callbacks onToggle/onReset остаются внешним контрактом; Table не сортирует data.nodes.
+  Скрытие/удаление/отключение sort освобождает активную колонку; default не вызывает onToggle.
+- LastRowObserver наблюдает реальную ячейку последней видимой data line через
+  IntersectionObserver с фактическим scroll owner. Виртуальное перемонтирование той же
+  строки не повторяет уведомление; новый последний rowId позволяет следующую догрузку.
+- useCellData/useRowExpanded экспортируются из @sellgar/kit/table и читают контекст
+  нового экземпляра. Не использовать legacy hooks из основного @sellgar/kit с новой Table.
+- Compound Table.Column/Head/Cell/Empty/Expand/ExpandTrigger совместимы с render scopes.
+  Selection и зависимый внешний controller не входят в этот срез.

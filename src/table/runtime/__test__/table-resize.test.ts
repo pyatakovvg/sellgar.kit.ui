@@ -239,6 +239,48 @@ describe('Keyboard resize commands', () => {
 });
 
 describe('Resize audit regressions', () => {
+  it.each([
+    [412.625, 110.125, 410.875],
+    [429.5, 108.375, 412.625],
+  ])('stops manual auto at the fill boundary after fixed shrink (%s, %s)', (manual, fixed, minimum) => {
+    const runtime = new TableRuntime();
+    runtime.configure(
+      [
+        { id: 'name', mode: 'auto', width: 0, floor: 200, max: Infinity, resizable: true },
+        { id: 'price', mode: 'fixed', width: 160, floor: 0, max: Infinity, resizable: true },
+        { id: 'stock', mode: 'fixed', width: 140, floor: 0, max: Infinity },
+      ],
+      ['row'],
+      [],
+      OPTIONS,
+    );
+    runtime.updateViewport({ ...VIEWPORT, container: 661, width: 661 });
+    runtime.beginResize('name', 0);
+    runtime.moveResize(manual - 361);
+    runtime.finishResize();
+    runtime.beginResize('price', 0);
+    runtime.moveResize(fixed - 160);
+    runtime.finishResize();
+    expect(runtime.getSnapshot().widths).toEqual([manual, fixed, 140]);
+    expect(runtime.getSnapshot().columns[0].left).toBe(true);
+
+    expect(runtime.beginResize('name', 0)).toBe(true);
+    for (const pointer of [-100, -60, minimum - manual]) {
+      expect(() => runtime.moveResize(pointer)).not.toThrow();
+      expect(runtime.getSnapshot()).toMatchObject({ widths: [minimum, fixed, 140], total: 661, dragging: true });
+      expect(runtime.getSnapshot().columns[0]).toMatchObject({ left: false, right: true });
+    }
+    runtime.moveResize(minimum - manual + 1);
+    expect(runtime.getSnapshot().widths).toEqual([minimum + 1, fixed, 140]);
+    expect(runtime.getSnapshot().columns[0].left).toBe(true);
+    runtime.cancelResize();
+    expect(runtime.getSnapshot().widths).toEqual([manual, fixed, 140]);
+
+    new TableBrowser(runtime).resizeBy('name', -1000);
+    expect(runtime.getSnapshot()).toMatchObject({ widths: [minimum, fixed, 140], total: 661, dragging: false });
+    expect(runtime.getSnapshot().columns[0].left).toBe(false);
+  });
+
   it('keeps actual widths above their bases and allows manual auto to return after fixed growth', () => {
     const runtime = new TableRuntime();
     const columns: GeometryColumn[] = [

@@ -41,12 +41,7 @@
 }
 
 .resizable {
-  padding-inline-end: var(--numbers-32);
-
   &[data-resize-edge='left'] {
-    padding-inline-start: var(--numbers-32);
-    padding-inline-end: var(--numbers-12);
-
     .resize {
       inset: 0 auto 0 calc(-1 * var(--numbers-5));
     }
@@ -69,6 +64,27 @@
   background: var(--background-surface-neutral-subtle);
 }
 
+.sortable {
+  cursor: pointer;
+}
+
+.interactive {
+  transition: background-color var(--measurements-transition);
+
+  &:hover {
+    background: var(--background-surface-neutral-subtle);
+  }
+
+  &.secondary:hover {
+    background: var(--background-surface-neutral-strong);
+  }
+
+  &:focus-visible {
+    outline: var(--numbers-2) solid var(--icon-status-success);
+    outline-offset: calc(-1 * var(--numbers-2));
+  }
+}
+
 .align {
   &--center {
     justify-content: center;
@@ -88,6 +104,25 @@
   line-height: var(--typography-line-height-caption-l);
   letter-spacing: var(--typography-letter-spacing-caption-l);
   white-space: nowrap;
+}
+
+.with-controls {
+  gap: var(--numbers-12);
+
+  .label {
+    flex: 1 1 auto;
+  }
+}
+
+.controls {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--numbers-8);
+
+  &--reversed {
+    flex-direction: row-reverse;
+  }
 }
 
 .resize {

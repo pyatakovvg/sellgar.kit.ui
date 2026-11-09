@@ -50,6 +50,7 @@ export class TableRuntime {
     columnCount: 0,
     total: 0,
     minimumWidth: 0,
+    contentEpoch: 0,
     bodyHeight: 0,
     headerHeight: 28,
     headerTop: 0,
@@ -90,6 +91,10 @@ export class TableRuntime {
     const metricsChanged =
       options.rowHeight !== this.options.rowHeight || options.minRowHeight !== this.options.minRowHeight;
     const oldHeights = metricsChanged ? new Map<string, number>() : this.contentHeights();
+    const contentChanged =
+      changedRows.length > 0 ||
+      rowIds.length !== this.allRowIds.length ||
+      rowIds.some((id, index) => id !== this.allRowIds[index]);
     this.options = options;
     this.allRowIds = rowIds;
     if (rowIds.length) this.emptyHeight = 0;
@@ -104,6 +109,7 @@ export class TableRuntime {
       this.measurements.invalidate(changedRows);
     }
     this.columnRuntime.configure(columns, options);
+    if (contentChanged) this.columnRuntime.resetContentWidths();
     const correction = this.restoreRowAnchor(rowAnchor);
     this.publish();
     return correction;
@@ -128,8 +134,19 @@ export class TableRuntime {
     this.publish();
   }
 
+  commitContentWidths(entries: readonly { columnId: string; width: number }[], epoch: number): void {
+    this.columnRuntime.commitContentWidths(entries, epoch);
+    this.publish();
+  }
+
   beginResize(columnId: string, x: number): boolean {
     const accepted = this.columnRuntime.beginResize(columnId, x);
+    if (accepted) this.publish();
+    return accepted;
+  }
+
+  resetColumnWidth(columnId: string): boolean {
+    const accepted = this.columnRuntime.resetColumnWidth(columnId);
     if (accepted) this.publish();
     return accepted;
   }
@@ -329,6 +346,7 @@ export class TableRuntime {
       columnCount: this.columnRuntime.count,
       total: this.columnRuntime.total,
       minimumWidth: this.columnRuntime.minimumWidth(),
+      contentEpoch: this.columnRuntime.contentEpoch,
       bodyHeight,
       headerHeight: this.headerHeight,
       headerTop: this.options.sticky
