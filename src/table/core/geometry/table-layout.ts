@@ -1,9 +1,29 @@
 import { automatic, sharedLayout } from '../layout/column-layout';
-import { pinLayout } from '../pinning';
+import { pinLayout, pinResizeBounds } from '../pinning';
 
 import type { GeometryColumn, LayoutAnchor } from '../layout/types';
-import type { PinColumn } from '../pinning';
+import type { PinColumn, PinResizeBounds } from '../pinning';
 import type { ColumnGeometry, ColumnRegion, ProjectedColumnGeometry, TableLayout, TableLayoutViewport } from './types';
+
+/** Intersects pin budget with the center's capacity to fill the assigned surface. */
+export const tablePinResizeBounds = (
+  columns: readonly GeometryColumn[],
+  pins: readonly PinColumn[],
+  viewport: TableLayoutViewport,
+  id: string,
+): PinResizeBounds => {
+  const bounds = pinResizeBounds(pins, viewport, id);
+  const pinnedIds = new Set(pins.map((pin) => pin.id));
+  const centerCapacity = columns.reduce(
+    (sum, column) => sum + (pinnedIds.has(column.id) ? 0 : column.mode === 'fixed' ? column.width : column.max),
+    0,
+  );
+  const others = pins.reduce((sum, pin) => sum + (pin.id === id ? 0 : pin.width), 0);
+  return {
+    min: Math.max(bounds.min, (viewport.surfaceWidth ?? viewport.width) - centerCapacity - others),
+    max: bounds.max,
+  };
+};
 
 /** Composes ready pin widths and ordinary state without initializing or resizing either. */
 export const tableLayout = (

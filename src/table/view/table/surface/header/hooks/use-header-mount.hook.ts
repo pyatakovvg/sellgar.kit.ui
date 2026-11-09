@@ -2,7 +2,7 @@ import React from 'react';
 
 import type { TableBrowser } from '../../../../../runtime/browser/table-browser';
 
-export const useHeaderMount = (browser: TableBrowser, portal: HTMLElement | null, active: boolean) => {
+export const useHeaderMount = (browser: TableBrowser, portal: HTMLElement | null) => {
   const slot = React.useRef<HTMLDivElement>(null);
   const [mount, setMount] = React.useState<HTMLDivElement | null>(null);
 
@@ -14,8 +14,8 @@ export const useHeaderMount = (browser: TableBrowser, portal: HTMLElement | null
   }, []);
 
   React.useLayoutEffect(() => {
-    if (active && mount && slot.current && portal) return browser.attachHeaderPlacement(mount, slot.current, portal);
-  }, [browser, mount, portal, active]);
+    if (mount && slot.current && portal) return browser.attachHeaderPlacement(mount, slot.current, portal);
+  }, [browser, mount, portal]);
 
   return { slot, mount };
 };

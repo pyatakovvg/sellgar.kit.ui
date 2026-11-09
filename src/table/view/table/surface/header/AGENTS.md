@@ -10,7 +10,8 @@
   displayOffset. Общий Header получает только вертикальный translate.
   Clipping viewport применяется к внешнему портальному слою.
 
-- Возврат после ошибки явно повторяет placement в новый slot. Нельзя оставлять mount
+- Surface не монтирует Header при ошибке геометрии. Возврат после ошибки создаёт
+  новый mount/slot и повторяет placement. Нельзя оставлять mount
   в отсоединённом flow-slot после восстановления.
 - Координаты портального слоя нормализуются измеренным fixed origin browser-адаптера,
   включая transformed ancestor; viewport coordinates напрямую в fixed layer не применять.

@@ -15,16 +15,14 @@ export const Header: React.FC<IProps> = (props) => {
   const environment = useTableEnvironment();
   const state = useTableSnapshot();
   const root = React.useRef<HTMLDivElement>(null);
-  const { slot, mount } = useHeaderMount(environment.browser, props.portal, !state.error);
+  const { slot, mount } = useHeaderMount(environment.browser, props.portal);
 
   React.useLayoutEffect(
     () => (root.current ? environment.browser.attachHeader(root.current) : undefined),
-    [environment.browser, mount, state.error],
+    [environment.browser, mount],
   );
 
   React.useLayoutEffect(() => environment.browser.present());
-
-  if (state.error) return null;
 
   return (
     <div ref={slot} data-table-header-slot="true">

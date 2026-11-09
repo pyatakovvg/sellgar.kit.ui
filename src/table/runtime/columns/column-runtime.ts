@@ -1,5 +1,5 @@
 import { Axis } from '../../core/geometry/axis';
-import { projectColumns, tableLayout } from '../../core/geometry/table-layout';
+import { projectColumns, tableLayout, tablePinResizeBounds } from '../../core/geometry/table-layout';
 import {
   automatic,
   clamp,
@@ -8,7 +8,7 @@ import {
   resizeDirections,
   sharedLayout,
 } from '../../core/layout/column-layout';
-import { initializePins, PinBudgetError, pinLayout, pinResizeBounds, resizePin } from '../../core/pinning';
+import { initializePins, PinBudgetError, pinLayout, resizePin } from '../../core/pinning';
 
 import type { TableLayout } from '../../core/geometry/types';
 import type { GeometryColumn, Layout, LayoutAnchor } from '../../core/layout/types';
@@ -211,7 +211,7 @@ export class ColumnRuntime {
       const centerIndex = centerIndices.get(column.id) ?? -1;
       const isPin = column.region !== 'center';
       const resizeEdge = column.region === 'right' ? 'left' : 'right';
-      const bounds = isPin ? pinResizeBounds([...this.pins.values()], this.pinViewport(), column.id) : undefined;
+      const bounds = isPin ? this.pinBounds(column.id) : undefined;
       const canShrink = bounds ? column.width > bounds.min + 1e-7 : false;
       const canGrow = bounds ? column.width < bounds.max - 1e-7 : false;
       return [
@@ -247,7 +247,7 @@ export class ColumnRuntime {
     let startWidth: number;
     if (kind === 'pin') {
       if (!this.geometry || !this.pins.has(id)) return false;
-      const bounds = pinResizeBounds([...this.pins.values()], this.pinViewport(), id);
+      const bounds = this.pinBounds(id);
       if (bounds.max - bounds.min < 1e-7) return false;
       startWidth = this.pins.get(id)!.width;
     } else {
@@ -270,7 +270,9 @@ export class ColumnRuntime {
     const checkpoint = operation.working;
     if (operation.kind === 'pin') {
       const delta = (x - operation.startX) * (operation.edge === 'left' ? -1 : 1);
-      const next = resizePin(checkpoint.pins, this.pinViewport(), operation.id, operation.startWidth + delta);
+      const bounds = this.pinBounds(operation.id, checkpoint.pins);
+      const requested = clamp(operation.startWidth + delta, bounds.min, bounds.max);
+      const next = resizePin(checkpoint.pins, this.pinViewport(), operation.id, requested);
       const previous = this.pins;
       this.pins = new Map(next.columns.map((column) => [column.id, column]));
       try {
@@ -381,6 +383,15 @@ export class ColumnRuntime {
 
   private pinViewport(): PinningViewport {
     return { width: this.viewport.width, reserve: this.reserve };
+  }
+
+  private pinBounds(id: string, pins: readonly PinColumn[] = [...this.pins.values()]) {
+    return tablePinResizeBounds(
+      this.columns,
+      pins,
+      { ...this.pinViewport(), surfaceWidth: Math.max(this.viewport.width, this.layoutContainer()) },
+      id,
+    );
   }
 
   private currentAnchor(pinned = Boolean(this.geometry)): LayoutAnchor | undefined {

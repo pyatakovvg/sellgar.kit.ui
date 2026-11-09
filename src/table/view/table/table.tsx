@@ -25,10 +25,11 @@ export const Table = <T extends object>(props: IProps<T>) => {
   const headerId = React.useId();
   const previousRows = React.useRef(new Map<string, T>());
   const configuration = React.useMemo(() => compileTableConfiguration(props), [props]);
+  const tree = configuration.tree;
   const records = identities.identify(
     configuration.data.nodes,
     configuration.data.getRowId,
-    configuration.tree?.isUse ? (row) => Reflect.get(row, configuration.tree!.accessor) ?? [] : undefined,
+    tree?.isUse ? (row) => Reflect.get(row, tree.accessor) ?? [] : undefined,
   );
   const recordsById = new Map(records.map((record) => [record.id, record]));
 

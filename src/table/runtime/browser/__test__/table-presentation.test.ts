@@ -141,7 +141,7 @@ describe('Table DOM geometry ownership without React commits', () => {
     measure(content);
     expect(runtime.getSnapshot().bodyHeight).toBe(1000);
     expect(body.style.height).toBe(numbers(1000));
-    expect(source.scrollBy).toHaveBeenCalledWith({ top: 200 });
+    expect(source.scrollBy).toHaveBeenCalledWith({ top: 200, behavior: 'instant' });
     expect(source.scrollTop).toBe(628);
     expect(runtime.getSnapshot().viewport.scroll).toBe(628);
   });

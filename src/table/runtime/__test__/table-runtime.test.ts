@@ -191,6 +191,21 @@ describe('Table runtime instance lifecycle', () => {
     expect(runtime.getSnapshot().rows.find((row) => row.id === IDS[25])?.top).toBe(1050);
   });
 
+  it.each([{ width: 0 }, { height: 0 }, { width: 0, height: 0 }])(
+    'updates measurements without moving an invisible viewport: %j',
+    (hidden) => {
+      const runtime = createRuntime();
+      runtime.updateViewport({ ...VIEWPORT, scroll: 1000, ...hidden });
+      const correction = runtime.commitMeasurements([
+        { rowId: IDS[0], columnId: 'name', version: runtime.getSnapshot().version, height: 100 },
+      ]);
+      expect(correction).toBe(0);
+      expect(runtime.getSnapshot().viewport.scroll).toBe(1000);
+      runtime.updateViewport({ ...VIEWPORT, scroll: 0 });
+      expect(runtime.getSnapshot().rows.find((row) => row.id === IDS[0])?.height).toBe(100);
+    },
+  );
+
   it('keeps measured geometry attached to row identities after reordering', () => {
     const runtime = createRuntime();
     runtime.commitMeasurements([

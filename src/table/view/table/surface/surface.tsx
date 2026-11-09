@@ -74,7 +74,7 @@ export const Surface: React.FC = () => {
         <div ref={surface} className={s.surface}>
           {state.error && <p role="alert">{state.error}</p>}
           <div className={state.error ? s.failed : undefined} inert={Boolean(state.error)}>
-            <Header portal={portal} />
+            {!state.error && <Header portal={portal} />}
             <Body />
           </div>
         </div>

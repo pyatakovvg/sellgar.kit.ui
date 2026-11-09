@@ -54,6 +54,79 @@ const widths = (runtime: TableRuntime) =>
   Object.fromEntries(runtime.getSnapshot().columns.map((column) => [column.id, column.width]));
 
 describe('Table runtime declarative pinning', () => {
+  it.each(['left', 'right'] as const)(
+    'uses the center capacity for %s pin indicators and limit overshoot reversals',
+    (side) => {
+      const runtime = createRuntime(
+        [
+          { ...fixed('pin', 250, side), floor: 50 },
+          { ...auto('center', 50), max: 300 },
+        ],
+        OPTIONS,
+        { ...VIEWPORT, container: 500, width: 500 },
+      );
+      const pin = () => runtime.getSnapshot().columns.find((column) => column.id === 'pin')!;
+      expect(pin()).toMatchObject({ width: 250, left: true, right: true, resizeBounds: { min: 200, max: 450 } });
+      const edge = side === 'left' ? 'right' : 'left';
+      const direction = side === 'left' ? 1 : -1;
+      expect(runtime.beginPinResize('pin', 250, edge)).toBe(true);
+      runtime.moveResize(250 - 500 * direction);
+      expect(pin()).toMatchObject({
+        width: 200,
+        left: side === 'right',
+        right: side === 'left',
+        resizeBounds: { min: 200, max: 450 },
+      });
+      runtime.moveResize(250 - 100 * direction);
+      expect(pin().width).toBe(200);
+      runtime.moveResize(250 - 49 * direction);
+      expect(pin().width).toBe(201);
+      expect(runtime.getSnapshot().error).toBeUndefined();
+      runtime.cancelResize();
+      expect(pin().width).toBe(250);
+    },
+  );
+
+  it('uses the shared surface, other pins and fixed center widths in the reachable minimum', () => {
+    const runtime = createRuntime(
+      [
+        fixed('left', 250, 'left'),
+        fixed('fixed-center', 100),
+        { ...auto('center'), max: 200 },
+        fixed('right', 50, 'right'),
+      ],
+      OPTIONS,
+      { ...VIEWPORT, container: 600, width: 500 },
+    );
+    expect(runtime.getSnapshot().columns.find((column) => column.id === 'left')).toMatchObject({
+      width: 250,
+      left: false,
+      right: true,
+      resizeBounds: { min: 250, max: 400 },
+    });
+    expect(runtime.beginPinResize('left', 250, 'right')).toBe(true);
+    runtime.moveResize(0);
+    expect(widths(runtime)).toEqual({ left: 250, 'fixed-center': 100, center: 200, right: 50 });
+    expect(runtime.getSnapshot().error).toBeUndefined();
+  });
+
+  it('rejects a pin drag when the budget and center capacity leave no reachable movement', () => {
+    const runtime = createRuntime(
+      [
+        { ...fixed('pin', 200, 'left'), max: 200 },
+        { ...auto('center'), max: 300 },
+      ],
+      OPTIONS,
+      { ...VIEWPORT, container: 500, width: 500 },
+    );
+    expect(runtime.getSnapshot().columns.find((column) => column.id === 'pin')).toMatchObject({
+      left: false,
+      right: false,
+      resizeBounds: { min: 200, max: 200 },
+    });
+    expect(runtime.beginPinResize('pin', 200, 'right')).toBe(false);
+  });
+
   it('preserves pin declarations through column compilation and publishes unified geometry', () => {
     const columns = createGeometryColumns([
       { columnId: 'right', sourceIndex: 0, width: 100, pinRight: true, resizable: true },

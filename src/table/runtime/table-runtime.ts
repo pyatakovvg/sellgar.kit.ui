@@ -259,7 +259,7 @@ export class TableRuntime {
   }
 
   private captureRowAnchor(): RowAnchor | undefined {
-    if (this.viewport.scroll < 0) return;
+    if (this.viewport.scroll < 0 || this.viewport.width <= 0 || this.viewport.height <= 0) return;
     const top = this.visibleTop();
     const index = this.rowAxis.at(top);
     if (index < 0) return;

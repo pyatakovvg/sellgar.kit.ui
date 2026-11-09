@@ -320,7 +320,7 @@ export class TableBrowser {
     const owner = this.scrollOwner();
     if (!correction || !owner) return;
     const ownerScale = owner instanceof HTMLElement ? elementScale(owner, 'Y') : 1;
-    owner.scrollBy({ top: (correction * this.scaleY) / ownerScale });
+    owner.scrollBy({ top: (correction * this.scaleY) / ownerScale, behavior: 'instant' });
   }
 
   toggleExpanded(rowId: string): void {

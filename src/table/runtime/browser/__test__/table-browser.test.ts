@@ -144,13 +144,13 @@ describe('Table browser coordinate spaces', () => {
   it('converts logical corrections to CSS units of an internal transformed owner', () => {
     const { browser, internalScroll } = fixture();
     browser.correctScroll(40);
-    expect(internalScroll).toHaveBeenCalledWith({ top: 40 });
+    expect(internalScroll).toHaveBeenCalledWith({ top: 40, behavior: 'instant' });
   });
 
   it('retains screen compensation for an external owner outside the transform', () => {
     const { browser, ownerScroll } = fixture(false);
     browser.correctScroll(40);
-    expect(ownerScroll).toHaveBeenCalledWith({ top: 80 });
+    expect(ownerScroll).toHaveBeenCalledWith({ top: 80, behavior: 'instant' });
   });
 
   it('keeps the numbers token unit separate from the CSS transform scale', () => {
@@ -163,7 +163,7 @@ describe('Table browser coordinate spaces', () => {
       viewport: { container: 300, scale: 4, scaleY: 4 },
     });
     browser.correctScroll(40);
-    expect(internalScroll).toHaveBeenCalledWith({ top: 80 });
+    expect(internalScroll).toHaveBeenCalledWith({ top: 80, behavior: 'instant' });
   });
 
   it('measures content and borders in a common coordinate system', () => {
