@@ -1,4 +1,5 @@
 .wrapper {
+  --table-header-top-border: none;
   color: var(--text-base-primary);
   font-size: var(--numbers-14);
   line-height: var(--numbers-20);
@@ -12,10 +13,15 @@
   pointer-events: none;
 }
 
+.wrapper[data-table-header-position='portal'][data-table-header-top-border='true'] {
+  --table-header-top-border: inset 0 var(--numbers-1) 0 var(--border-base-divider);
+}
+
 .header {
   position: relative;
   isolation: isolate;
   display: grid;
+  overflow: clip;
   background: var(--background-surface-neutral);
   box-sizing: border-box;
   pointer-events: auto;

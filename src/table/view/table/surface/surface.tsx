@@ -6,6 +6,8 @@ import { Scrollbar } from '../../../../core/components/layout/scrollbar';
 import { useTableEnvironment, useTableSnapshot } from '../context/table-context';
 import { Body } from './body';
 import { Header } from './header';
+import { Empty } from './empty';
+import { Loading } from './loading';
 
 import s from './default.module.scss';
 
@@ -16,6 +18,7 @@ interface SurfaceStyle extends React.CSSProperties {
 export const Surface: React.FC = () => {
   const environment = useTableEnvironment();
   const state = useTableSnapshot();
+  const empty = state.rowCount === 0 && !state.error;
   const root = React.useRef<HTMLDivElement>(null);
   const surface = React.useRef<HTMLDivElement>(null);
   const scrollHost = React.useRef<HTMLDivElement>(null);
@@ -56,10 +59,11 @@ export const Surface: React.FC = () => {
       ref={root}
       className={wrapperClassName}
       style={style}
-      role="table"
-      aria-rowcount={state.rowCount + 1}
-      aria-colcount={state.columnCount}
-      aria-owns={state.error ? undefined : `${environment.headerId} ${environment.headerId}-body`}
+      role={empty ? undefined : 'table'}
+      aria-rowcount={empty ? undefined : state.rowCount + 1}
+      aria-colcount={empty ? undefined : state.columnCount}
+      aria-owns={state.error || empty ? undefined : `${environment.headerId} ${environment.headerId}-body`}
+      aria-busy={environment.loading}
       data-table="geometry"
       data-row-count={state.rowCount}
       data-column-count={state.columnCount}
@@ -73,13 +77,18 @@ export const Surface: React.FC = () => {
       >
         <div ref={surface} className={s.surface}>
           {state.error && <p role="alert">{state.error}</p>}
-          <div className={state.error ? s.failed : undefined} inert={Boolean(state.error)}>
-            {!state.error && <Header portal={portal} />}
-            <Body />
-          </div>
+          {empty ? (
+            <Empty />
+          ) : (
+            <div className={state.error ? s.failed : undefined} inert={Boolean(state.error)}>
+              {!state.error && <Header portal={portal} />}
+              <Body />
+            </div>
+          )}
         </div>
       </ScrollContainer>
       <div ref={setPortal} data-table-header-portal="true" />
+      {environment.loading !== undefined && <Loading />}
     </div>
   );
 };

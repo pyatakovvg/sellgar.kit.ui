@@ -22,7 +22,7 @@ const createRuntime = (max = Infinity) => {
   const runtime = new TableRuntime();
   runtime.configure(
     [
-      { id: 'description', mode: 'auto', resizable: true, width: 0, floor: 0, max },
+      { id: 'description', mode: 'auto', resizable: true, width: 0, floor: 500, max },
       { id: 'brand', mode: 'auto', resizable: true, width: 0, floor: 0, max: Infinity },
     ],
     ['product'],
@@ -106,11 +106,11 @@ describe('Table resize grab point', () => {
     expect(widths).toEqual([700, 500, 500, 500, 500, 520, 700, 700, 700, 700, 680]);
   });
 
-  it('keeps attachment when the minimum is imposed by right-side capacity and restores on cancellation', () => {
+  it('keeps attachment when the declared minimum is reached and restores on cancellation', () => {
     const runtime = new TableRuntime();
     runtime.configure(
       [
-        { id: 'description', mode: 'fixed', resizable: true, width: 400, floor: 60, max: 1400 },
+        { id: 'description', mode: 'fixed', resizable: true, width: 400, floor: 350, max: 1400 },
         { id: 'brand', mode: 'auto', resizable: true, width: 0, floor: 200, max: 650 },
       ],
       ['product'],
@@ -158,7 +158,7 @@ describe('Table resize grab point', () => {
     runtime.configure(
       [
         { id: 'code', mode: 'fixed', resizable: true, width: 200, floor: 200, max: 200 },
-        { id: 'description', mode: 'auto', resizable: true, width: 0, floor: 0, max: Infinity },
+        { id: 'description', mode: 'auto', resizable: true, width: 0, floor: 600, max: Infinity },
         { id: 'brand', mode: 'fixed', resizable: true, width: 200, floor: 200, max: 200 },
       ],
       ['product'],
@@ -242,7 +242,7 @@ describe('Resize audit regressions', () => {
   it.each([
     [412.625, 110.125, 410.875],
     [429.5, 108.375, 412.625],
-  ])('stops manual auto at the fill boundary after fixed shrink (%s, %s)', (manual, fixed, minimum) => {
+  ])('fills with the compensator below the old fill boundary after fixed shrink (%s, %s)', (manual, fixed, minimum) => {
     const runtime = new TableRuntime();
     runtime.configure(
       [
@@ -265,19 +265,26 @@ describe('Resize audit regressions', () => {
     expect(runtime.getSnapshot().columns[0].left).toBe(true);
 
     expect(runtime.beginResize('name', 0)).toBe(true);
-    for (const pointer of [-100, -60, minimum - manual]) {
+    for (const pointer of [-100, -60, minimum - manual, -1000]) {
       expect(() => runtime.moveResize(pointer)).not.toThrow();
-      expect(runtime.getSnapshot()).toMatchObject({ widths: [minimum, fixed, 140], total: 661, dragging: true });
-      expect(runtime.getSnapshot().columns[0]).toMatchObject({ left: false, right: true });
+      const width = Math.max(200, manual + pointer);
+      const free = Math.max(0, 661 - width - fixed - 140);
+      expect(runtime.getSnapshot()).toMatchObject({
+        widths: [width, fixed, 140, ...(free > 0 ? [free] : [])],
+        total: 661,
+        dragging: true,
+      });
+      expect(runtime.getSnapshot().columns[0].left).toBe(width > 200);
     }
-    runtime.moveResize(minimum - manual + 1);
-    expect(runtime.getSnapshot().widths).toEqual([minimum + 1, fixed, 140]);
-    expect(runtime.getSnapshot().columns[0].left).toBe(true);
     runtime.cancelResize();
     expect(runtime.getSnapshot().widths).toEqual([manual, fixed, 140]);
 
     new TableBrowser(runtime).resizeBy('name', -1000);
-    expect(runtime.getSnapshot()).toMatchObject({ widths: [minimum, fixed, 140], total: 661, dragging: false });
+    expect(runtime.getSnapshot()).toMatchObject({
+      widths: [200, fixed, 140, 321 - fixed],
+      total: 661,
+      dragging: false,
+    });
     expect(runtime.getSnapshot().columns[0].left).toBe(false);
   });
 
@@ -285,7 +292,7 @@ describe('Resize audit regressions', () => {
     const runtime = new TableRuntime();
     const columns: GeometryColumn[] = [
       { id: 'fixed', mode: 'fixed', width: 100, floor: 0, max: Infinity, resizable: true },
-      { id: 'manual', mode: 'auto', width: 0, floor: 0, max: Infinity, resizable: true },
+      { id: 'manual', mode: 'auto', width: 0, floor: 350, max: Infinity, resizable: true },
       { id: 'tail', mode: 'auto', width: 0, floor: 0, max: Infinity },
     ];
     runtime.configure(columns, ['row'], [], OPTIONS);

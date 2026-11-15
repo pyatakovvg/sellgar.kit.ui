@@ -1,5 +1,10 @@
 import type { GeometryColumn, Layout, LayoutAnchor } from './types';
 
+export const resizeMinimum = (column: GeometryColumn): number => column.resizeFloor ?? column.floor;
+
+export const automaticMinimum = (column: GeometryColumn): number =>
+  column.manual === undefined ? column.floor : resizeMinimum(column);
+
 export const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
 
 // Equal-share allocation retained from the geometry experiment; no public weight API.
@@ -38,13 +43,22 @@ const redistribute = (target: number, current: number[], lows: number[], highs: 
 };
 
 export const result = (columns: GeometryColumn[], container: number, base: number[], actual?: number[]): Layout => {
+  const resolvedBase = base.slice();
   const precise =
-    actual ??
+    actual?.slice() ??
     columns.map((column, index) =>
       column.mode === 'fixed'
         ? column.width
-        : clamp(Math.max(base[index], column.manual ?? 0), column.floor, column.max),
+        : clamp(Math.max(base[index], column.manual ?? 0), resizeMinimum(column), column.max),
     );
+  const compensator = columns.findIndex((column) => column.compensator);
+  if (compensator >= 0) {
+    precise[compensator] = Math.max(
+      0,
+      container - precise.reduce((sum, width, index) => sum + (index === compensator ? 0 : width), 0),
+    );
+    resolvedBase[compensator] = precise[compensator];
+  }
   const widths = precise.map((width) => {
     const half = Math.round(width * 2) / 2;
     return Math.abs(width - half) < 1e-7 ? half : width;
@@ -54,7 +68,7 @@ export const result = (columns: GeometryColumn[], container: number, base: numbe
     throw new RangeError('Column widths must fill the available container width.');
   }
   return {
-    base,
+    base: resolvedBase,
     widths,
     total: rounded,
     overflow: Math.max(0, rounded - container),
@@ -63,15 +77,29 @@ export const result = (columns: GeometryColumn[], container: number, base: numbe
 };
 
 export const automatic = (columns: GeometryColumn[], container: number, anchor?: LayoutAnchor): Layout => {
-  const autos = columns.map((column, index) => (column.mode === 'auto' ? index : -1)).filter((index) => index >= 0);
-  if (autos.length === 0) throw new Error('Table geometry must contain at least one automatic column.');
+  const autos = columns
+    .map((column, index) => (column.mode === 'auto' && !column.compensator ? index : -1))
+    .filter((index) => index >= 0);
+  const compensator = columns.findIndex((column) => column.compensator);
+  if (autos.length === 0 && compensator < 0)
+    throw new Error('Table geometry must contain at least one automatic column.');
+  if (autos.length === 0)
+    return result(
+      columns,
+      container,
+      columns.map((column) => column.width),
+    );
   const fixed = columns.reduce((sum, column) => sum + (column.mode === 'fixed' ? column.width : 0), 0);
   let target = container - fixed;
   if (anchor) {
     const prior = autos.reduce((sum, index) => sum + anchor.bases[index], 0);
-    target = container < anchor.container ? prior + container - anchor.container : Math.max(prior, target);
+    const reserve = compensator >= 0 ? anchor.bases[compensator] : 0;
+    target =
+      container < anchor.container
+        ? prior + Math.min(0, container - anchor.container + reserve)
+        : Math.max(prior, target - reserve);
   }
-  const lows = autos.map((i) => columns[i].floor);
+  const lows = autos.map((i) => automaticMinimum(columns[i]));
   const highs = autos.map((i) => columns[i].max);
   const allocated = anchor
     ? redistribute(
@@ -98,7 +126,9 @@ export const sharedLayout = (
 ): Layout => {
   const layout = automatic(columns, available, anchor);
   if (layout.total >= container - 1e-7) return result(columns, container, layout.base, layout.widths);
-  const autos = columns.map((column, index) => (column.mode === 'auto' ? index : -1)).filter((index) => index >= 0);
+  const autos = columns
+    .map((column, index) => (column.mode === 'auto' && !column.compensator ? index : -1))
+    .filter((index) => index >= 0);
   const fixed = columns.reduce((sum, column) => sum + (column.mode === 'fixed' ? column.width : 0), 0);
   const allocated = redistribute(
     container - fixed,
@@ -124,7 +154,12 @@ export const resizeBounds = (
   const column = columns[index];
   const removableOverflow = Math.max(0, layout.total - container);
   if (column.mode === 'auto') {
-    return { min: Math.max(layout.base[index], layout.widths[index] - removableOverflow), max: column.max };
+    return {
+      min: columns.some((item, i) => i > index && item.compensator)
+        ? resizeMinimum(column)
+        : Math.max(layout.base[index], layout.widths[index] - removableOverflow),
+      max: column.max,
+    };
   }
 
   const rightGrowth = columns.reduce(
@@ -132,7 +167,7 @@ export const resizeBounds = (
     0,
   );
   return {
-    min: Math.max(column.floor, layout.widths[index] - removableOverflow - rightGrowth),
+    min: Math.max(resizeMinimum(column), layout.widths[index] - removableOverflow - rightGrowth),
     max: column.max,
   };
 };
@@ -143,7 +178,7 @@ export const resizeDirections = (
   container: number,
   index: number,
 ): { left: boolean; right: boolean } => {
-  if (columns[index].resizable !== true || index === columns.length - 1) return { left: false, right: false };
+  if (columns[index].resizable !== true) return { left: false, right: false };
   const bounds = resizeBounds(columns, layout, container, index);
   return {
     left: layout.widths[index] > bounds.min + 1e-7,
@@ -164,12 +199,15 @@ const resizeMutable = (
   const bounds = resizeBounds(columns, layout, container, index);
   if (column.mode === 'auto') {
     const width = clamp(target, bounds.min, bounds.max);
-    if (Math.abs(width - base[index]) < 1e-7) delete column.manual;
+    if (width < base[index]) base[index] = width;
+    if (column.resizeFloor === undefined && Math.abs(width - base[index]) < 1e-7) delete column.manual;
     else column.manual = width;
     widths[index] = width;
     return result(columns, container, base, widths);
   }
-  const right = columns.map((item, i) => (i > index && item.mode === 'auto' ? i : -1)).filter((i) => i >= 0);
+  const right = columns
+    .map((item, i) => (i > index && item.mode === 'auto' && !item.compensator ? i : -1))
+    .filter((i) => i >= 0);
   const width = clamp(target, bounds.min, bounds.max);
   const delta = width - widths[index];
   column.width = width;
@@ -179,16 +217,19 @@ const resizeMutable = (
     (sum, item, i) => sum + (item.mode === 'fixed' ? layout.widths[i] : layout.base[i]),
     0,
   );
-  const baseNeeded = delta >= 0 ? baseBefore - delta : baseBefore + Math.max(0, container - baseTotal - delta);
+  const reserve = columns.reduce((sum, item, i) => sum + (i > index && item.compensator ? layout.widths[i] : 0), 0);
+  const baseNeeded =
+    delta >= 0 ? baseBefore - Math.max(0, delta - reserve) : baseBefore + Math.max(0, container - baseTotal - delta);
   const baseAllocation = redistribute(
     baseNeeded,
     right.map((i) => base[i]),
-    right.map((i) => columns[i].floor),
+    right.map((i) => resizeMinimum(columns[i])),
     right.map((i) => columns[i].max),
   );
   right.forEach((i, offset) => {
     base[i] = baseAllocation[offset];
     widths[i] = Math.max(base[i], columns[i].manual ?? 0);
+    if (columns[i].resizeFloor !== undefined && widths[i] < columns[i].floor) columns[i].manual = widths[i];
   });
   base[index] = width;
   return result(columns, container, base, widths);

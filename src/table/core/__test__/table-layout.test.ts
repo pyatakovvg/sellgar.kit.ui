@@ -177,7 +177,7 @@ describe('Table layout composition', () => {
     expect(tableLayout(nextColumns, pins, VIEWPORT, anchor).center.layout).toEqual(resized.layout);
   });
 
-  it('excludes pin from directed compensation and the center last-column rule', () => {
+  it('excludes pin from directed compensation without suppressing the final center handle', () => {
     const columns = [auto('left', 0, 9000), fixed('code', 200), auto('name', 100), auto('right', 0, 8000)];
     const pins: PinColumn[] = [
       { id: 'left', side: 'left', width: 100 },
@@ -194,7 +194,7 @@ describe('Table layout composition', () => {
     expect(next.center.columns.map((column) => column.id)).toEqual(['code', 'name']);
     expect(resizeDirections([...next.center.columns], next.center.layout, 800, 1)).toEqual({
       left: false,
-      right: false,
+      right: true,
     });
   });
 

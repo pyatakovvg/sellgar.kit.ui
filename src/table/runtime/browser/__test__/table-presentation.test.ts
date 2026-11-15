@@ -130,6 +130,27 @@ const measure = (element: HTMLElement) => {
 };
 
 describe('Table DOM geometry ownership without React commits', () => {
+  it('updates the right-boundary indicator on scroll without changing React render inputs', () => {
+    const { surface, browser, runtime } = fixture();
+    const control = document.createElement('button');
+    control.dataset.resizeColumn = 'fixed';
+    control.innerHTML = '<span data-direction="left"></span><span data-direction="right"></span>';
+    surface.append(control);
+    runtime.beginResize('fixed', 0);
+    runtime.moveResize(400);
+    runtime.finishResize();
+    browser.present();
+    const rendering = runtime.getRenderSnapshot();
+    const viewport = runtime.getSnapshot().viewport;
+    expect(control.querySelector('[data-direction="right"]')?.getAttribute('data-available')).toBe('false');
+    runtime.updateViewport({ ...viewport, left: 50 });
+    expect(control.querySelector('[data-direction="right"]')?.getAttribute('data-available')).toBe('true');
+    expect(runtime.getRenderSnapshot()).toBe(rendering);
+    runtime.updateViewport(viewport);
+    expect(control.querySelector('[data-direction="right"]')?.getAttribute('data-available')).toBe('false');
+    expect(control.getAttribute('aria-description')).toContain('вправо нельзя');
+  });
+
   it('applies the new native extent before scroll correction at the bottom limit', () => {
     const { source, surface, body, browser, runtime } = fixture();
     source.scrollTop = 428;
@@ -453,5 +474,130 @@ describe('Table DOM geometry ownership without React commits', () => {
     browser.present();
     expect(orphan.style.display).toBe('none');
     expect(root.dataset.totalWidth).toBe('600');
+  });
+  it('skips bulk body scans on native scroll and reconciles new DOM after a React commit', () => {
+    const { root, source, surface, browser, runtime } = fixture();
+    browser.present();
+    const revision = runtime.getGeometryRevision();
+    const render = runtime.getRenderSnapshot();
+    const query = vi.spyOn(root, 'querySelectorAll');
+    source.scrollTop = 20;
+    browser.refresh();
+    expect(runtime.getSnapshot().viewport.scroll).toBe(20);
+    expect(runtime.getGeometryRevision()).toBe(revision);
+    expect(runtime.getRenderSnapshot()).toBe(render);
+    expect(query.mock.calls.map(([selector]) => selector)).not.toContain('[data-table-line]');
+    expect(query.mock.calls.map(([selector]) => selector)).not.toContain('[data-column-id][data-column-region]');
+
+    const row = document.createElement('div');
+    row.dataset.tableRow = 'r1';
+    const line = document.createElement('div');
+    line.dataset.tableLine = 'r1';
+    row.append(line);
+    surface.append(row);
+    browser.present();
+    expect(row.style.top).toBe(numbers(runtime.getRowGeometry('r1')!.top));
+    expect(row.style.height).toBe(numbers(40));
+    expect(line.style.gridTemplateColumns).toBe(`${numbers(200)} ${numbers(400)}`);
+
+    query.mockClear();
+    browser.resizeBy('fixed', 100);
+    expect(runtime.getGeometryRevision()).toBeGreaterThan(revision);
+    expect(query.mock.calls.map(([selector]) => selector)).toContain('[data-table-line]');
+    expect(line.style.gridTemplateColumns).toBe(`${numbers(300)} ${numbers(300)}`);
+  });
+
+  it('does not publish or rescan unchanged nested width constraints', () => {
+    const { root, runtime } = fixture();
+    runtime.setNestedWidth('child', 700);
+    const publish = vi.fn();
+    releases.push(runtime.subscribe(publish));
+    const revision = runtime.getGeometryRevision();
+    const query = vi.spyOn(root, 'querySelectorAll');
+    runtime.setNestedWidth('child', 700);
+    expect(runtime.getGeometryRevision()).toBe(revision);
+    expect(publish).not.toHaveBeenCalled();
+    expect(query).not.toHaveBeenCalled();
+    runtime.setNestedWidth('child', undefined);
+    expect(publish).toHaveBeenCalledOnce();
+    expect(runtime.getGeometryRevision()).toBeGreaterThan(revision);
+  });
+
+  it('keeps valid old DOM positioned until the replacement window commits, but hides removed data', () => {
+    const { surface, runtime, browser } = fixture();
+    const oldRow = document.createElement('div');
+    oldRow.dataset.tableRow = 'r1';
+    const oldLine = document.createElement('div');
+    oldLine.dataset.tableLine = 'r1';
+    const cell = document.createElement('div');
+    cell.dataset.columnId = 'fixed';
+    cell.dataset.columnRegion = 'center';
+    oldLine.append(cell);
+    oldRow.append(oldLine);
+    surface.append(oldRow);
+    browser.present();
+    const originalTop = oldRow.style.top;
+    runtime.updateViewport({ ...runtime.getSnapshot().viewport, scroll: 700, height: 100 });
+    expect(runtime.getSnapshot().rows.some((row) => row.id === 'r1')).toBe(false);
+    expect(oldRow.style.display).toBe('');
+    expect(oldRow.style.top).toBe(originalTop);
+    runtime.configure([{ id: 'auto', mode: 'auto', width: 0, floor: 0, max: Infinity }], ['new-row'], [], {
+      rowHeight: 40,
+      minRowHeight: 40,
+      overscan: 3,
+      virtual: true,
+      sticky: true,
+    });
+    expect(oldRow.style.display).toBe('none');
+    expect(cell.style.display).toBe('none');
+  });
+});
+
+describe('Empty surface presentation', () => {
+  it('uses available width instead of saved column widths and restores the data surface', () => {
+    const { root, surface, runtime } = fixture();
+    const presentation = new TablePresentation();
+    const data = {
+      ...runtime.getSnapshot(),
+      total: 1200,
+      viewport: { ...runtime.getSnapshot().viewport, container: 600 },
+    };
+    const empty = { ...data, rowCount: 0, headerFloating: true, bodyHeight: 120 };
+    presentation.apply(root, surface, empty, undefined, runtime);
+    expect(surface.style.width).toBe(numbers(600));
+    expect(surface.style.minHeight).toBe(numbers(120));
+    presentation.apply(root, surface, data, undefined, runtime);
+    expect(surface.style.width).toBe(numbers(1200));
+    expect(surface.style.minHeight).toBe('');
+  });
+
+  it('limits empty embedded content to the shared viewport without moving it into the header portal', () => {
+    const { root, surface, runtime } = fixture();
+    const presentation = new TablePresentation();
+    const slot = document.createElement('div');
+    const portal = document.createElement('div');
+    const mount = document.createElement('div');
+    slot.append(mount);
+    surface.append(slot, portal);
+    const empty = document.createElement('div');
+    empty.dataset.tableEmpty = 'true';
+    surface.append(empty);
+    const data = runtime.getSnapshot();
+    presentation.apply(
+      root,
+      surface,
+      {
+        ...data,
+        rowCount: 0,
+        total: 1900,
+        headerFloating: true,
+        viewport: { ...data.viewport, container: 1200, available: 500 },
+      },
+      { mount, slot, portal },
+      runtime,
+    );
+    expect(surface.style.width).toBe(numbers(1200));
+    expect(empty.style.width).toBe(numbers(500));
+    expect(mount.parentElement).toBe(slot);
   });
 });

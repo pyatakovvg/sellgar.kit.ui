@@ -102,6 +102,32 @@ const fixture = (internal = true, initialScale = 2) => {
 };
 
 describe('Table browser coordinate spaces', () => {
+  it.each([false, true])(
+    'draws a header top border only after the parent clips the table outline (internal: %s)',
+    (internal) => {
+      const { root, scroller, surface, browser } = fixture(internal);
+      const layer = document.createElement('div');
+      const header = document.createElement('div');
+      layer.dataset.tableHeaderPosition = 'portal';
+      layer.append(header);
+      root.append(layer);
+      releases.push(browser.attachHeader(header));
+      expect(layer.dataset.tableHeaderTopBorder).toBe('false');
+      let top = -40;
+      vi.mocked(surface.getBoundingClientRect).mockImplementation(() =>
+        DOMRect.fromRect({ x: 0, y: top, width: 1200, height: 800 }),
+      );
+      vi.mocked(scroller.getBoundingClientRect).mockImplementation(() =>
+        DOMRect.fromRect({ x: 0, y: internal ? 0 : top, width: 1200, height: 800 }),
+      );
+      browser.refresh();
+      expect(layer.dataset.tableHeaderTopBorder).toBe(String(!internal));
+      top = 0;
+      browser.refresh();
+      expect(layer.dataset.tableHeaderTopBorder).toBe('false');
+    },
+  );
+
   it('resets only its own resize control on native double click', () => {
     const { browser, runtime, root, surface } = fixture();
     root.dataset.table = 'geometry';
@@ -366,5 +392,466 @@ describe('Table browser coordinate spaces', () => {
     root.dispatchEvent(Object.defineProperty(new Event('pointerup'), 'pointerId', { value: 7 }));
     expect(runtime.getSnapshot().dragging).toBe(false);
     expect(runtime.getSnapshot().columns.at(-1)!.width).toBe(210);
+  });
+});
+
+describe('Manual column resize notifications', () => {
+  const setup = (internal = true, scale = 2) => {
+    const context = fixture(internal, scale);
+    const header = document.createElement('div');
+    context.surface.append(header);
+    box(header, 600, 28, () => context.geometry.scale);
+    releases.push(context.browser.attachHeader(header));
+    const handler = vi.fn();
+    context.browser.setResizeHandler(handler);
+    const down = (column = 'fixed', clientX = 400) => {
+      const event = new MouseEvent('pointerdown', { clientX, button: 0 });
+      Object.defineProperties(event, { isPrimary: { value: true }, pointerId: { value: 1 } });
+      context.browser.beginResize(column, event as PointerEvent);
+    };
+    const pointer = (type: string, clientX = 400, buttons = 1, id = 1) => {
+      const event = new MouseEvent(type, { clientX, buttons });
+      Object.defineProperty(event, 'pointerId', { value: id });
+      context.root.dispatchEvent(event);
+    };
+    return { ...context, header, handler, down, pointer };
+  };
+
+  it.each([true, false])('notifies once on pointerup in logical units, internal=%s', (internal) => {
+    const { runtime, handler, down, pointer, root } = setup(internal);
+    down();
+    pointer('pointermove', 440);
+    pointer('pointermove', 480);
+    expect(handler).not.toHaveBeenCalled();
+    pointer('pointerup', 480);
+    expect(handler.mock.calls).toEqual([['fixed', 240]]);
+    expect(runtime.getSnapshot().dragging).toBe(false);
+    expect(root.releasePointerCapture).toHaveBeenCalledWith(1);
+    pointer('pointerup', 480);
+    pointer('lostpointercapture');
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [true, 1, 0],
+    [true, 1, 1.75],
+    [true, 1, 4],
+    [false, 1, 4],
+    [true, 2, 4],
+    [false, 2, 4],
+  ])(
+    'limits a one-event overshoot and preserves the grab through reversals (internal=%s, scale=%s, offset=%s)',
+    (internal, scale, offset) => {
+      const { browser, runtime, root, handler, down, pointer } = setup(Boolean(internal), Number(scale));
+      const factor = Number(scale);
+      box(root.parentElement!, 600 * factor, 400, () => 1);
+      runtime.configure(
+        [
+          { id: 'first', mode: 'fixed', width: 200, floor: 100, max: Infinity, resizable: true },
+          { id: 'last', mode: 'fixed', width: 400, floor: 100, max: Infinity, resizable: true },
+        ],
+        ['row'],
+        [],
+        { rowHeight: 40, minRowHeight: 40, overscan: 0, virtual: true, sticky: true },
+      );
+      browser.refresh();
+      down('last', (600 - Number(offset)) * factor);
+      for (const [position, width] of [
+        [1400, 400],
+        [1000, 400],
+        [599, 399],
+        [500, 300],
+        [1400, 400],
+        [550, 350],
+      ]) {
+        pointer('pointermove', (position - Number(offset)) * factor);
+        expect(runtime.getColumnWidth('last')).toBeCloseTo(width, 8);
+        expect(runtime.getSnapshot().dragging).toBe(true);
+        expect(handler).not.toHaveBeenCalled();
+      }
+      pointer('pointerup', (550 - Number(offset)) * factor);
+      expect(handler.mock.calls).toEqual([['last', 350]]);
+      expect(runtime.getSnapshot().dragging).toBe(false);
+      expect(runtime.getSnapshot().total).toBe(600);
+    },
+  );
+
+  it('applies the same right boundary to an earlier column while allowing table overflow', () => {
+    const { browser, runtime, down, pointer } = setup(true, 1);
+    down('fixed', 196);
+    pointer('pointermove', 2000);
+    expect(runtime.getColumnWidth('fixed')).toBe(600);
+    expect(runtime.getSnapshot().total).toBe(600);
+    pointer('pointermove', 595);
+    expect(runtime.getColumnWidth('fixed')).toBe(599);
+    pointer('pointerup', 595);
+    expect(runtime.getSnapshot().dragging).toBe(false);
+    browser.resizeBy('fixed', 1000);
+    expect(runtime.getColumnWidth('fixed')).toBe(600);
+  });
+
+  it('rechecks the final edge before notifying when the viewport changes before pointerup', () => {
+    const { browser, runtime, scroller, handler, down, pointer } = setup(true, 1);
+    down('fixed', 200);
+    pointer('pointermove', 500);
+    expect(runtime.getColumnWidth('fixed')).toBe(500);
+    box(scroller, 400, 400, () => 1);
+    pointer('pointerup', 500);
+    expect(runtime.getColumnWidth('fixed')).toBe(400);
+    expect(runtime.getSnapshot().dragging).toBe(false);
+    expect(handler.mock.calls).toEqual([['fixed', 400]]);
+    browser.refresh();
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['pointercancel', 'lostpointercapture', 'Escape', 'blur', 'detach'])(
+    'does not notify on cancellation by %s',
+    (reason) => {
+      const { runtime, browser, handler, down, pointer } = setup();
+      down();
+      pointer('pointermove', 480);
+      if (reason === 'Escape') window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      else if (reason === 'blur') window.dispatchEvent(new Event('blur'));
+      else if (reason === 'detach') releases.pop()!();
+      else pointer(reason);
+      pointer('pointerup', 480);
+      expect(runtime.getColumnWidth('fixed')).toBe(200);
+      expect(runtime.getSnapshot().dragging).toBe(false);
+      expect(handler).not.toHaveBeenCalled();
+      browser.resetColumnWidth('fixed');
+      expect(handler).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['click', 'return', 'wrong-pointer'])('ignores %s without a net manual change', (action) => {
+    const { handler, down, pointer } = setup();
+    down();
+    if (action === 'return') {
+      pointer('pointermove', 480);
+      pointer('pointermove', 400);
+    } else if (action === 'wrong-pointer') pointer('pointermove', 480, 1, 2);
+    pointer('pointerup');
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('uses the latest handler and allows synchronous persistence without recursion', () => {
+    const { runtime, browser, handler, down, pointer } = setup();
+    down();
+    pointer('pointermove', 480);
+    const persist = vi.fn((id: string, width: number) => {
+      expect(runtime.getSnapshot().dragging).toBe(false);
+      runtime.configure(
+        [
+          { id, mode: 'fixed', width, floor: 0, max: Infinity, resizable: true },
+          { id: 'auto', mode: 'auto', width: 0, floor: 0, max: Infinity },
+        ],
+        ['row'],
+        [],
+        { rowHeight: 40, minRowHeight: 40, overscan: 0, virtual: true, sticky: true },
+      );
+      browser.refresh();
+    });
+    browser.setResizeHandler(persist);
+    pointer('pointerup', 480);
+    expect(handler).not.toHaveBeenCalled();
+    expect(persist.mock.calls).toEqual([['fixed', 240]]);
+    browser.refresh();
+    expect(persist).toHaveBeenCalledTimes(1);
+    expect(runtime.getColumnWidth('fixed')).toBe(240);
+  });
+
+  it('does not notify on viewport, content, props, scroll or direct runtime operations', () => {
+    const { runtime, browser, handler, geometry, scroller } = setup();
+    runtime.configure(
+      [
+        { id: 'fixed', mode: 'fixed', width: 250, floor: 100, max: Infinity, measureContent: true, resizable: true },
+        { id: 'auto', mode: 'auto', width: 0, floor: 0, max: Infinity },
+      ],
+      ['row'],
+      [],
+      { rowHeight: 40, minRowHeight: 40, overscan: 0, virtual: true, sticky: true },
+    );
+    runtime.commitContentWidths([{ columnId: 'fixed', width: 280 }], runtime.getSnapshot().contentEpoch);
+    geometry.scale = 3;
+    scroller.scrollLeft = 20;
+    browser.refresh();
+    runtime.beginResize('fixed', 0);
+    runtime.moveResize(40);
+    runtime.finishResize();
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it.each(['schema', 'permission'])('does not notify after %s cancels the operation', (change) => {
+    const { runtime, handler, down, pointer } = setup();
+    down();
+    pointer('pointermove', 480);
+    runtime.configure(
+      [
+        {
+          id: 'fixed',
+          mode: 'fixed',
+          width: change === 'schema' ? 210 : 200,
+          floor: 0,
+          max: Infinity,
+          resizable: change !== 'permission',
+        },
+        { id: 'auto', mode: 'auto', width: 0, floor: 0, max: Infinity },
+      ],
+      ['row'],
+      [],
+      { rowHeight: 40, minRowHeight: 40, overscan: 0, virtual: true, sticky: true },
+    );
+    pointer('pointerup', 480);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('commits repeated keyboard moves once on keyup, and cancels a later gesture', () => {
+    const { runtime, browser, handler } = setup();
+    browser.resizeByKey('fixed', 1);
+    browser.resizeByKey('fixed', 1);
+    browser.resizeByKey('fixed', 10);
+    expect(handler).not.toHaveBeenCalled();
+    expect(runtime.getColumnWidth('fixed')).toBe(212);
+    browser.finishKeyResize('fixed');
+    browser.finishKeyResize('fixed');
+    expect(handler.mock.calls).toEqual([['fixed', 212]]);
+    browser.resizeByKey('fixed', 10);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    browser.finishKeyResize('fixed');
+    expect(runtime.getColumnWidth('fixed')).toBe(212);
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('suppresses unchanged keyboard gestures, forbidden columns, and competing input', () => {
+    const { runtime, browser, handler, down, pointer } = setup();
+    browser.resizeByKey('fixed', 10);
+    browser.resizeByKey('fixed', -10);
+    browser.finishKeyResize('fixed');
+    browser.resizeBy('auto', 10);
+    browser.resizeBy('absent', 10);
+    browser.resizeBy('fixed', NaN);
+    expect(handler).not.toHaveBeenCalled();
+    down();
+    browser.resizeBy('fixed', 80);
+    browser.resetColumnWidth('fixed');
+    expect(runtime.getSnapshot().dragging).toBe(true);
+    pointer('pointerup');
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('notifies once for reset, with no initial or redundant reset notification', () => {
+    const { runtime, browser, handler, root, surface } = setup();
+    root.dataset.table = 'geometry';
+    const handle = document.createElement('button');
+    handle.dataset.resizeColumn = 'fixed';
+    surface.append(handle);
+    const reset = () => handle.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    reset();
+    expect(handler).not.toHaveBeenCalled();
+    browser.resizeBy('fixed', 80);
+    handler.mockClear();
+    reset();
+    reset();
+    expect(handler.mock.calls).toEqual([['fixed', 200]]);
+    expect(runtime.getColumnWidth('fixed')).toBe(200);
+  });
+
+  it('cleans up before a callback throws and can resize again without a callback', () => {
+    const { runtime, browser } = setup();
+    browser.setResizeHandler(() => {
+      throw new Error('Storage failed');
+    });
+    expect(() => browser.resizeBy('fixed', 20)).toThrow('Storage failed');
+    expect(runtime.getSnapshot().dragging).toBe(false);
+    browser.setResizeHandler(undefined);
+    browser.resizeBy('fixed', 20);
+    expect(runtime.getColumnWidth('fixed')).toBe(240);
+  });
+
+  it.each(['left', 'right'] as const)('notifies only the active %s pin, including mirrored reset', (side) => {
+    const { runtime, browser, handler } = setup(true, 1);
+    runtime.configure(
+      [
+        { id: 'left', mode: 'fixed', width: 100, floor: 50, max: Infinity, resizable: true, pin: 'left' },
+        { id: 'auto', mode: 'auto', width: 0, floor: 0, max: Infinity },
+        { id: 'right', mode: 'fixed', width: 100, floor: 50, max: Infinity, resizable: true, pin: 'right' },
+      ],
+      ['row'],
+      [],
+      { rowHeight: 40, minRowHeight: 40, overscan: 0, virtual: true, sticky: true },
+    );
+    browser.resizeBy(side, side === 'left' ? 30 : -30);
+    expect(handler.mock.calls).toEqual([[side, 130]]);
+    browser.resetColumnWidth(side);
+    expect(handler.mock.calls).toEqual([
+      [side, 130],
+      [side, 100],
+    ]);
+  });
+
+  it('notifies only the manually resized auto column, not its compensation partner', () => {
+    const { runtime, browser, handler } = setup();
+    runtime.configure(
+      [
+        { id: 'first', mode: 'auto', width: 0, floor: 100, max: Infinity, resizable: true },
+        { id: 'last', mode: 'auto', width: 0, floor: 100, max: Infinity, resizable: true },
+      ],
+      ['row'],
+      [],
+      { rowHeight: 40, minRowHeight: 40, overscan: 0, virtual: true, sticky: true },
+    );
+    const before = runtime.getColumnWidth('first')!;
+    browser.resizeBy('first', 80);
+    expect(handler.mock.calls).toEqual([['first', before + 80]]);
+    browser.resetColumnWidth('first');
+    expect(handler.mock.calls).toEqual([
+      ['first', before + 80],
+      ['first', before],
+    ]);
+  });
+
+  it('reports the clamped final width, including a deferred content minimum', () => {
+    const { runtime, handler, down, pointer } = setup();
+    runtime.configure(
+      [
+        { id: 'fixed', mode: 'fixed', width: 200, floor: 100, max: 350, measureContent: true, resizable: true },
+        { id: 'auto', mode: 'auto', width: 0, floor: 0, max: Infinity },
+      ],
+      ['row'],
+      [],
+      { rowHeight: 40, minRowHeight: 40, overscan: 0, virtual: true, sticky: true },
+    );
+    down();
+    pointer('pointermove', 360);
+    runtime.commitContentWidths([{ columnId: 'fixed', width: 240 }], runtime.getSnapshot().contentEpoch);
+    expect(handler).not.toHaveBeenCalled();
+    pointer('pointerup', 360);
+    expect(handler.mock.calls).toEqual([['fixed', 240]]);
+    down();
+    pointer('pointermove', 4000);
+    pointer('pointerup', 4000);
+    expect(handler.mock.calls.at(-1)).toEqual(['fixed', 350]);
+    handler.mockClear();
+    down();
+    pointer('pointermove', 4000);
+    pointer('pointerup', 4000);
+    expect(handler).not.toHaveBeenCalled();
+  });
+  it('does not notify for automatic changes during a captured click without movement', () => {
+    const { runtime, handler, down, pointer } = setup();
+    runtime.configure(
+      [
+        { id: 'fixed', mode: 'fixed', width: 200, floor: 0, max: Infinity, measureContent: true, resizable: true },
+        { id: 'auto', mode: 'auto', width: 0, floor: 0, max: Infinity },
+      ],
+      ['row'],
+      [],
+      { rowHeight: 40, minRowHeight: 40, overscan: 0, virtual: true, sticky: true },
+    );
+    down();
+    runtime.commitContentWidths([{ columnId: 'fixed', width: 240 }], runtime.getSnapshot().contentEpoch);
+    pointer('pointerup');
+    expect(runtime.getColumnWidth('fixed')).toBe(240);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('reports an offscreen active column from full geometry rather than the virtual window', () => {
+    const { runtime, handler, down, pointer } = setup();
+    runtime.configure(
+      [
+        { id: 'fixed', mode: 'fixed', width: 200, floor: 0, max: Infinity, resizable: true },
+        ...Array.from({ length: 10 }, (_, index) => ({
+          id: `other:${index}`,
+          mode: 'fixed' as const,
+          width: 200,
+          floor: 0,
+          max: Infinity,
+        })),
+        { id: 'auto', mode: 'auto', width: 0, floor: 0, max: Infinity },
+      ],
+      ['row'],
+      [],
+      { rowHeight: 40, minRowHeight: 40, overscan: 0, virtual: true, sticky: true },
+    );
+    down();
+    pointer('pointermove', 440);
+    runtime.updateViewport({ ...runtime.getSnapshot().viewport, left: 1200 });
+    expect(runtime.getSnapshot().columns.some((column) => column.id === 'fixed')).toBe(false);
+    pointer('pointerup', 440);
+    expect(handler.mock.calls).toEqual([['fixed', 220]]);
+  });
+
+  it('returns logical width after scale rebasing without notifying during the gesture', () => {
+    const { browser, geometry, handler, down, pointer } = setup();
+    down();
+    pointer('pointermove', 440);
+    geometry.scale = 4;
+    browser.refresh();
+    pointer('pointermove', 480);
+    expect(handler).not.toHaveBeenCalled();
+    pointer('pointerup', 480);
+    expect(handler.mock.calls).toEqual([['fixed', 230]]);
+  });
+
+  it('does not notify a parent table when a nested resize handle is reset', () => {
+    const { browser, handler, root, surface } = setup();
+    root.dataset.table = 'geometry';
+    browser.resizeBy('fixed', 20);
+    handler.mockClear();
+    const nested = document.createElement('div');
+    nested.dataset.table = 'geometry';
+    const handle = document.createElement('button');
+    handle.dataset.resizeColumn = 'fixed';
+    nested.append(handle);
+    surface.append(nested);
+    handle.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('supports removing the optional callback during a gesture', () => {
+    const { browser, runtime, handler, down, pointer } = setup();
+    down();
+    pointer('pointermove', 440);
+    browser.setResizeHandler(undefined);
+    pointer('pointerup', 440);
+    expect(runtime.getColumnWidth('fixed')).toBe(220);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('finishes a released pointer discovered on move only once', () => {
+    const { handler, down, pointer } = setup();
+    down();
+    pointer('pointermove', 440);
+    pointer('pointermove', 440, 0);
+    pointer('pointerup', 440);
+    expect(handler.mock.calls).toEqual([['fixed', 220]]);
+  });
+
+  it('cancels a keyboard gesture on focus loss without notifying', () => {
+    const { runtime, browser, handler } = setup();
+    browser.resizeByKey('fixed', 20);
+    browser.finishKeyResize('fixed', true);
+    browser.finishKeyResize('fixed');
+    expect(runtime.getColumnWidth('fixed')).toBe(200);
+    expect(handler).not.toHaveBeenCalled();
+  });
+  it('reverses keyboard direction immediately after repeated keys reach a limit', () => {
+    const { runtime, browser, handler } = setup();
+    runtime.configure(
+      [
+        { id: 'fixed', mode: 'fixed', width: 200, floor: 100, max: 250, resizable: true },
+        { id: 'auto', mode: 'auto', width: 0, floor: 0, max: Infinity },
+      ],
+      ['row'],
+      [],
+      { rowHeight: 40, minRowHeight: 40, overscan: 0, virtual: true, sticky: true },
+    );
+    for (let index = 0; index < 20; index++) browser.resizeByKey('fixed', 10);
+    expect(runtime.getColumnWidth('fixed')).toBe(250);
+    browser.resizeByKey('fixed', -10);
+    expect(runtime.getColumnWidth('fixed')).toBe(240);
+    expect(handler).not.toHaveBeenCalled();
+    browser.finishKeyResize('fixed');
+    expect(handler.mock.calls).toEqual([['fixed', 240]]);
   });
 });

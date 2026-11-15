@@ -2,10 +2,12 @@ import { Axis } from '../core/geometry/axis';
 import { headerViewportTop } from '../core/geometry/header';
 import { ColumnRuntime } from './columns/column-runtime';
 import { RowMeasurements } from './measurements/row-measurements';
+import { VirtualWindow } from './rendering/virtual-window';
+import { RenderSnapshot } from './rendering/render-snapshot';
 import { visibleTreeIds } from '../core/tree/visible-tree-ids';
 
 import type { GeometryColumn } from '../core/layout/types';
-import type { TableMeasurement, TableRuntimeOptions, TableSnapshot, TableViewport } from './types';
+import type { TableMeasurement, TableRuntimeOptions, TableRowGeometry, TableSnapshot, TableViewport } from './types';
 
 const INITIAL_VIEWPORT: TableViewport = {
   container: 0,
@@ -32,6 +34,8 @@ export class TableRuntime {
   private treeBranches = new Set<string>();
   private rowIndex = new Map<string, number>();
   private rowAxis = new Axis([]);
+  private readonly rowWindow = new VirtualWindow();
+  private readonly rendering = new RenderSnapshot();
   private readonly measurements = new RowMeasurements();
   private readonly listeners = new Set<() => void>();
   private viewport = INITIAL_VIEWPORT;
@@ -41,6 +45,7 @@ export class TableRuntime {
   private headerHeight = 28;
   private emptyHeight = 0;
   private version = 0;
+  private geometryRevision = 0;
   private readonly expanded = new Set<string>();
   private snapshot: TableSnapshot = {
     columns: [],
@@ -68,6 +73,21 @@ export class TableRuntime {
   };
 
   getSnapshot = (): TableSnapshot => this.snapshot;
+
+  getRenderSnapshot = () => this.rendering.value;
+
+  getGeometryRevision(): number {
+    return this.geometryRevision;
+  }
+
+  getRowGeometry(rowId: string): TableRowGeometry | undefined {
+    const index = this.rowIndex.get(rowId);
+    return index === undefined ? undefined : this.rowGeometry(index);
+  }
+
+  getColumnGeometry(columnId: string) {
+    return this.columnRuntime.getColumnGeometry(columnId);
+  }
 
   configure(
     columns: GeometryColumn[],
@@ -120,12 +140,11 @@ export class TableRuntime {
     if (Object.keys(viewport).every((key) => Reflect.get(previous, key) === Reflect.get(viewport, key))) return;
     this.viewport = viewport;
     this.columnRuntime.updateViewport(viewport);
-    this.publish();
+    this.publish(true);
   }
 
   setNestedWidth(id: string, width: number | undefined): void {
-    this.columnRuntime.setNestedWidth(id, width);
-    this.publish();
+    if (this.columnRuntime.setNestedWidth(id, width)) this.publish();
   }
 
   setHeaderHeight(height: number): void {
@@ -137,6 +156,10 @@ export class TableRuntime {
   commitContentWidths(entries: readonly { columnId: string; width: number }[], epoch: number): void {
     this.columnRuntime.commitContentWidths(entries, epoch);
     this.publish();
+  }
+
+  getColumnWidth(columnId: string): number | undefined {
+    return this.columnRuntime.getWidth(columnId);
   }
 
   beginResize(columnId: string, x: number): boolean {
@@ -310,18 +333,38 @@ export class TableRuntime {
     return Math.max(0, this.viewport.scroll + cover - this.headerHeight);
   }
 
-  private publish(): void {
+  private rowGeometry(index: number): TableRowGeometry {
+    const id = this.rowIds[index];
+    return {
+      id,
+      index,
+      top: this.rowAxis.offset(index),
+      height: this.rowAxis.sizes[index],
+      contentHeight: this.rowAxis.sizes[index] - (this.expanded.has(id) ? this.measurements.expandedHeight(id) : 0),
+      expanded: this.expanded.has(id),
+      treeExpanded: this.treeBranches.has(id) ? this.isTreeExpanded(id) : undefined,
+    };
+  }
+
+  private publish(viewportOnly = false): void {
+    if (!viewportOnly || this.columnRevision !== this.columnRuntime.revision) this.geometryRevision++;
     if (this.columnRevision !== this.columnRuntime.revision) {
       this.columnRevision = this.columnRuntime.revision;
       this.version++;
       this.measurements.invalidate();
     }
     const { scroll, height } = this.viewport;
+    const headerHeight = this.rowIds.length ? this.headerHeight : 0;
     const bodyHeight = this.rowIds.length
       ? this.rowAxis.total
       : Math.max(this.options.rowHeight, this.options.minRowHeight, this.emptyHeight);
     const visibleRows = this.options.virtual
-      ? this.rowAxis.range(this.visibleTop(), scroll + height - this.headerHeight, this.options.overscan)
+      ? this.rowWindow.range(
+          this.rowAxis,
+          this.visibleTop(),
+          scroll + height - this.headerHeight,
+          this.options.overscan,
+        )
       : this.rowIds.map((_, index) => index);
     const expandedRows = [...this.expanded].flatMap((id) => {
       const index = this.rowIndex.get(id);
@@ -330,29 +373,17 @@ export class TableRuntime {
     const rows = [...new Set([...visibleRows, ...expandedRows])].sort((a, b) => a - b);
     this.snapshot = {
       columns: this.columnRuntime.visibleColumns(),
-      rows: rows.map((index) => ({
-        id: this.rowIds[index],
-        index,
-        top: this.rowAxis.offset(index),
-        height: this.rowAxis.sizes[index],
-        contentHeight:
-          this.rowAxis.sizes[index] -
-          (this.expanded.has(this.rowIds[index]) ? this.measurements.expandedHeight(this.rowIds[index]) : 0),
-        expanded: this.expanded.has(this.rowIds[index]),
-        treeExpanded: this.treeBranches.has(this.rowIds[index]) ? this.isTreeExpanded(this.rowIds[index]) : undefined,
-      })),
+      rows: rows.map((index) => this.rowGeometry(index)),
       widths: this.columnRuntime.widths,
       rowCount: this.rowIds.length,
       columnCount: this.columnRuntime.count,
       total: this.columnRuntime.total,
-      minimumWidth: this.columnRuntime.minimumWidth(),
+      minimumWidth: this.rowIds.length ? this.columnRuntime.minimumWidth() : 0,
       contentEpoch: this.columnRuntime.contentEpoch,
       bodyHeight,
-      headerHeight: this.headerHeight,
-      headerTop: this.options.sticky
-        ? headerViewportTop(scroll, 0, this.headerHeight, this.headerHeight + bodyHeight)
-        : -scroll,
-      headerFloating: this.options.sticky && scroll > 0 && scroll < this.headerHeight + bodyHeight,
+      headerHeight,
+      headerTop: this.options.sticky ? headerViewportTop(scroll, 0, headerHeight, headerHeight + bodyHeight) : -scroll,
+      headerFloating: this.rowIds.length > 0 && this.options.sticky && scroll > 0 && scroll < headerHeight + bodyHeight,
       viewport: this.viewport,
       version: this.version,
       dragging: this.columnRuntime.dragging,
@@ -360,6 +391,7 @@ export class TableRuntime {
       pinning: this.columnRuntime.pinning,
       regions: this.columnRuntime.regions,
     };
+    this.rendering.update(this.snapshot);
     this.listeners.forEach((listener) => listener());
   }
 }

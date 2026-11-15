@@ -16,3 +16,8 @@
     background: var(--background-surface-neutral);
   }
 }
+
+.selected,
+.selected:hover {
+  background: var(--background-surface-primary-subtle);
+}

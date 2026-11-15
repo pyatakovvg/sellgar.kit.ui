@@ -7,7 +7,7 @@ import { useTableRow } from '../../../context/row-context';
 import s from './default.module.scss';
 
 export const TreeTrigger: React.FC = () => {
-  const { browser } = useTableEnvironment();
+  const environment = useTableEnvironment();
   const row = useTableRow();
   return (
     <button
@@ -15,7 +15,7 @@ export const TreeTrigger: React.FC = () => {
       className={s.wrapper}
       aria-expanded={row.treeExpanded}
       aria-label={row.treeExpanded ? 'Свернуть строку' : 'Развернуть строку'}
-      onClick={() => browser.toggleTree(row.id)}
+      onClick={() => environment.toggleTree(row.id)}
     >
       {row.treeExpanded ? <ArrowDownSFillIcon /> : <ArrowRightSFillIcon />}
     </button>

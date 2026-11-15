@@ -50,6 +50,7 @@ export const HeadCell: React.FC<IProps> = (props) => {
     [s.sortable]: sortable,
     [s.interactive]: sortable || hasActions,
     [s['with-controls']]: sortable || hasActions,
+    [s.compensator]: props.column.compensator,
   });
   const controlsAtStart = align === 'right';
   const controlsClassName = cn(s.controls, { [s['controls--reversed']]: controlsAtStart });
@@ -76,6 +77,7 @@ export const HeadCell: React.FC<IProps> = (props) => {
         data-column-id={props.column.id}
         data-column-region={props.column.region}
         data-resize-edge={props.column.resizeEdge}
+        data-table-compensator={props.column.compensator || undefined}
       >
         {controlsAtStart && controls}
         <div className={s.label}>{environment.renderHeader(props.column.id)}</div>

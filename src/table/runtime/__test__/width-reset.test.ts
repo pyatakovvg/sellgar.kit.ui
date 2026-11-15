@@ -76,12 +76,12 @@ describe('Column width reset', () => {
     expect(runtime.getSnapshot().widths).toEqual([500, 500]);
   });
 
-  it('clamps reset to the reachable minimum instead of underfilling the container', () => {
+  it('restores the declaration and fills the remaining space with the compensator', () => {
     const runtime = create([fixed('price', 100), { ...auto('name'), max: 300 }], 400);
     resize(runtime, 'price', 400);
     runtime.updateViewport(viewport(800));
     runtime.resetColumnWidth('price');
-    expect(runtime.getSnapshot().widths).toEqual([500, 300]);
+    expect(runtime.getSnapshot().widths).toEqual([100, 300, 400]);
     expect(runtime.getSnapshot().total).toBe(800);
   });
 
@@ -108,10 +108,10 @@ describe('Column width reset', () => {
     expect(runtime.getSnapshot().columns.find((column) => column.id === 'left')?.width).toBe(225);
   });
 
-  it('respects disabled, last-column and active-drag permissions', () => {
+  it('respects disabled and active-drag permissions and allows the last column', () => {
     const runtime = create([{ ...fixed('disabled', 100), resizable: false }, auto('name'), fixed('last', 100)]);
     expect(runtime.resetColumnWidth('disabled')).toBe(false);
-    expect(runtime.resetColumnWidth('last')).toBe(false);
+    expect(runtime.resetColumnWidth('last')).toBe(true);
     expect(runtime.resetColumnWidth('missing')).toBe(false);
     runtime.beginResize('name', 0);
     runtime.moveResize(100);

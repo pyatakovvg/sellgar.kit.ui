@@ -81,7 +81,7 @@ describe('Last data row visibility', () => {
     },
   );
 
-  it('requests a fresh intersection after scrolling while below the vertical threshold, then stops after delivery', () => {
+  it('refreshes intersections after delivery without repeating a visible row', () => {
     const observer = new LastRowObserver();
     const row = document.createElement('div');
     const callback = vi.fn();
@@ -92,25 +92,71 @@ describe('Last data row visibility', () => {
     expect(observers[0].observe).toHaveBeenCalledTimes(2);
     observers[0].notify(row, true, 0.5, 0.1);
     observer.refresh();
+    observers[0].notify(row, true, 0.5, 0.1);
     expect(callback).toHaveBeenCalledTimes(1);
-    expect(observers[0].observe).toHaveBeenCalledTimes(2);
+    expect(observers[0].observe).toHaveBeenCalledTimes(3);
     observer.clear();
     observer.refresh();
-    expect(observers[0].observe).toHaveBeenCalledTimes(2);
+    expect(observers[0].observe).toHaveBeenCalledTimes(3);
   });
 
-  it('does not repeat a loaded last row across virtual unmounts but notifies the appended row', () => {
+  it('does not repeat a visible last row across virtual remounts but notifies the appended row', () => {
     const observer = new LastRowObserver();
     const callback = vi.fn();
     const cell = document.createElement('div');
-    observer.observe(cell, 'first-last', null, callback, {});
+    const release = observer.observe(cell, 'first-last', null, callback, {});
     observers[0].notify(cell);
-    observer.clear();
+    release();
     const remounted = document.createElement('div');
     observer.observe(remounted, 'first-last', null, callback, {});
     observers[1].notify(remounted);
     observer.observe(remounted, 'new-last', null, callback, {});
     observers[2].notify(remounted);
+    expect(callback).toHaveBeenCalledTimes(2);
+  });
+
+  it('notifies on each entry, including after falling below the vertical threshold', () => {
+    const observer = new LastRowObserver();
+    const row = document.createElement('div');
+    const callback = vi.fn();
+    observer.observe(row, 'last', null, callback, { threshold: 0.5 });
+    observers[0].notify(row);
+    observers[0].notify(row);
+    expect(callback).toHaveBeenCalledTimes(1);
+    observers[0].notify(row, false);
+    observers[0].notify(row);
+    expect(callback).toHaveBeenCalledTimes(2);
+    observers[0].notify(row, true, 0.2);
+    observers[0].notify(row, true, 0.5);
+    expect(callback).toHaveBeenCalledTimes(3);
+  });
+
+  it('rearms when fast scrolling removes the row before IO reports its exit', () => {
+    const observer = new LastRowObserver();
+    const row = document.createElement('div');
+    const callback = vi.fn();
+    const release = observer.observe(row, 'last', null, callback, {});
+    observers[0].notify(row);
+    observer.refresh([{ id: 'last' }]);
+    observers[0].notify(row);
+    expect(callback).toHaveBeenCalledTimes(1);
+    release();
+    observer.refresh([{ id: 'earlier' }]);
+    const remounted = document.createElement('div');
+    observer.observe(remounted, 'last', null, callback, {});
+    observers[1].notify(remounted);
+    expect(callback).toHaveBeenCalledTimes(2);
+  });
+
+  it('clears visibility when observation is explicitly disabled and enabled again', () => {
+    const observer = new LastRowObserver();
+    const row = document.createElement('div');
+    const callback = vi.fn();
+    observer.observe(row, 'last', null, callback, {});
+    observers[0].notify(row);
+    observer.clear();
+    observer.observe(row, 'last', null, callback, {});
+    observers[1].notify(row);
     expect(callback).toHaveBeenCalledTimes(2);
   });
 

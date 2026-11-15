@@ -46,7 +46,7 @@ describe('Table column geometry', () => {
     const returned = resize(expanded.columns, expanded.layout, 1000, 0, 600);
     expect(returned.columns[0].manual).toBeUndefined();
     expect(resizeDirections(returned.columns, returned.layout, 1000, 0)).toEqual({ left: false, right: true });
-    expect(resizeDirections(returned.columns, returned.layout, 1000, 1)).toEqual({ left: false, right: false });
+    expect(resizeDirections(returned.columns, returned.layout, 1000, 1)).toEqual({ left: false, right: true });
   });
 
   it('stops shrinking when right-side capacity and removable overflow are exhausted', () => {

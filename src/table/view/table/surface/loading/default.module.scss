@@ -1,0 +1,22 @@
+.wrapper {
+  position: fixed;
+  z-index: 1;
+  overflow: hidden;
+  clip-path: var(--table-header-clip, inset(0));
+  pointer-events: none;
+}
+
+.track {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: var(--numbers-4);
+  display: flex;
+  opacity: 0;
+  transition: opacity var(--measurements-transition) ease-out;
+
+  &[data-visible='true'] {
+    opacity: 1;
+    transition-duration: calc(var(--measurements-transition) * 0.5);
+  }
+}

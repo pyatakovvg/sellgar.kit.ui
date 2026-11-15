@@ -1,16 +1,20 @@
 import { Axis } from '../../core/geometry/axis';
+import { TABLE_COMPENSATOR_COLUMN_ID } from '../../core/column';
+import { VirtualWindow } from '../rendering/virtual-window';
 import { projectColumns, tableLayout, tablePinResizeBounds } from '../../core/geometry/table-layout';
 import {
   automatic,
+  automaticMinimum,
   clamp,
   resize,
   resizeBounds,
   resizeDirections,
+  resizeMinimum,
   sharedLayout,
 } from '../../core/layout/column-layout';
 import { initializePins, PinBudgetError, pinLayout, resizePin } from '../../core/pinning';
 
-import type { TableLayout } from '../../core/geometry/types';
+import type { ProjectedColumnGeometry, TableLayout } from '../../core/geometry/types';
 import type { GeometryColumn, Layout, LayoutAnchor } from '../../core/layout/types';
 import type { PinColumn, PinningViewport } from '../../core/pinning';
 import type { TableColumnGeometry, TableRuntimeOptions, TableViewport } from '../types';
@@ -55,10 +59,11 @@ export class ColumnRuntime {
   private options: TableRuntimeOptions;
   private schema = '';
   private axis = new Axis([]);
+  private readonly window = new VirtualWindow();
+  private projected: readonly ProjectedColumnGeometry[] = [];
   private failure?: string;
   private revisionValue = 0;
   private readonly contentWidths = new Map<string, number>();
-  private readonly referenceWidths = new Map<string, number>();
   private contentEpochValue = 0;
   private contentResetPending = false;
 
@@ -67,9 +72,22 @@ export class ColumnRuntime {
     this.options = options;
   }
 
-  configure(columns: GeometryColumn[], options: TableRuntimeOptions): void {
+  configure(input: GeometryColumn[], options: TableRuntimeOptions): void {
+    const columns: GeometryColumn[] = [
+      ...input,
+      {
+        id: TABLE_COMPENSATOR_COLUMN_ID,
+        mode: 'auto',
+        width: 0,
+        floor: 0,
+        max: Infinity,
+        resizable: false,
+        measureContent: false,
+        compensator: true,
+      },
+    ];
     const schema = JSON.stringify(
-      columns.map(({ id, mode, width, floor, max, pin, measureContent }) => [
+      columns.map(({ id, mode, width, floor, max, pin, measureContent, resizeFloor }) => [
         id,
         mode,
         width,
@@ -77,6 +95,7 @@ export class ColumnRuntime {
         String(max),
         pin,
         measureContent,
+        resizeFloor,
       ]),
     );
     const changed = schema !== this.schema || (options.pinning?.reserve ?? DEFAULT_PIN_RESERVE) !== this.reserve;
@@ -86,6 +105,7 @@ export class ColumnRuntime {
       this.operation = undefined;
       const old = new Map(this.columns.map((column) => [column.id, column]));
       const retainedPins = new Map<string, PinColumn>();
+      const retainedMeasurements = new Set<string>();
       this.columns = columns.map((column) => {
         const previous = this.declarations.get(column.id);
         const sameSize =
@@ -93,7 +113,10 @@ export class ColumnRuntime {
           previous.mode === column.mode &&
           previous.width === column.width &&
           previous.floor === column.floor &&
-          previous.max === column.max;
+          previous.max === column.max &&
+          previous.measureContent === column.measureContent &&
+          previous.resizeFloor === column.resizeFloor;
+        if (sameSize) retainedMeasurements.add(column.id);
         const pin = this.pins.get(column.id);
         if (sameSize && pin && pin.side === column.pin) retainedPins.set(column.id, pin);
         return sameSize
@@ -103,8 +126,7 @@ export class ColumnRuntime {
       this.pins = retainedPins;
       for (const id of this.initialPinWidths.keys()) if (!retainedPins.has(id)) this.initialPinWidths.delete(id);
       this.declarations = new Map(columns.map((column) => [column.id, { ...column }]));
-      this.contentWidths.clear();
-      this.referenceWidths.clear();
+      for (const id of this.contentWidths.keys()) if (!retainedMeasurements.has(id)) this.contentWidths.delete(id);
       this.contentResetPending = true;
       this.contentEpochValue++;
       this.applyContentFloors();
@@ -136,14 +158,15 @@ export class ColumnRuntime {
       this.reflow();
   }
 
-  setNestedWidth(id: string, width: number | undefined): void {
+  setNestedWidth(id: string, width: number | undefined): boolean {
     if (width !== undefined && (!Number.isFinite(width) || width < 0))
       throw new RangeError('Nested table width must be finite and non-negative.');
-    if (this.nestedWidths.get(id) === width) return;
+    if (this.nestedWidths.get(id) === width) return false;
     const before = [this.layoutContainer(), this.resizeContainer()];
     if (width === undefined) this.nestedWidths.delete(id);
     else this.nestedWidths.set(id, width);
     if (!this.operation || before[0] !== this.layoutContainer() || before[1] !== this.resizeContainer()) this.reflow();
+    return true;
   }
 
   get dragging(): boolean {
@@ -180,17 +203,20 @@ export class ColumnRuntime {
     for (const column of this.columns) {
       const declared = this.declarations.get(column.id)!;
       const measured = this.contentWidths.get(column.id);
-      const reference = this.referenceWidths.get(column.id);
       const floor =
-        declared.measureContent && measured !== undefined && reference !== undefined
-          ? Math.max(declared.floor, Math.min(measured, reference, declared.max))
+        declared.measureContent && measured !== undefined
+          ? Math.max(declared.floor, Math.min(measured, declared.max))
           : declared.floor;
       if (!this.contentResetPending && measured === undefined) continue;
       if (Math.abs(column.floor - floor) < 1e-7) continue;
       column.floor = floor;
       if (column.mode === 'fixed') column.width = Math.max(column.width, floor);
       const pin = this.pins.get(column.id);
-      if (pin) this.pins.set(column.id, { ...pin, minWidth: floor, width: Math.max(pin.width, floor) });
+      if (pin) {
+        const minimum = resizeMinimum(column);
+        const width = column.manual === undefined ? Math.max(pin.width, floor) : Math.max(pin.width, minimum);
+        this.pins.set(column.id, { ...pin, minWidth: minimum, width });
+      }
       changed = true;
     }
     this.contentResetPending = false;
@@ -202,7 +228,7 @@ export class ColumnRuntime {
   }
 
   get count(): number {
-    return this.columns.length;
+    return this.widths.length;
   }
 
   get total(): number {
@@ -210,7 +236,18 @@ export class ColumnRuntime {
   }
 
   get widths(): readonly number[] {
-    return this.geometry?.columns.map((column) => column.width) ?? this.layout.widths;
+    return this.geometry
+      ? this.geometry.columns
+          .filter((column) => column.id !== TABLE_COMPENSATOR_COLUMN_ID || column.width > 1e-7)
+          .map((column) => column.width)
+      : this.layout.widths.filter((width, index) => !this.columns[index].compensator || width > 1e-7);
+  }
+
+  getWidth(columnId: string): number | undefined {
+    if (this.failure) return undefined;
+    if (this.geometry) return this.geometry.columns.find((column) => column.id === columnId)?.width;
+    const index = this.columns.findIndex((column) => column.id === columnId);
+    return index < 0 ? undefined : this.layout.widths[index];
   }
 
   get regions(): TableLayout['regions'] | undefined {
@@ -229,7 +266,8 @@ export class ColumnRuntime {
   minimumWidth(): number {
     const columns = this.workingColumns();
     let own = columns.reduce(
-      (sum, column) => sum + (column.mode === 'fixed' ? column.width : Math.max(column.floor, column.manual ?? 0)),
+      (sum, column) =>
+        sum + (column.mode === 'fixed' ? column.width : Math.max(automaticMinimum(column), column.manual ?? 0)),
       0,
     );
     if (
@@ -246,7 +284,8 @@ export class ColumnRuntime {
     if (this.failure) return [];
     const geometry = this.geometry;
     const visible = new Set(
-      this.axis.range(
+      this.window.range(
+        this.axis,
         Math.max(0, this.viewport.left + (geometry?.pins.leftWidth ?? 0)),
         this.viewport.left + this.viewport.width - (geometry?.pins.rightWidth ?? 0),
         1,
@@ -260,39 +299,60 @@ export class ColumnRuntime {
           region: 'center' as const,
           width: this.layout.widths[index],
           offset: this.axis.offset(index),
+          regionOffset: this.axis.offset(index),
           displayOffset: this.axis.offset(index) - this.viewport.left,
           shift: 0,
           clipLeft: 0,
           clipRight: 0,
         }));
+    this.projected = projected.filter((column) => column.id !== TABLE_COMPENSATOR_COLUMN_ID || column.width > 1e-7);
     const working = this.workingColumns();
     const centerIndices = new Map(working.map((column, index) => [column.id, index]));
-    return projected.flatMap((column, index) => {
+    return this.projected.flatMap((column, index) => {
       if (this.options.virtual && column.region === 'center' && !visible.has(index)) return [];
-      const source = this.columns[column.sourceIndex];
-      const centerIndex = centerIndices.get(column.id) ?? -1;
-      const isPin = column.region !== 'center';
-      const resizeEdge = column.region === 'right' ? 'left' : 'right';
-      const bounds = isPin ? this.pinBounds(column.id) : undefined;
-      const canShrink = bounds ? column.width > bounds.min + 1e-7 : false;
-      const canGrow = bounds ? column.width < bounds.max - 1e-7 : false;
-      return [
-        {
-          ...column,
-          index,
-          resizeEdge,
-          ...(isPin
-            ? {
-                left: resizeEdge === 'left' ? canGrow : canShrink,
-                right: resizeEdge === 'left' ? canShrink : canGrow,
-                resizeBounds: bounds,
-              }
-            : resizeDirections(working, this.layout, this.resizeContainer(), centerIndex)),
-          resizable: source.resizable === true && (isPin || centerIndex < working.length - 1),
-          measureContent: source.measureContent === true,
-        },
-      ];
+      return [this.describeColumn(column, index, working, centerIndices)];
     });
+  }
+
+  getColumnGeometry(columnId: string): TableColumnGeometry | undefined {
+    if (this.failure) return undefined;
+    const index = this.projected.findIndex((column) => column.id === columnId);
+    if (index < 0) return undefined;
+    const working = this.workingColumns();
+    return this.describeColumn(
+      this.projected[index],
+      index,
+      working,
+      new Map(working.map((column, index) => [column.id, index])),
+    );
+  }
+
+  private describeColumn(
+    column: ProjectedColumnGeometry,
+    index: number,
+    working: GeometryColumn[],
+    centerIndices: ReadonlyMap<string, number>,
+  ): TableColumnGeometry {
+    const source = this.columns[column.sourceIndex];
+    const centerIndex = centerIndices.get(column.id) ?? -1;
+    const isPin = column.region !== 'center';
+    const resizeEdge = column.region === 'right' ? 'left' : 'right';
+    const bounds = isPin ? this.pinBounds(column.id) : undefined;
+    const canShrink = bounds ? column.width > bounds.min + 1e-7 : false;
+    const canGrow = bounds ? column.width < bounds.max - 1e-7 : false;
+    const directions = isPin
+      ? { left: resizeEdge === 'left' ? canGrow : canShrink, right: resizeEdge === 'left' ? canShrink : canGrow }
+      : resizeDirections(working, this.layout, this.resizeContainer(), centerIndex);
+    return {
+      ...column,
+      index,
+      resizeEdge,
+      ...directions,
+      ...(isPin ? { resizeBounds: bounds } : {}),
+      resizable: source.resizable === true,
+      compensator: source.compensator === true,
+      measureContent: source.measureContent === true,
+    };
   }
 
   beginResize(id: string, x: number): boolean {
@@ -305,19 +365,23 @@ export class ColumnRuntime {
     if (!source || source.resizable !== true) return false;
     const pin = this.geometry ? this.pins.get(id) : undefined;
     if (pin) {
-      const target = this.initialPinWidths.get(id);
-      if (target === undefined) return false;
+      const initial = this.initialPinWidths.get(id);
+      if (initial === undefined) return false;
+      const target = source.mode === 'auto' ? Math.max(initial, source.floor) : initial;
       const edge = pin.side === 'right' ? 'left' : 'right';
       if (!this.beginPinResize(id, 0, edge)) return false;
       this.moveResize((target - pin.width) * (edge === 'left' ? -1 : 1));
       this.finishResize();
+      delete source.manual;
       return true;
     }
     const working = this.workingColumns();
     const index = working.findIndex((column) => column.id === id);
-    if (index < 0 || index === working.length - 1) return false;
+    if (index < 0) return false;
     if (source.mode === 'auto') {
       delete source.manual;
+      if (this.geometry) this.centerAnchor = undefined;
+      else this.anchor = undefined;
       this.reflow();
       return true;
     }
@@ -370,6 +434,8 @@ export class ColumnRuntime {
       this.pins = new Map(next.columns.map((column) => [column.id, column]));
       try {
         this.calculate();
+        const source = this.columns.find((column) => column.id === operation.id)!;
+        if (source.resizeFloor !== undefined) source.manual = this.pins.get(operation.id)!.width;
       } catch (error) {
         // Reject a request that cannot produce a valid center; retain the last valid geometry.
         this.pins = previous;
@@ -398,7 +464,11 @@ export class ColumnRuntime {
     this.operation = undefined;
     const column = this.columns.find((item) => item.id === operation.id)!;
     const before = operation.rollback.columns.find((item) => item.id === operation.id)!;
-    if (operation.kind === 'center' && column.mode === 'fixed' && column.width !== before.width) {
+    if (
+      operation.kind === 'center' &&
+      ((column.mode === 'fixed' && column.width !== before.width) ||
+        this.layout.base.some((width, index) => Math.abs(width - operation.rollback.layout.base[index]) > 1e-7))
+    ) {
       const anchor = { container: this.resizeContainer(), bases: this.layout.base.slice() };
       if (this.geometry) this.centerAnchor = anchor;
       else {
@@ -524,8 +594,6 @@ export class ColumnRuntime {
     const reserve = this.reserve;
     if (!Number.isFinite(reserve) || reserve < 0)
       throw new RangeError('Pinned columns require a finite non-negative center reserve.');
-    if (!this.columns.some((column) => !column.pin && column.mode === 'auto'))
-      throw new Error('Pinned table geometry must retain an automatic center column.');
     if (this.viewport.width === 0 || this.viewport.width < reserve) return false;
     const viewport = this.pinViewport();
     try {
@@ -540,7 +608,7 @@ export class ColumnRuntime {
           missing.map((column) => ({
             id: column.id,
             side: column.pin!,
-            minWidth: column.floor,
+            minWidth: resizeMinimum(column),
             maxWidth: column.max,
             source:
               column.mode === 'auto'
@@ -591,18 +659,6 @@ export class ColumnRuntime {
       );
     }
     this.failure = undefined;
-    if (this.viewport.width > 0) {
-      const working = this.workingColumns();
-      for (const column of this.columns) {
-        if (!column.measureContent || this.referenceWidths.has(column.id)) continue;
-        const index = working.findIndex((item) => item.id === column.id);
-        const reference =
-          column.mode === 'fixed'
-            ? this.declarations.get(column.id)!.width
-            : (this.pins.get(column.id)?.width ?? this.layout.base[index]);
-        if (reference > 0) this.referenceWidths.set(column.id, reference);
-      }
-    }
   }
 
   private applyCenter(layout: Layout): void {
@@ -614,13 +670,13 @@ export class ColumnRuntime {
   }
 
   private install(layout: Layout): void {
-    const widths = this.geometry?.columns.map((column) => column.width) ?? layout.widths;
+    this.layout = layout;
+    const widths = this.widths;
     if (
       widths.length !== this.axis.sizes.length ||
       widths.some((width, index) => Math.abs(width - this.axis.sizes[index]) > 1e-7)
     )
       this.revisionValue++;
-    this.layout = layout;
     this.axis = new Axis(widths);
   }
 }

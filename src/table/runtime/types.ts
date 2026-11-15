@@ -36,6 +36,7 @@ export interface TableColumnGeometry {
   readonly right: boolean;
   readonly resizable: boolean;
   readonly measureContent?: boolean;
+  readonly compensator?: boolean;
   readonly resizeEdge: 'left' | 'right';
   readonly sourceIndex: number;
   readonly region: ColumnRegion;
@@ -56,6 +57,16 @@ export interface TableRowGeometry {
   readonly contentHeight: number;
   readonly expanded: boolean;
   readonly treeExpanded?: boolean;
+}
+
+export interface TableRenderSnapshot {
+  readonly rows: readonly TableRowGeometry[];
+  readonly columns: readonly TableColumnGeometry[];
+  readonly rowCount: number;
+  readonly columnCount: number;
+  readonly error?: string;
+  readonly scale: number;
+  readonly scaleY?: number;
 }
 
 export interface TableSnapshot {

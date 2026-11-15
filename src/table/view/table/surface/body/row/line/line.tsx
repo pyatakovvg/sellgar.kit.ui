@@ -11,10 +11,15 @@ export const Line: React.FC = () => {
   const environment = useTableEnvironment();
   const state = useTableSnapshot();
   const row = useTableRow();
+  const selected = React.useSyncExternalStore(
+    environment.selection.subscribe,
+    () => environment.selection.getRowStatus(row.id).selected,
+    () => environment.selection.getRowStatus(row.id).selected,
+  );
   const root = React.useRef<HTMLDivElement>(null);
   const latestEnvironment = React.useRef(environment);
   const timer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const wrapperClassName = cn(s.wrapper, { [s.interactive]: environment.interactive });
+  const wrapperClassName = cn(s.wrapper, { [s.interactive]: environment.interactive, [s.selected]: selected });
 
   const cancelClick = () => {
     clearTimeout(timer.current);
@@ -50,8 +55,8 @@ export const Line: React.FC = () => {
     lastRowEnabled,
     row.id,
     row.contentHeight,
-    state.viewport.scale,
-    state.viewport.scaleY,
+    state.scale,
+    state.scaleY,
     rootMargin,
     threshold,
   ]);
@@ -96,6 +101,7 @@ export const Line: React.FC = () => {
       ref={root}
       className={wrapperClassName}
       role="row"
+      aria-selected={environment.selection.getSnapshot().enabled ? selected : undefined}
       tabIndex={environment.primaryAction ? 0 : undefined}
       onKeyDown={handleKeyDown}
       aria-rowindex={row.index + 2}

@@ -22,7 +22,7 @@ export const Header: React.FC<IProps> = (props) => {
     [environment.browser, mount],
   );
 
-  React.useLayoutEffect(() => environment.browser.present());
+  React.useLayoutEffect(() => environment.browser.present(), [environment.browser, mount]);
 
   return (
     <div ref={slot} data-table-header-slot="true">

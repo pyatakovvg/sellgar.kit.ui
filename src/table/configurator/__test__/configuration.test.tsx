@@ -34,7 +34,26 @@ const context: TableCellRenderScope<Product> = {
 const automaticColumn = <Column key={'automatic'}>{({ Cell }) => <Cell />}</Column>;
 
 describe('Table configuration compiler', () => {
-  it.each([0, 24])('disables content measurement when minWidth is explicitly %s', (minimum) => {
+  it('accepts an optional onResize callback without passing it into geometry or calling it during compilation', () => {
+    const onResize = vi.fn<(width: number) => void>();
+    const configuration = compileTableConfiguration({
+      data,
+      children: (
+        <>
+          <Column width="var(--numbers-100)" resizable onResize={onResize}>
+            <Cell />
+          </Column>
+          {automaticColumn}
+        </>
+      ),
+    });
+    expect(configuration.columns[0].onResize).toBe(onResize);
+    expect(configuration.columns[1].onResize).toBeUndefined();
+    expect(createGeometryColumns(configuration.columns)[0]).not.toHaveProperty('onResize');
+    expect(onResize).not.toHaveBeenCalled();
+  });
+
+  it.each([0, 24])('keeps content measurement when minWidth is explicitly %s', (minimum) => {
     const configuration = compileTableConfiguration({
       data,
       children: (
@@ -44,7 +63,7 @@ describe('Table configuration compiler', () => {
       ),
     });
     expect(createGeometryColumns(configuration.columns)[0]).toMatchObject({ floor: minimum });
-    expect(createGeometryColumns(configuration.columns)[0].measureContent).not.toBe(true);
+    expect(createGeometryColumns(configuration.columns)[0].measureContent).toBe(true);
     const automatic = compileTableConfiguration({ data, children: automaticColumn });
     expect(createGeometryColumns(automatic.columns)[0].measureContent).toBe(true);
   });
@@ -63,7 +82,7 @@ describe('Table configuration compiler', () => {
         </Table.Column>
       ),
     });
-    expect(configuration.renderers.columns.get('column:0')?.cell(context)).toBe(product.name);
+    expect(configuration.renderers.columns.get(configuration.columns[0].columnId)?.cell(context)).toBe(product.name);
     expect(Table.Cell).toBe(Cell);
     expect(Table.Empty).toBe(Empty);
     expect(Table.Expand).toBe(Expand);
@@ -121,7 +140,7 @@ describe('Table configuration compiler', () => {
     expect(configuration.columns[0].width).toBe(expected);
   });
 
-  it('checks min/max and the automatic column invariant after resolving tokens', () => {
+  it('accepts fixed-only declarations and checks min/max after resolving tokens', () => {
     expect(() =>
       compileTableConfiguration({
         data,
@@ -131,7 +150,7 @@ describe('Table configuration compiler', () => {
           </Column>
         ),
       }),
-    ).toThrow(/automatic/);
+    ).not.toThrow();
     expect(() =>
       compileTableConfiguration({
         data,
@@ -257,7 +276,7 @@ describe('Table configuration compiler', () => {
 
     expect(cellRender).not.toHaveBeenCalled();
     expect(expandedRender).not.toHaveBeenCalled();
-    expect(configuration.renderers.columns.get('column:0')?.cell(context)).toBe(product.name);
+    expect(configuration.renderers.columns.get(configuration.columns[0].columnId)?.cell(context)).toBe(product.name);
     expect(configuration.renderers.expanded?.(context)).toBe(1);
     expect(configuration.surface).toBe('embedded');
     expect(configuration.row?.handlers?.doubleClick).toBeTypeOf('function');
@@ -387,7 +406,7 @@ describe('Table configuration compiler', () => {
       ),
     });
 
-    const action = configuration.renderers.columns.get('column:0')?.actions[0];
+    const action = configuration.renderers.columns.get(configuration.columns[0].columnId)?.actions[0];
 
     expect(actionRender).not.toHaveBeenCalled();
     expect(onAction).not.toHaveBeenCalled();
@@ -468,25 +487,6 @@ describe('Table configuration compiler', () => {
     { children: [automaticColumn, <Expand />, <Expand />], message: 'duplicate Expand' },
     {
       children: (
-        <Column width={100}>
-          <Cell />
-        </Column>
-      ),
-      message: 'automatic visible Column',
-    },
-    {
-      children: [
-        <Column key={'fixed'} width={100}>
-          <Cell />
-        </Column>,
-        <Column key={'hidden-auto'} visible={false}>
-          <Cell />
-        </Column>,
-      ],
-      message: 'automatic visible Column',
-    },
-    {
-      children: (
         <Column visible={false}>
           <Cell />
         </Column>
@@ -555,6 +555,14 @@ describe('Table configuration compiler', () => {
 
 // These functions are checked by tsc; they are deliberately never executed.
 const verifyTypeErrors = (): void => {
+  compileTableConfiguration({
+    data: {
+      nodes: [product],
+      // @ts-expect-error Table owns row identity; callers cannot override it.
+      getRowId: (row: Product) => row.uuid,
+    },
+  });
+
   compileTableConfiguration({
     data,
     children: ({ Column }) => (

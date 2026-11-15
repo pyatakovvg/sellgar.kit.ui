@@ -61,6 +61,7 @@ export interface TableVirtualizationConfig {
 export type TableLayoutVirtualization = boolean | TableVirtualizationConfig;
 
 export interface TableLayoutConfig {
+  /** Defaults to external; internal scrolling must be enabled explicitly. */
   scroll?: TableLayoutScroll;
   stickyHeader?: boolean | TableStickyHeaderConfig;
   virtualization?: TableLayoutVirtualization;
@@ -70,6 +71,8 @@ export interface TableLayoutConfig {
 
 export interface TableProps<T extends object> {
   data: TableData<T>;
+  /** Shows loading progress while true and completes the indicator when false. */
+  loading?: boolean;
   select?: TableSelectConfig<NoInfer<T>>;
   tree?: TableTreeConfig<NoInfer<T>>;
   row?: TableRowConfig<NoInfer<T>>;

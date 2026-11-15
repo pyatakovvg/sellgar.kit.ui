@@ -7,12 +7,15 @@ import type { ColumnSortSnapshot } from '../../../runtime/columns/column-sort';
 import type { TableLastRowTriggerConfig } from '../../../configurator/table-props';
 import type { TableBrowser } from '../../../runtime/browser/table-browser';
 import type { TableRuntime } from '../../../runtime/table-runtime';
+import type { SelectionRuntime } from '../../../runtime/selection';
 import type { TableColumnGeometry, TableRowGeometry } from '../../../runtime/types';
 
 export interface TableEnvironment {
   readonly runtime: TableRuntime;
+  readonly selection: SelectionRuntime;
   readonly browser: TableBrowser;
   readonly parentBrowser?: TableBrowser;
+  readonly loading?: boolean;
   readonly scroll: 'internal' | 'external';
   readonly stickyTop: string;
   readonly className?: string;
@@ -24,6 +27,7 @@ export interface TableEnvironment {
   readonly lastRowTrigger?: Omit<TableLastRowTriggerConfig<unknown>, 'onLastRowVisible'>;
   sortable(columnId: string): boolean;
   toggleSort(columnId: string): void;
+  toggleTree(rowId: string): void;
   lastRowVisible(rowId: string): void;
   readonly headerId: string;
   readonly size: 'sm' | 'md' | 'lg';
@@ -55,5 +59,5 @@ export const useTableEnvironment = (): TableEnvironment => {
 
 export const useTableSnapshot = () => {
   const { runtime } = useTableEnvironment();
-  return React.useSyncExternalStore(runtime.subscribe, runtime.getSnapshot, runtime.getSnapshot);
+  return React.useSyncExternalStore(runtime.subscribe, runtime.getRenderSnapshot, runtime.getRenderSnapshot);
 };

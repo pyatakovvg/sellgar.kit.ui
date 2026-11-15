@@ -3,11 +3,12 @@ interface LastRowOptions {
   readonly threshold?: number;
 }
 
-/** Наблюдает видимость строки по вертикали и сохраняет уведомление через виртуальные перемонтирования. */
+/** Наблюдает видимость строки по вертикали и сохраняет видимость через виртуальные перемонтирования. */
 export class LastRowObserver {
   private release?: () => void;
   private refreshTarget?: () => void;
-  private lastTriggeredId?: string;
+  private targetId?: string;
+  private visible = false;
 
   observe(
     element: HTMLElement,
@@ -23,25 +24,23 @@ export class LastRowObserver {
       (!Number.isFinite(options.threshold) || options.threshold < 0 || options.threshold > 1)
     )
       throw new RangeError('Table lastRowTrigger.threshold must be between 0 and 1.');
-    this.clear();
+    this.release?.();
+    if (this.targetId !== id) this.visible = false;
+    this.targetId = id;
     if (typeof IntersectionObserver === 'undefined') return () => {};
     let active = true;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (
-          !active ||
-          !entries.some(
-            (entry) =>
-              entry.target === element &&
-              entry.isIntersecting &&
-              entry.boundingClientRect.height > 0 &&
-              entry.intersectionRect.height / entry.boundingClientRect.height >= (options.threshold ?? 0),
-          )
-        )
-          return;
-        if (this.lastTriggeredId === id) return;
-        this.lastTriggeredId = id;
-        onVisible();
+        for (const entry of entries) {
+          if (!active || entry.target !== element) continue;
+          const visible =
+            entry.isIntersecting &&
+            entry.boundingClientRect.height > 0 &&
+            entry.intersectionRect.height / entry.boundingClientRect.height >= (options.threshold ?? 0);
+          const entered = visible && !this.visible;
+          this.visible = visible;
+          if (entered) onVisible();
+        }
       },
       {
         root,
@@ -51,7 +50,7 @@ export class LastRowObserver {
     );
     observer.observe(element);
     this.refreshTarget = () => {
-      if (!active || this.lastTriggeredId === id) return;
+      if (!active) return;
       // IO threshold считает площадь: при горизонтальном clipping он не отражает
       // долю высоты строки. Native scroll/resize запрашивает свежую запись IO.
       observer.unobserve(element);
@@ -69,11 +68,14 @@ export class LastRowObserver {
     return release;
   }
 
-  refresh(): void {
+  refresh(renderedRows?: readonly { readonly id: string }[]): void {
+    if (renderedRows && !renderedRows.some((row) => row.id === this.targetId)) this.visible = false;
     this.refreshTarget?.();
   }
 
   clear(): void {
     this.release?.();
+    this.targetId = undefined;
+    this.visible = false;
   }
 }

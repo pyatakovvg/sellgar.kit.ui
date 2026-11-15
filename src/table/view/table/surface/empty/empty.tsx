@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { useTableEnvironment } from '../../../context/table-context';
+import { useTableEnvironment } from '../../context/table-context';
 
 import s from './default.module.scss';
 
@@ -14,7 +14,7 @@ export const Empty: React.FC = () => {
   );
 
   return (
-    <div ref={root} className={s.wrapper}>
+    <div ref={root} className={s.wrapper} data-table-empty="true">
       {environment.renderEmpty()}
     </div>
   );

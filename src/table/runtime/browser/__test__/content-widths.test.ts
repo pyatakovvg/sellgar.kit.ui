@@ -117,4 +117,37 @@ describe('Mounted content width reader', () => {
     release();
     expect(widths.measure(2, 1, new Set(['price']))).toEqual([]);
   });
+  it('measures newly mounted cells without invalidating unchanged siblings', async () => {
+    const { root, widths } = setup();
+    const first = source(root, 180);
+    widths.observe(first, 'first');
+    await Promise.resolve();
+    widths.measure(1, 1, new Set(['first', 'second']));
+    const clone = vi.spyOn(first, 'cloneNode');
+    const second = source(root, 200);
+    widths.observe(second, 'second');
+    await Promise.resolve();
+    expect(widths.measure(1, 1, new Set(['first', 'second']))).toEqual([{ columnId: 'second', width: 200 }]);
+    expect(clone).not.toHaveBeenCalled();
+    first.firstChild!.textContent = 'Changed content';
+    await Promise.resolve();
+    expect(widths.measure(1, 1, new Set(['first', 'second']))).toEqual([{ columnId: 'first', width: 180 }]);
+    expect(clone).toHaveBeenCalledTimes(1);
+  });
+
+  it('invalidates only the source of a loaded image and remeasures all on an epoch change', async () => {
+    const { root, widths } = setup();
+    const first = source(root, 180);
+    const second = source(root, 200);
+    const image = document.createElement('img');
+    first.append(image);
+    widths.observe(first, 'first');
+    widths.observe(second, 'second');
+    await Promise.resolve();
+    const columns = new Set(['first', 'second']);
+    widths.measure(1, 1, columns);
+    image.dispatchEvent(new Event('load'));
+    expect(widths.measure(1, 1, columns)).toEqual([{ columnId: 'first', width: 180 }]);
+    expect(widths.measure(2, 1, columns)).toHaveLength(2);
+  });
 });

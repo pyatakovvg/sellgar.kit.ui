@@ -5,7 +5,6 @@ import type { TableProps } from './table-props';
 
 export interface TableData<T extends object> {
   readonly nodes: readonly T[];
-  readonly getRowId?: (row: T) => string;
 }
 
 export interface TableHeadProps {

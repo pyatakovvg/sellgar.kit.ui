@@ -17,7 +17,7 @@
 - Раскрытые Row остаются смонтированы вне обычного виртуального окна, чтобы состояние вложенного Table не терялось. Не считать это проверкой производительности произвольного числа одновременно раскрытых строк.
 - Main Line владеет row handlers; вложенный Expanded расположен рядом с ним, поэтому события вложенных таблиц не всплывают в обработчик строки родителя.
 - Line с primary click входит в Tab order и активируется Enter/Space через нативный element.click(). Не конструировать MouseEvent и не переименовывать публичный click payload. Отложенный click читает актуальный environment; guard учитывает ARIA controls и contenteditable.
-- Empty измеряется browser observer как самостоятельный блок; его фактическая высота входит в snapshot.bodyHeight.
+- При отсутствии строк Surface отображает только Empty внутри внешнего контейнера: Header/Body и табличные ARIA-роли не монтируются. Runtime сохраняет настройки и ручные ширины колонок. Пустая поверхность ограничена доступной шириной viewport, не создаёт горизонтальный scroll и не задаёт nested minimum. Empty измеряется browser observer как самостоятельный блок; его фактическая высота входит в snapshot.bodyHeight.
 - Table внутри Expand входит в общую горизонтальную поверхность: внешний Surface создаёт единственный Scrollbar, вложенный Surface — обычный контейнер. Browser измеряет отступ вложенной таблицы и передаёт её минимальную ширину runtime родителя; выделенная ширина родителя не используется как минимальная, чтобы исключить обратную связь при расширении/сужении экрана.
 
 - Горизонтальные pin удерживаются нативным sticky по готовому pinInset; не
@@ -41,3 +41,17 @@
   проверяет вертикальную видимость независимо от горизонтального обрезания.
   Смена виртуального набора, последнего rowId, options и scroll owner пересоздаёт observer;
   unmount/отключение освобождают его. Expanded content не является trigger.
+
+- SelectionRuntime создаётся Table на экземпляр и синхронизируется в layout effect
+  по полному составу records. View подписывается на selection отдельно от geometry:
+  Line читает selected для подсветки/ARIA, Cell — для rowSelected, checkbox — status.
+- ControllerProvider/hook — публичные controls выбора. Context подключения
+  обрывается на границе Table, чтобы вложенная Table не захватывала controller
+  родителя. Callback onSelect получает копию массива, snapshot остаётся readonly.
+
+- Surface владеет приватным Loading. Индикатор появляется на время loading и
+  завершения поверх содержимого под Header без резерва высоты. Table получает
+  только loading и не знает результат запроса. TablePresentation
+  задаёт fixed-слой по видимому viewport, независимо от горизонтальных колонок.
+  Единственный fixed-origin probe принадлежит attach/dispose TableBrowser, чтобы
+  тот же слой работал с Empty и transformed ancestors без Header.

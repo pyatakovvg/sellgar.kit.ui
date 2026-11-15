@@ -8,13 +8,12 @@ export class RowIdentities {
 
   identify<T extends object>(
     rows: readonly T[],
-    getRowId?: (row: T) => string,
     getChildren?: (row: T) => unknown,
   ): { id: string; data: T; index: number; node: TableNodeModel<T> }[] {
     const nodes = flattenTree(
       rows,
       (data) => {
-        let id = getRowId ? getRowId(data) : this.objects.get(data);
+        let id = this.objects.get(data);
         if (id === undefined) {
           id = `row:${++this.sequence}`;
           this.objects.set(data, id);

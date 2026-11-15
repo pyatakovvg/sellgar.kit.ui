@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { TABLE_COMPENSATOR_COLUMN_ID } from '../../core/column';
 import { createGeometryColumns } from '../../core/layout/create-columns';
 import { TableRuntime } from '../table-runtime';
 
@@ -55,7 +56,7 @@ const widths = (runtime: TableRuntime) =>
 
 describe('Table runtime declarative pinning', () => {
   it.each(['left', 'right'] as const)(
-    'uses the center capacity for %s pin indicators and limit overshoot reversals',
+    'uses the declared minimum for %s pin indicators and limit overshoot reversals',
     (side) => {
       const runtime = createRuntime(
         [
@@ -66,19 +67,19 @@ describe('Table runtime declarative pinning', () => {
         { ...VIEWPORT, container: 500, width: 500 },
       );
       const pin = () => runtime.getSnapshot().columns.find((column) => column.id === 'pin')!;
-      expect(pin()).toMatchObject({ width: 250, left: true, right: true, resizeBounds: { min: 200, max: 450 } });
+      expect(pin()).toMatchObject({ width: 250, left: true, right: true, resizeBounds: { min: 50, max: 450 } });
       const edge = side === 'left' ? 'right' : 'left';
       const direction = side === 'left' ? 1 : -1;
       expect(runtime.beginPinResize('pin', 250, edge)).toBe(true);
       runtime.moveResize(250 - 500 * direction);
       expect(pin()).toMatchObject({
-        width: 200,
+        width: 50,
         left: side === 'right',
         right: side === 'left',
-        resizeBounds: { min: 200, max: 450 },
+        resizeBounds: { min: 50, max: 450 },
       });
       runtime.moveResize(250 - 100 * direction);
-      expect(pin().width).toBe(200);
+      expect(pin().width).toBe(150);
       runtime.moveResize(250 - 49 * direction);
       expect(pin().width).toBe(201);
       expect(runtime.getSnapshot().error).toBeUndefined();
@@ -87,10 +88,10 @@ describe('Table runtime declarative pinning', () => {
     },
   );
 
-  it('uses the shared surface, other pins and fixed center widths in the reachable minimum', () => {
+  it('fills the shared surface with the compensator after a pin shrinks', () => {
     const runtime = createRuntime(
       [
-        fixed('left', 250, 'left'),
+        { ...fixed('left', 250, 'left'), floor: 50 },
         fixed('fixed-center', 100),
         { ...auto('center'), max: 200 },
         fixed('right', 50, 'right'),
@@ -100,20 +101,26 @@ describe('Table runtime declarative pinning', () => {
     );
     expect(runtime.getSnapshot().columns.find((column) => column.id === 'left')).toMatchObject({
       width: 250,
-      left: false,
+      left: true,
       right: true,
-      resizeBounds: { min: 250, max: 400 },
+      resizeBounds: { min: 50, max: 400 },
     });
     expect(runtime.beginPinResize('left', 250, 'right')).toBe(true);
     runtime.moveResize(0);
-    expect(widths(runtime)).toEqual({ left: 250, 'fixed-center': 100, center: 200, right: 50 });
+    expect(widths(runtime)).toEqual({
+      left: 50,
+      'fixed-center': 100,
+      center: 200,
+      [TABLE_COMPENSATOR_COLUMN_ID]: 200,
+      right: 50,
+    });
     expect(runtime.getSnapshot().error).toBeUndefined();
   });
 
-  it('rejects a pin drag when the budget and center capacity leave no reachable movement', () => {
+  it('rejects a pin drag when the declared bounds leave no reachable movement', () => {
     const runtime = createRuntime(
       [
-        { ...fixed('pin', 200, 'left'), max: 200 },
+        { ...fixed('pin', 200, 'left'), floor: 200, max: 200 },
         { ...auto('center'), max: 300 },
       ],
       OPTIONS,
@@ -163,7 +170,7 @@ describe('Table runtime declarative pinning', () => {
     expect(runtime.getSnapshot().columns.at(-1)).toMatchObject({
       id: 'right',
       resizable: true,
-      resizeBounds: { min: 0, max: 750 },
+      resizeBounds: { min: 100, max: 750 },
     });
   });
 
@@ -227,11 +234,13 @@ describe('Table runtime declarative pinning', () => {
     expect(runtime.getSnapshot().pinning).toMatchObject({ status: 'active', reserve: 50, columns: saved });
   });
 
-  it('requires an automatic center', () => {
-    expect(createRuntime([auto('left', 0, 'left'), fixed('center', 200)]).getSnapshot().error).toMatch(
-      /automatic center/,
-    );
-    expect(createRuntime([auto('only', 0, 'left')]).getSnapshot().error).toMatch(/automatic center/);
+  it('supplies the automatic center internally when all user columns are fixed or pinned', () => {
+    for (const columns of [[auto('left', 0, 'left'), fixed('center', 200)], [auto('only', 0, 'left')]]) {
+      const runtime = createRuntime(columns);
+      expect(runtime.getSnapshot().error).toBeUndefined();
+      expect(runtime.getSnapshot().pinning?.status).toBe('active');
+      expect(runtime.getColumnWidth(TABLE_COMPENSATOR_COLUMN_ID)).toBeGreaterThanOrEqual(0);
+    }
   });
 
   it('does not initialize pin from the zero viewport before the first measurement even with reserve zero', () => {
@@ -310,7 +319,8 @@ describe('Table runtime declarative pinning', () => {
       COLUMNS.map((column) => ({ ...column, resizable: column.id === 'right' ? undefined : true })),
     );
     expect(runtime.beginPinResize('right', 900, 'left')).toBe(false);
-    expect(runtime.beginResize('name', 200)).toBe(false);
+    expect(runtime.beginResize('name', 200)).toBe(true);
+    runtime.cancelResize();
     runtime.configure(COLUMNS, ['row'], [], OPTIONS);
     expect(runtime.beginPinResize('right', 900, 'left')).toBe(true);
     runtime.cancelResize();
@@ -330,7 +340,7 @@ describe('Table runtime declarative pinning', () => {
     expect(widths(runtime).code).toBe(1000);
     expect(widths(runtime).name).toBe(100);
     expect(runtime.getSnapshot().pinning!.columns).toEqual(before);
-    expect(runtime.getSnapshot().columns.find((column) => column.id === 'name')?.resizable).toBe(false);
+    expect(runtime.getSnapshot().columns.find((column) => column.id === 'name')?.resizable).toBe(true);
   });
 
   it('preserves ordinary directed resize and its anchor through a viewport round trip', () => {
@@ -537,12 +547,12 @@ describe('Table runtime declarative pinning', () => {
     expect(runtime.getSnapshot().rows[0]).toMatchObject({ id: 'row', expanded: true, contentHeight: 40 });
   });
 
-  it('rejects an infeasible pin drag result without throwing or corrupting the last valid center', () => {
+  it('uses the compensator when a pin shrink exceeds the user center capacity', () => {
     const runtime = createRuntime([fixed('left', 600, 'left'), { ...auto('name'), max: 400 }]);
     expect(widths(runtime)).toEqual({ left: 600, name: 400 });
     runtime.beginPinResize('left', 600, 'right');
     expect(() => runtime.moveResize(500)).not.toThrow();
-    expect(widths(runtime)).toEqual({ left: 600, name: 400 });
+    expect(widths(runtime)).toEqual({ left: 500, name: 400, [TABLE_COMPENSATOR_COLUMN_ID]: 100 });
     expect(runtime.getSnapshot()).toMatchObject({ error: undefined, dragging: true });
     runtime.moveResize(800);
     expect(widths(runtime)).toEqual({ left: 800, name: 200 });
@@ -550,15 +560,15 @@ describe('Table runtime declarative pinning', () => {
     expect(widths(runtime)).toEqual({ left: 600, name: 400 });
   });
 
-  it('does not commit an initialized pin batch when the resulting center cannot fill', () => {
+  it('initializes both pins and lets the compensator fill a capped center', () => {
     const runtime = createRuntime([
       fixed('left', 600, 'left'),
       { ...auto('name'), max: 0 },
       fixed('right', 600, 'right'),
     ]);
-    expect(runtime.getSnapshot().error).toMatch(/fill/);
-    expect(runtime.getSnapshot().pinning?.columns).toEqual([]);
-    expect(runtime.getSnapshot().columns).toEqual([]);
+    expect(runtime.getSnapshot().error).toBeUndefined();
+    expect(runtime.getSnapshot().pinning?.columns).toHaveLength(2);
+    expect(widths(runtime)).toEqual({ left: 475, name: 0, [TABLE_COMPENSATOR_COLUMN_ID]: 50, right: 475 });
   });
 
   it('ignores non-finite input and preserves the operation for a later valid move', () => {

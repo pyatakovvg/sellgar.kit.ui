@@ -47,9 +47,10 @@ describe('Table runtime instance lifecycle', () => {
     runtime.updateViewport(VIEWPORT);
     expect(runtime.getSnapshot().columns.map((column) => [column.id, column.resizable])).toEqual([
       ['first', true],
-      ['last', false],
+      ['last', true],
     ]);
-    expect(runtime.beginResize('last', 100)).toBe(false);
+    expect(runtime.beginResize('last', 100)).toBe(true);
+    runtime.cancelResize();
     expect(runtime.beginResize('hidden', 100)).toBe(false);
     expect(runtime.beginResize('first', 100)).toBe(true);
   });
@@ -68,7 +69,7 @@ describe('Table runtime instance lifecycle', () => {
       ['b', true],
     ]);
     runtime.updateViewport({ ...VIEWPORT, container: 900, width: 100, left: 800 });
-    expect(runtime.getSnapshot().columns.at(-1)).toMatchObject({ id: 'c', resizable: false });
+    expect(runtime.getSnapshot().columns.at(-1)).toMatchObject({ id: 'c', resizable: true });
   });
 
   it('cancels a drag when permission is revoked and retains committed widths when permissions change', () => {
@@ -87,7 +88,7 @@ describe('Table runtime instance lifecycle', () => {
     expect(runtime.getSnapshot().widths).toEqual([700, 400]);
   });
 
-  it('reports an invalid schema without automatic columns', () => {
+  it('accepts fixed-only schemas through the internal compensator', () => {
     const runtime = new TableRuntime();
     runtime.configure(
       [
@@ -98,7 +99,7 @@ describe('Table runtime instance lifecycle', () => {
       [],
       OPTIONS,
     );
-    expect(runtime.getSnapshot().error).toMatch(/automatic/);
+    expect(runtime.getSnapshot().error).toBeUndefined();
   });
   it('disables resizing by default and for an explicit false value', () => {
     const runtime = new TableRuntime();
@@ -121,7 +122,7 @@ describe('Table runtime instance lifecycle', () => {
     expect(runtime.getSnapshot().dragging).toBe(false);
   });
 
-  it('allows only explicitly enabled internal columns and ignores true on the last column', () => {
+  it('allows explicitly enabled columns including the last column', () => {
     const runtime = new TableRuntime();
     runtime.configure(
       [
@@ -133,8 +134,9 @@ describe('Table runtime instance lifecycle', () => {
       OPTIONS,
     );
     runtime.updateViewport(VIEWPORT);
-    expect(runtime.getSnapshot().columns.map((column) => column.resizable)).toEqual([true, false]);
-    expect(runtime.beginResize('last', 100)).toBe(false);
+    expect(runtime.getSnapshot().columns.map((column) => column.resizable)).toEqual([true, true]);
+    expect(runtime.beginResize('last', 100)).toBe(true);
+    runtime.cancelResize();
     expect(runtime.beginResize('enabled', 100)).toBe(true);
     runtime.moveResize(200);
     expect(runtime.getSnapshot().widths).toEqual([600, 500]);
@@ -158,7 +160,9 @@ describe('Table runtime instance lifecycle', () => {
     runtime.moveResize(200);
     runtime.finishResize();
     runtime.updateViewport({ ...VIEWPORT, scroll: 4000 });
-    expect(runtime.getSnapshot().rows.length).toBeLessThan(30);
+    expect(runtime.getSnapshot().rows.length).toBeLessThanOrEqual(
+      Math.ceil((3 * VIEWPORT.height) / OPTIONS.rowHeight) + 2 * OPTIONS.overscan + 3,
+    );
     expect(runtime.getSnapshot().rowCount).toBe(10000);
     expect(runtime.getSnapshot().widths).toEqual([700, 400]);
     expect(runtime.getSnapshot().headerTop).toBe(0);
@@ -315,7 +319,7 @@ describe('Table row identities', () => {
     const registry = new RowIdentities();
     const runtime = new TableRuntime();
     const configure = () => {
-      const records = registry.identify(rows, undefined, (row) => row.children);
+      const records = registry.identify(rows, (row) => row.children);
       runtime.configure(
         COLUMNS,
         records.map((row) => row.id),
@@ -337,13 +341,17 @@ describe('Table row identities', () => {
     expect(runtime.getSnapshot().rows.map((row) => row.id)).toEqual(after.map((row) => row.id));
   });
 
-  it('preserves object identity across reorders and accepts stable ids across refreshes', () => {
+  it('preserves object identity across reorders independently of business identifiers', () => {
     const registry = new RowIdentities();
     const first = { uuid: 'a' };
     const second = { uuid: 'b' };
     const before = registry.identify([first, second]);
     expect(registry.identify([second, first]).map((row) => row.id)).toEqual([before[1].id, before[0].id]);
-    expect(registry.identify([{ uuid: 'a' }], (row) => row.uuid)[0].id).toBe('a');
+    first.uuid = 'changed';
+    expect(registry.identify([first])[0].id).toBe(before[0].id);
+    const duplicates = registry.identify([{ uuid: 'changed' }, { uuid: 'changed' }]);
+    expect(duplicates[0].id).not.toBe(before[0].id);
+    expect(duplicates[0].id).not.toBe(duplicates[1].id);
     expect(() => registry.identify([first, first])).toThrow(/unique/);
   });
 });
@@ -365,7 +373,9 @@ describe('Table expanded row geometry', () => {
     expect(runtime.getSnapshot().rows[0]).toMatchObject({ expanded: true, height: 240, contentHeight: 40 });
     expect(runtime.getSnapshot().rows[1].top).toBe(240);
     expect(runtime.getSnapshot().bodyHeight).toBe(400200);
-    expect(runtime.getSnapshot().rows.length).toBeLessThan(30);
+    expect(runtime.getSnapshot().rows.length).toBeLessThanOrEqual(
+      Math.ceil((3 * VIEWPORT.height) / OPTIONS.rowHeight) + 2 * OPTIONS.overscan + 3,
+    );
   });
 
   it('remeasures nested height in both directions and collapses without leaving space', () => {
@@ -422,7 +432,9 @@ describe('Table expanded row geometry', () => {
     measureExpanded(runtime, IDS[0], 200);
     runtime.updateViewport({ ...VIEWPORT, scroll: 4000 });
     expect(runtime.getSnapshot().rows.some((row) => row.id === IDS[0] && row.expanded)).toBe(true);
-    expect(runtime.getSnapshot().rows.length).toBeLessThan(30);
+    expect(runtime.getSnapshot().rows.length).toBeLessThanOrEqual(
+      Math.ceil((3 * VIEWPORT.height) / OPTIONS.rowHeight) + 2 * OPTIONS.overscan + 3,
+    );
     runtime.toggleExpanded(IDS[0]);
     expect(runtime.getSnapshot().rows.some((row) => row.id === IDS[0])).toBe(false);
   });
@@ -502,17 +514,17 @@ describe('Header flow and floating state', () => {
 });
 
 describe('Geometry error recovery', () => {
-  it('publishes a safe error when a smaller schema cannot fill the viewport, then recovers', () => {
+  it('fills a smaller capped schema with the compensator and returns to ordinary auto', () => {
     const runtime = createRuntime();
     const invalid: GeometryColumn[] = [{ id: 'only', mode: 'auto', width: 0, floor: 0, max: 50 }];
     expect(() => runtime.configure(invalid, IDS, [], OPTIONS)).not.toThrow();
-    expect(runtime.getSnapshot()).toMatchObject({ error: expect.stringMatching(/fill/), columns: [], widths: [] });
+    expect(runtime.getSnapshot()).toMatchObject({ error: undefined, widths: [50, 950], total: 1000 });
     expect(runtime.beginResize('only', 0)).toBe(false);
     runtime.configure(COLUMNS, IDS, [], OPTIONS);
     expect(runtime.getSnapshot()).toMatchObject({ error: undefined, widths: [600, 400] });
   });
 
-  it('retains an invalid nested requirement until the child is actually removed', () => {
+  it('fills a larger nested requirement despite user maxWidth and releases it on child removal', () => {
     const runtime = new TableRuntime();
     runtime.configure(
       [
@@ -525,9 +537,9 @@ describe('Geometry error recovery', () => {
     );
     runtime.updateViewport({ ...VIEWPORT, container: 500, width: 500 });
     runtime.setNestedWidth('child', 800);
-    expect(runtime.getSnapshot().error).toMatch(/fill/);
+    expect(runtime.getSnapshot()).toMatchObject({ error: undefined, total: 800, widths: [400, 160, 240] });
     runtime.updateViewport({ ...VIEWPORT, container: 500, width: 500, scroll: 10 });
-    expect(runtime.getSnapshot().error).toMatch(/fill/);
+    expect(runtime.getSnapshot()).toMatchObject({ error: undefined, total: 800, widths: [400, 160, 240] });
     runtime.setNestedWidth('child', undefined);
     expect(runtime.getSnapshot()).toMatchObject({ error: undefined, total: 500 });
   });
@@ -597,6 +609,33 @@ describe('Nested manual width requirements', () => {
 });
 
 describe('Dynamic row metrics and empty content', () => {
+  it('releases empty presentation constraints while retaining manual column widths and header measurements', () => {
+    const runtime = createRuntime();
+    runtime.setHeaderHeight(44);
+    runtime.beginResize('name', 500);
+    runtime.moveResize(600);
+    runtime.finishResize();
+    const widths = runtime.getSnapshot().widths;
+    const minimumWidth = runtime.getSnapshot().minimumWidth;
+    runtime.configure(COLUMNS, [], [], OPTIONS);
+    runtime.updateViewport({ ...VIEWPORT, scroll: 10 });
+    expect(runtime.getSnapshot()).toMatchObject({
+      rowCount: 0,
+      headerHeight: 0,
+      headerFloating: false,
+      minimumWidth: 0,
+      widths,
+    });
+    runtime.configure(COLUMNS, ['restored'], [], OPTIONS);
+    expect(runtime.getSnapshot()).toMatchObject({
+      rowCount: 1,
+      headerHeight: 44,
+      headerFloating: true,
+      minimumWidth,
+      widths,
+    });
+  });
+
   it('updates existing and hidden estimates in both size directions while retaining measured tall content', () => {
     const runtime = createRuntime();
     runtime.commitMeasurements([

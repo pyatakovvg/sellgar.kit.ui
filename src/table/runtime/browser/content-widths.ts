@@ -35,19 +35,28 @@ export class ContentWidths {
       this.sources.forEach((_, element) => this.dirty.add(element));
       this.schedule();
     };
+    const markTarget = (target: Node): boolean => {
+      if (probe.contains(target)) return false;
+      let element = target instanceof Element ? target : target.parentElement;
+      if (element?.closest('[data-table="geometry"]') !== root) return false;
+      let changed = false;
+      while (element && element !== root) {
+        if (element instanceof HTMLElement && this.sources.has(element)) {
+          this.dirty.add(element);
+          changed = true;
+        }
+        element = element.parentElement;
+      }
+      return changed;
+    };
     const mutations = new MutationObserver((entries) => {
-      const changed = entries.some(({ target, addedNodes, removedNodes }) => {
-        if (probe.contains(target)) return false;
-        const nodes = [...addedNodes, ...removedNodes];
-        if (nodes.length && nodes.every((node) => node === probe)) return false;
-        const element = target instanceof Element ? target : target.parentElement;
-        return element?.closest('[data-table="geometry"]') === root;
-      });
-      if (changed) invalidate();
+      let changed = false;
+      for (const { target } of entries) if (markTarget(target)) changed = true;
+      if (changed) this.schedule();
     });
     mutations.observe(root, { subtree: true, childList: true, characterData: true });
     const loaded = (event: Event) => {
-      if (event.target instanceof Node && !probe.contains(event.target)) invalidate();
+      if (event.target instanceof Node && markTarget(event.target)) this.schedule();
     };
     root.addEventListener('load', loaded, true);
     document.fonts?.addEventListener('loadingdone', invalidate);
