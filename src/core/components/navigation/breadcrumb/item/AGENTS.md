@@ -39,7 +39,7 @@
 - Export доступен только ближайшему parent-компоненту `Breadcrumb`.
 - Consumer import из `@sellgar/kit` запрещён и не поддерживается.
 - Props из локального `IProps`: `divider`, `hasDivider`, `href`, `isCurrent`,
-  `label`, `leadIcon`, `size`, `tailIcon`, `variant`.
+  `label`, `leadIcon`, `size`, `tailIcon`, `variant`, `wrap`.
 - Props являются внутренним контрактом между `Breadcrumb` и `BreadcrumbItem`.
 
 ## Контракт изменения

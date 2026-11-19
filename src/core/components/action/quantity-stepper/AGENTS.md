@@ -35,14 +35,16 @@ Action/control composition для изменения числового знач
 - `export { QuantityStepper } from './quantity-stepper.tsx';`
 - Consumer import: `import { QuantityStepper } from '@sellgar/kit'` или compound API ближайшего public-компонента.
 - Exported/source names: `QuantityStepper`.
-- Props из `IProps`: `shape`, `size`, `outline`, `leftActionSize`, `rightActionSize`, `leftActionDisabled`, `rightActionDisabled`, `leftActionType`, `rightActionType`, `value`, `onLeftActionClick`, `onRightActionClick`.
+- Props из `IProps`: `shape`, `size`, `outline`, `leftActionSize`, `rightActionSize`, `leftActionDisabled`, `rightActionDisabled`, `leftActionType`, `rightActionType`, `loadingAction`, `value`, `onLeftActionClick`, `onRightActionClick`.
 - Локальных parts нет.
 
 ## Контракт изменения
 
 - Не менять локальные exports (`export { QuantityStepper } from './quantity-stepper.tsx';`) без оценки public API.
 - Так как узел достижим через barrel chain `@sellgar/kit`, изменение имени компонента, props или exported types может быть breaking change.
-- Props contract: `shape`, `size`, `outline`, `leftActionSize`, `rightActionSize`, `leftActionDisabled`, `rightActionDisabled`, `leftActionType`, `rightActionType`, `value`, `onLeftActionClick`, `onRightActionClick`. Новые/изменённые props нужно отражать в story и документации.
+- Props contract: `shape`, `size`, `outline`, `leftActionSize`, `rightActionSize`, `leftActionDisabled`, `rightActionDisabled`, `leftActionType`, `rightActionType`, `loadingAction`, `value`, `onLeftActionClick`, `onRightActionClick`. Новые/изменённые props нужно отражать в story и документации.
+
+`loadingAction?: 'left' | 'right'` заменяет иконку выбранного действия спиннером и блокирует оба callback до завершения операции. Значение и размеры не меняются. При reduced motion остаётся статичный индикатор ожидания.
 
 ## Фактическое поведение
 
@@ -77,3 +79,7 @@ Action/control composition для изменения числового знач
 - Для изменений public exports, props contract или сборки: `yarn build` в `library/kit`.
 - Storybook scenario: `../../clients/storybook/src/kit/symbols/quantity-stepper/quantity-stepper.stories.tsx`.
 - Для визуальных изменений проверить размеры, disabled/active states, DOM order, keyboard/focus behavior и responsive layout, если они применимы к компоненту.
+
+Размеры `size`: `lg` — 40 px, `md` — 32 px, `sm` — 24 px. Компактный размер сохраняет области действий 24×24 и поддерживает тот же loadingAction; остальные размеры не меняются.
+
+`size="xs"` — узкий вариант высотой 24 px: области действий 24×24 сохраняются, поле значения — 16 px с Typography caption-s. Поддерживает outline/loadingAction; остальные размеры не изменяются.

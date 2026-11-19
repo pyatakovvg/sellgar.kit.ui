@@ -1,3 +1,4 @@
+import cn from 'classnames';
 import React from 'react';
 
 import { BreadcrumbItem } from './item';
@@ -15,6 +16,7 @@ type TBreadcrumbItem = {
 interface IProps {
   size?: 'sm' | 'md';
   divider?: 'arrow' | 'slash';
+  wrap?: boolean;
   items: readonly TBreadcrumbItem[];
 }
 
@@ -24,9 +26,11 @@ const isMoreItem = (item: TBreadcrumbItem): item is Extract<TBreadcrumbItem, { v
   return item.variant === 'more';
 };
 
-export const Breadcrumb: React.FC<IProps> = ({ divider = 'arrow', items = EMPTY_ITEMS, size = 'sm' }) => {
+export const Breadcrumb: React.FC<IProps> = ({ divider = 'arrow', items = EMPTY_ITEMS, size = 'sm', wrap = false }) => {
+  const wrapperClassName = cn(s.breadcrumb, { [s.wrap]: wrap });
+
   return (
-    <div className={s.breadcrumb}>
+    <div className={wrapperClassName}>
       {items.map((item, index) => {
         const isMore = isMoreItem(item);
         const isCurrent = !isMore && index === items.length - 1;
@@ -34,6 +38,7 @@ export const Breadcrumb: React.FC<IProps> = ({ divider = 'arrow', items = EMPTY_
         return (
           <BreadcrumbItem
             key={index}
+            wrap={wrap}
             divider={divider}
             hasDivider={index < items.length - 1}
             href={isCurrent ? void 0 : item.href}

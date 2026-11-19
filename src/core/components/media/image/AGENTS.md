@@ -37,17 +37,18 @@ Media primitive с состояниями loading/error и встроенным�
 - `export { Image } from './image.tsx';`
 - Consumer import: `import { Image } from '@sellgar/kit'` или compound API ближайшего public-компонента.
 - Exported/source names: `Image`.
-- Props из `IProps`: `width`, `height`.
+- Props из `IProps`: `width`, `height`, `fit`.
 - Локальные parts: `exception`, `process`.
 
 ## Контракт изменения
 
 - Не менять локальные exports (`export { Image } from './image.tsx';`) без оценки public API.
 - Так как узел достижим через barrel chain `@sellgar/kit`, изменение имени компонента, props или exported types может быть breaking change.
-- Props contract: `width`, `height`. Новые/изменённые props нужно отражать в story и документации.
+- Props contract: `width`, `height`, `fit`. `fit="contain"` (по умолчанию) вписывает изображение целиком; `fit="cover"` заполняет контейнер с обрезкой краёв. Контейнер ограничивает выходящее за его границы содержимое. Новые/изменённые props нужно отражать в документации.
 
 ## Фактическое поведение
 
+- При заданных размерах изображение уменьшается до границ контейнера с сохранением пропорций через `object-fit: contain`. Автоматический минимальный размер flex-элемента не должен выталкивать вертикальные фотографии за заданную высоту.
 - Использует локальное React state; при изменениях проверять синхронизацию с props и callbacks.
 - Имеет React effects; при изменениях проверять dependencies, mount/update и cleanup сценарии.
 - Использует memoized derivation/callbacks; зависимости hooks должны оставаться точными.

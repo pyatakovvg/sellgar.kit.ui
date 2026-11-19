@@ -1,17 +1,17 @@
+import cn from 'classnames';
 import React from 'react';
 
-import { Process } from './process';
 import { Exception } from './exception';
-
-import cn from 'classnames';
 import s from './image.module.scss';
+import { Process } from './process';
 
 interface IProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'alt' | 'width' | 'height'> {
   width?: number;
   height?: number;
+  fit?: 'contain' | 'cover';
 }
 
-export const Image: React.FC<IProps> = (props) => {
+export const Image: React.FC<IProps> = ({ fit = 'contain', ...props }) => {
   const imgRef = React.useRef<HTMLImageElement>(null);
 
   const [isError, setError] = React.useState(false);
@@ -19,10 +19,10 @@ export const Image: React.FC<IProps> = (props) => {
 
   const imageClassName = React.useMemo(
     () =>
-      cn(s.image, props.className, {
+      cn(s.image, s[`fit--${fit}`], props.className, {
         [s.hide]: isLoading || isError,
       }),
-    [props.className, isLoading, isError],
+    [fit, props.className, isLoading, isError],
   );
 
   React.useEffect(() => {

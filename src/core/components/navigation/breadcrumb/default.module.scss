@@ -5,3 +5,8 @@
   align-items: flex-start;
   gap: var(--numbers-8);
 }
+
+.wrap {
+  flex-wrap: wrap;
+  min-width: 0;
+}

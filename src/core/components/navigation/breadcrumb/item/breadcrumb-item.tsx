@@ -10,6 +10,7 @@ import s from './default.module.scss';
 interface IProps {
   divider: 'arrow' | 'slash';
   hasDivider: boolean;
+  wrap: boolean;
   href?: string;
   isCurrent: boolean;
   label: React.ReactNode;
@@ -29,6 +30,7 @@ export const BreadcrumbItem: React.FC<IProps> = ({
   size,
   tailIcon,
   variant,
+  wrap,
 }) => {
   const isMore = variant === 'more';
   const isLink = href !== void 0 && !isCurrent;
@@ -38,8 +40,9 @@ export const BreadcrumbItem: React.FC<IProps> = ({
         [s['variant--default']]: !isMore,
         [s['variant--more']]: isMore,
         [s.current]: isCurrent,
+        [s.wrap]: wrap,
       }),
-    [isCurrent, isMore],
+    [isCurrent, isMore, wrap],
   );
 
   const contentClassName = React.useMemo(

@@ -1,13 +1,15 @@
 import React from 'react';
 
-import { AddLineIcon, DeleteBinLineIcon, SubtractLineIcon } from '../../../../icons';
+import { AddLineIcon, DeleteBinLineIcon, Loader4FillIcon, SubtractLineIcon } from '../../../../icons';
+
+import { Animate } from '../../feedback/animate';
 
 import cn from 'classnames';
 import s from './default.module.scss';
 
 interface IProps {
   shape?: 'rounded' | 'pill';
-  size?: 'lg' | 'md';
+  size?: 'lg' | 'md' | 'sm' | 'xs';
   outline?: boolean;
   leftActionSize?: 'lg' | 'md' | 'sm';
   rightActionSize?: 'lg' | 'md' | 'sm';
@@ -15,6 +17,7 @@ interface IProps {
   rightActionDisabled?: boolean;
   leftActionType?: 'add' | 'subtract' | 'delete';
   rightActionType?: 'add' | 'subtract' | 'delete';
+  loadingAction?: 'left' | 'right';
   value: number;
   onLeftActionClick(): void;
   onRightActionClick(): void;
@@ -28,6 +31,7 @@ export const QuantityStepper: React.FC<IProps> = ({
   rightActionDisabled = false,
   leftActionType = 'subtract',
   rightActionType = 'add',
+  loadingAction,
   value = 0,
   onLeftActionClick,
   onRightActionClick,
@@ -39,6 +43,8 @@ export const QuantityStepper: React.FC<IProps> = ({
         {
           [s['size--lg']]: size === 'lg',
           [s['size--md']]: size === 'md',
+          [s['size--sm']]: size === 'sm',
+          [s['size--xs']]: size === 'xs',
         },
         {
           [s['shape--pill']]: shape === 'pill',
@@ -66,55 +72,55 @@ export const QuantityStepper: React.FC<IProps> = ({
   );
 
   const handleLeftActionClick = () => {
-    if (leftActionDisabled) {
+    if (leftActionDisabled || loadingAction) {
       return void 0;
     }
     onLeftActionClick();
   };
 
   const handleRightActionClick = () => {
-    if (rightActionDisabled) {
+    if (rightActionDisabled || loadingAction) {
       return void 0;
     }
     onRightActionClick();
   };
 
   return (
-    <div className={className}>
+    <div className={className} aria-busy={Boolean(loadingAction)}>
       <div className={leftActionClassName} onClick={handleLeftActionClick}>
-        {leftActionType === 'add' && (
-          <div className={s.icon}>
+        <div className={s.icon} aria-hidden="true">
+          {loadingAction === 'left' ? (
+            <Animate.Spin>
+              <div className={s.loading}>
+                <Loader4FillIcon />
+              </div>
+            </Animate.Spin>
+          ) : leftActionType === 'add' ? (
             <AddLineIcon />
-          </div>
-        )}
-        {leftActionType === 'delete' && (
-          <div className={s.icon}>
+          ) : leftActionType === 'delete' ? (
             <DeleteBinLineIcon />
-          </div>
-        )}
-        {leftActionType === 'subtract' && (
-          <div className={s.icon}>
+          ) : (
             <SubtractLineIcon />
-          </div>
-        )}
+          )}
+        </div>
       </div>
       <div className={s.value}>{value}</div>
       <div className={rightActionClassName} onClick={handleRightActionClick}>
-        {rightActionType === 'add' && (
-          <div className={s.icon}>
+        <div className={s.icon} aria-hidden="true">
+          {loadingAction === 'right' ? (
+            <Animate.Spin>
+              <div className={s.loading}>
+                <Loader4FillIcon />
+              </div>
+            </Animate.Spin>
+          ) : rightActionType === 'add' ? (
             <AddLineIcon />
-          </div>
-        )}
-        {rightActionType === 'delete' && (
-          <div className={s.icon}>
+          ) : rightActionType === 'delete' ? (
             <DeleteBinLineIcon />
-          </div>
-        )}
-        {rightActionType === 'subtract' && (
-          <div className={s.icon}>
+          ) : (
             <SubtractLineIcon />
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
