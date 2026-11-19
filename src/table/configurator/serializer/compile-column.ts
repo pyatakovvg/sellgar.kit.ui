@@ -4,6 +4,7 @@ import { Actions } from '../actions/actions';
 import { Cell } from '../cell/cell';
 import { Head } from '../head/head';
 import { compileActions } from './compile-actions';
+import { resolveColumnSize } from './resolve-column-size';
 import { visitDeclarations } from './visit-declarations';
 
 import type { TableColumnDefinition } from '../../core/column';
@@ -19,9 +20,10 @@ import type {
 export const compileColumn = <T>(
   element: React.ReactElement<TableColumnProps<T>>,
   sourceIndex: number,
+  declarationPath: string,
 ): { column: TableColumnDefinition; renderers: TableColumnRenderers<T> } => {
   const props = element.props;
-  const columnId = element.key === null ? `column:${sourceIndex}` : `key:${element.key}`;
+  const columnId = element.key === null ? `column:${declarationPath}` : `key:${element.key}`;
   const scope: TableColumnScope<T> = { Head, Cell, Actions };
   const children = typeof props.children === 'function' ? props.children(scope) : props.children;
   let head: React.ReactElement<TableHeadProps> | undefined;
@@ -61,13 +63,17 @@ export const compileColumn = <T>(
     column: {
       columnId,
       sourceIndex,
-      width: props.width,
-      minWidth: props.minWidth,
-      maxWidth: props.maxWidth,
+      width:
+        typeof props.width === 'string' && /^\s*var\(\s*--numbers-/.test(props.width)
+          ? resolveColumnSize(props.width, columnId, 'width')
+          : props.width,
+      minWidth: resolveColumnSize(props.minWidth, columnId, 'minWidth'),
+      maxWidth: resolveColumnSize(props.maxWidth, columnId, 'maxWidth'),
       align: props.align,
       order: props.order,
       visible: props.visible,
       resizable: props.resizable === true,
+      onResize: props.onResize,
       pinLeft: props.pinLeft,
       pinRight: props.pinRight,
       sort: props.sort,

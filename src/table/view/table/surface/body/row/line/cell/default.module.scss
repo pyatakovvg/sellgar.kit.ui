@@ -1,4 +1,5 @@
 .wrapper {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -6,6 +7,39 @@
   overflow: hidden;
   box-sizing: border-box;
   background: inherit;
+
+  &[data-column-region='left'],
+  &[data-column-region='right'] {
+    z-index: 1;
+    overflow: visible;
+
+    .content {
+      overflow: hidden;
+    }
+  }
+
+  &[data-column-region='left']:not(:has(+ [data-column-region='left']))::after,
+  &[data-column-region='right']::after {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    width: var(--numbers-3);
+    background: var(--border-base-divider);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  &[data-column-region='left']:not(:has(+ [data-column-region='left']))::after {
+    right: calc(var(--numbers-3) * -0.5);
+  }
+
+  &[data-column-region='right']::after {
+    left: calc(var(--numbers-3) * -0.5);
+  }
+
+  &[data-column-region='right'] + &[data-column-region='right']::after {
+    content: none;
+  }
 }
 .content {
   box-sizing: border-box;
@@ -14,6 +48,10 @@
 }
 .separated {
   border-top: var(--numbers-1) solid var(--border-base-divider);
+
+  &::after {
+    top: calc(-1 * var(--numbers-1));
+  }
 }
 .align {
   &--center {

@@ -5,7 +5,6 @@ import type { TableProps } from './table-props';
 
 export interface TableData<T extends object> {
   readonly nodes: readonly T[];
-  readonly getRowId?: (row: T) => string;
 }
 
 export interface TableHeadProps {
@@ -18,6 +17,7 @@ export interface TableExpandTriggerProps {
 
 export interface TableCellRenderScope<T> extends TableCellRenderContext<T> {
   ExpandTrigger: React.FC<TableExpandTriggerProps>;
+  TreeTrigger: React.FC;
 }
 
 export interface TableCellProps<T> {
@@ -55,7 +55,14 @@ export interface TableColumnScope<T> {
   Actions: React.FC<TableActionsProps>;
 }
 
-export interface TableColumnProps<T> extends Omit<TableColumnDefinition, 'columnId' | 'sourceIndex'> {
+export type TableColumnSize = number | `var(--numbers-${number})` | `var(--numbers-${number}_${number})`;
+
+export interface TableColumnProps<T> extends Omit<
+  TableColumnDefinition,
+  'columnId' | 'sourceIndex' | 'minWidth' | 'maxWidth'
+> {
+  minWidth?: TableColumnSize;
+  maxWidth?: TableColumnSize;
   children?: React.ReactNode | ((scope: TableColumnScope<T>) => React.ReactNode);
 }
 
@@ -70,6 +77,7 @@ export interface TableConfigurationInput<T extends object> extends TableProps<T>
 }
 
 export interface TableActionRenderer {
+  readonly id: string;
   readonly disabled: boolean;
   onAction(): void;
   render(): React.ReactNode;

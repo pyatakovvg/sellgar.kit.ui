@@ -4,9 +4,10 @@ import cn from 'classnames';
 import { Scrollbar } from '../../../../core/components/layout/scrollbar';
 
 import { useTableEnvironment, useTableSnapshot } from '../context/table-context';
-import { numbers } from '../serializer/numbers';
 import { Body } from './body';
 import { Header } from './header';
+import { Empty } from './empty';
+import { Loading } from './loading';
 
 import s from './default.module.scss';
 
@@ -17,10 +18,12 @@ interface SurfaceStyle extends React.CSSProperties {
 export const Surface: React.FC = () => {
   const environment = useTableEnvironment();
   const state = useTableSnapshot();
+  const empty = state.rowCount === 0 && !state.error;
   const root = React.useRef<HTMLDivElement>(null);
   const surface = React.useRef<HTMLDivElement>(null);
   const scrollHost = React.useRef<HTMLDivElement>(null);
   const probe = React.useRef<HTMLDivElement>(null);
+  const [portal, setPortal] = React.useState<HTMLDivElement | null>(null);
   const wrapperClassName = cn(
     s.wrapper,
     { [s.standalone]: environment.surface === 'standalone' },
@@ -49,22 +52,22 @@ export const Surface: React.FC = () => {
     return environment.parentBrowser.observeNested(environment.headerId, root.current, environment.runtime);
   }, [environment.parentBrowser, environment.headerId, environment.runtime]);
 
+  React.useLayoutEffect(() => environment.browser.present());
+
   return (
     <div
       ref={root}
       className={wrapperClassName}
       style={style}
-      role="table"
-      aria-rowcount={state.rowCount + 1}
-      aria-colcount={state.columnCount}
-      aria-owns={state.error ? undefined : `${environment.headerId} ${environment.headerId}-body`}
+      role={empty ? undefined : 'table'}
+      aria-rowcount={empty ? undefined : state.rowCount + 1}
+      aria-colcount={empty ? undefined : state.columnCount}
+      aria-owns={state.error || empty ? undefined : `${environment.headerId} ${environment.headerId}-body`}
+      aria-busy={environment.loading}
       data-table="geometry"
       data-row-count={state.rowCount}
       data-column-count={state.columnCount}
       data-visible-cells={state.rows.length * state.columns.length}
-      data-total-width={state.total}
-      data-container-width={state.viewport.container}
-      data-dragging={state.dragging}
     >
       <div ref={probe} className={s.probe} aria-hidden="true" />
       <ScrollContainer
@@ -72,22 +75,20 @@ export const Surface: React.FC = () => {
         className={scrollerClassName}
         data-table-scroll={!environment.parentBrowser || undefined}
       >
-        <div
-          ref={surface}
-          className={s.surface}
-          style={{ width: numbers(Math.max(state.total, state.viewport.container)) }}
-        >
-          {state.error ? (
-            <p role="alert">{state.error}</p>
+        <div ref={surface} className={s.surface}>
+          {state.error && <p role="alert">{state.error}</p>}
+          {empty ? (
+            <Empty />
           ) : (
-            <>
-              <div className={s.space} style={{ height: numbers(state.headerHeight) }} aria-hidden="true" />
+            <div className={state.error ? s.failed : undefined} inert={Boolean(state.error)}>
+              {!state.error && <Header portal={portal} />}
               <Body />
-            </>
+            </div>
           )}
         </div>
       </ScrollContainer>
-      <Header />
+      <div ref={setPortal} data-table-header-portal="true" />
+      {environment.loading !== undefined && <Loading />}
     </div>
   );
 };

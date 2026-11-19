@@ -5,6 +5,7 @@ import { Column } from '../column/column';
 import { Empty } from '../empty/empty';
 import { Expand } from '../expand/expand';
 import { compileColumn } from './compile-column';
+import { createSelectionColumn } from './selection-column';
 import { visitDeclarations } from './visit-declarations';
 
 import type { TableColumnDefinition } from '../../core/column';
@@ -21,16 +22,17 @@ import type {
 export const compileTableConfiguration = <T extends object>(
   input: TableConfigurationInput<T>,
 ): TableConfiguration<T> => {
+  const { children: declarations, ...props } = input;
   const columns: TableColumnDefinition[] = [];
   const columnRenderers = new Map<string, TableColumnRenderers<T>>();
   const scope: TableRootScope<T> = { Column, Empty, Expand };
   let empty: TableRenderers<T>['empty'];
   let expanded: TableRenderers<T>['expanded'];
-  const children = typeof input.children === 'function' ? input.children(scope) : input.children;
+  const children = typeof declarations === 'function' ? declarations(scope) : declarations;
 
-  visitDeclarations(children, (element) => {
+  visitDeclarations(children, (element, path) => {
     if (element.type === Column && React.isValidElement<TableColumnProps<T>>(element)) {
-      const result = compileColumn(element, columns.length);
+      const result = compileColumn(element, columns.length, path);
 
       columns.push(result.column);
       columnRenderers.set(result.column.columnId, result.renderers);
@@ -55,8 +57,7 @@ export const compileTableConfiguration = <T extends object>(
   });
 
   validateTableColumns(columns);
-
-  const { children: declarations, ...props } = input;
+  if (input.select?.isUse) columns.unshift(createSelectionColumn());
 
   return {
     ...props,

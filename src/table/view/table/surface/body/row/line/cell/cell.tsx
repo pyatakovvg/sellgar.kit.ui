@@ -1,9 +1,10 @@
 import React from 'react';
 import cn from 'classnames';
 
-import { useTableEnvironment, useTableSnapshot } from '../../../../../context/table-context';
+import { useTableEnvironment } from '../../../../../context/table-context';
 
 import { ExpandTrigger } from './expand-trigger';
+import { TreeTrigger } from './tree-trigger/index.ts';
 
 import s from './default.module.scss';
 
@@ -14,9 +15,13 @@ interface IProps {
   column: TableColumnGeometry;
 }
 
-export const Cell: React.FC<IProps> = (props) => {
+const CellComponent: React.FC<IProps> = (props) => {
   const environment = useTableEnvironment();
-  const state = useTableSnapshot();
+  React.useSyncExternalStore(
+    environment.selection.subscribe,
+    () => environment.selection.getRowStatus(props.row.id).selected,
+    () => environment.selection.getRowStatus(props.row.id).selected,
+  );
   const content = React.useRef<HTMLDivElement>(null);
   const align = environment.align(props.column.id);
   const wrapperClassName = cn(s.wrapper, {
@@ -26,10 +31,10 @@ export const Cell: React.FC<IProps> = (props) => {
   });
   React.useLayoutEffect(
     () =>
-      content.current
-        ? environment.browser.observeCell(content.current, props.row.id, props.column.id, state.version)
+      content.current && !props.column.compensator
+        ? environment.browser.observeCell(content.current, props.row.id, props.column.id, props.column.measureContent)
         : undefined,
-    [environment.browser, props.row.id, props.column.id, state.version],
+    [environment.browser, props.row.id, props.column.id, props.column.measureContent, props.column.compensator],
   );
   return (
     <div
@@ -37,11 +42,16 @@ export const Cell: React.FC<IProps> = (props) => {
       role="cell"
       aria-colindex={props.column.index + 1}
       data-column-id={props.column.id}
-      style={{ gridColumn: props.column.index + 1 }}
+      data-column-region={props.column.region}
+      data-table-compensator={props.column.compensator || undefined}
     >
-      <div ref={content} className={s.content}>
-        {environment.renderCell(props.row, props.column, ExpandTrigger)}
-      </div>
+      {!props.column.compensator && (
+        <div ref={content} className={s.content}>
+          {environment.renderCell(props.row, props.column, ExpandTrigger, TreeTrigger)}
+        </div>
+      )}
     </div>
   );
 };
+
+export const Cell = React.memo(CellComponent);

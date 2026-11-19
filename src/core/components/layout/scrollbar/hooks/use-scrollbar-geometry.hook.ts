@@ -5,6 +5,7 @@ import {
   getScrollbarAncestors,
   INITIAL_SCROLLBAR_GEOMETRY,
   measureScrollbarLayout,
+  measureScrollbarTrack,
   placeScrollbarTrack,
   updateScrollbarLayoutScroll,
 } from '../geometry';
@@ -15,6 +16,7 @@ interface ScrollbarTargets {
   readonly viewport: React.RefObject<HTMLDivElement | null>;
   readonly content: React.RefObject<HTMLDivElement | null>;
   readonly horizontalTrack: React.RefObject<HTMLDivElement | null>;
+  readonly verticalTrack: React.RefObject<HTMLDivElement | null>;
 }
 
 const TRACK_TOKENS = [
@@ -52,13 +54,15 @@ export const useScrollbarGeometry = (
     const root = targets.root.current;
     const viewport = targets.viewport.current;
     const content = targets.content.current;
-    if (!root || !viewport || !content) return;
+    const verticalTrack = targets.verticalTrack.current;
+    if (!root || !viewport || !content || !verticalTrack) return;
 
     const ancestors = getScrollbarAncestors(root);
     let layout = measureScrollbarLayout(ancestors);
     let placement: ScrollbarPlacement | null = null;
     let observeAncestorTracks = () => {};
     let tokens = new Map<string, string>();
+    let trackMetrics = measureScrollbarTrack(verticalTrack);
     const readTokens = () => {
       const style = window.getComputedStyle(root);
       tokens = new Map(TRACK_TOKENS.map((token) => [token, style.getPropertyValue(token)]));
@@ -81,6 +85,7 @@ export const useScrollbarGeometry = (
         bottom: placement.bottom === 'auto' ? 'auto' : `${placement.bottom}px`,
         top: placement.top === 'auto' ? 'auto' : `${placement.top}px`,
         width: placement.width === 'auto' ? 'auto' : `${placement.width}px`,
+        height: `${placement.height}px`,
       };
       for (const [property, value] of Object.entries(styles)) {
         if (track.style.getPropertyValue(property) !== value) track.style.setProperty(property, value);
@@ -100,22 +105,23 @@ export const useScrollbarGeometry = (
       if (layoutDirtyRef.current) {
         layout = measureScrollbarLayout(ancestors);
         readTokens();
+        trackMetrics = measureScrollbarTrack(verticalTrack);
         observeAncestorTracks();
         layoutDirtyRef.current = false;
       }
-      const trackHeight = targets.horizontalTrack.current?.offsetHeight ?? 4;
       placement =
         enabled && viewport.scrollWidth - viewport.clientWidth > 1
-          ? placeScrollbarTrack(root, layout, trackHeight)
+          ? placeScrollbarTrack(root, layout, trackMetrics)
           : {
               geometry: INITIAL_SCROLLBAR_GEOMETRY,
               host: null,
               position: 'absolute',
-              left: 6,
-              right: 6,
-              bottom: 6,
+              left: trackMetrics.offset,
+              right: trackMetrics.offset,
+              bottom: trackMetrics.offset,
               top: 'auto',
               width: 'auto',
+              height: trackMetrics.height,
             };
       if (placement.host !== hostRef.current) {
         onHostChange();
@@ -128,7 +134,7 @@ export const useScrollbarGeometry = (
     refreshRef.current = refresh;
 
     const resizeObserver = new ResizeObserver(requestLayoutUpdate);
-    for (const element of [root, viewport, content, ...ancestors]) resizeObserver.observe(element);
+    for (const element of [root, viewport, content, verticalTrack, ...ancestors]) resizeObserver.observe(element);
     const mutationObserver = new MutationObserver((records) => {
       let structureChanged = false;
       for (const record of records) {
@@ -214,6 +220,7 @@ export const useScrollbarGeometry = (
     targets.viewport,
     targets.content,
     targets.horizontalTrack,
+    targets.verticalTrack,
     enabled,
     onMeasure,
     onHostChange,

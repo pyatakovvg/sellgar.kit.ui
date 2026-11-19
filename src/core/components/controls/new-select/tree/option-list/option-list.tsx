@@ -12,6 +12,8 @@ import s from './default.module.scss';
 interface IProps<TOption> {
   items: readonly TFloatingListItemState<ITreeEntry<TOption>>[];
   expandedIds: ReadonlySet<string>;
+  selectBranches: boolean;
+  onToggle(id: string): void;
   resolveValue(option: TOption): React.ReactNode;
   renderOption?(
     option: TOption,
@@ -45,12 +47,32 @@ export const OptionList = <TOption,>(props: IProps<TOption>): React.ReactElement
                 'aria-posinset': item.item.position,
                 'aria-setsize': item.item.siblingsCount,
                 'aria-expanded': isBranch ? isExpanded : void 0,
-                'aria-selected': isBranch ? void 0 : item.isSelected,
+                'aria-selected': isBranch && !props.selectBranches ? void 0 : item.isSelected,
               })}
             >
               {item.item.ancestorIds.map((id) => (
                 <span key={id} aria-hidden={true} className={s.indent} />
               ))}
+              {props.selectBranches && (
+                <span className={s.disclosure}>
+                  {isBranch && (
+                    <button
+                      type={'button'}
+                      className={s.toggle}
+                      tabIndex={-1}
+                      aria-label={isExpanded ? 'Свернуть ветку' : 'Развернуть ветку'}
+                      aria-expanded={isExpanded}
+                      onKeyDown={(event) => event.stopPropagation()}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        props.onToggle(item.item.id);
+                      }}
+                    >
+                      {isExpanded ? <ArrowUpSLineIcon /> : <ArrowDownSLineIcon />}
+                    </button>
+                  )}
+                </span>
+              )}
               {props.renderOption ? (
                 props.renderOption(item.item.option, {
                   index: item.index,
@@ -67,7 +89,17 @@ export const OptionList = <TOption,>(props: IProps<TOption>): React.ReactElement
                   disabled={item.isDisabled}
                   label={props.resolveValue(item.item.option)}
                   selected={item.isSelected}
-                  tailIcon={isBranch ? isExpanded ? <ArrowUpSLineIcon /> : <ArrowDownSLineIcon /> : void 0}
+                  tailIcon={
+                    isBranch && !props.selectBranches ? (
+                      isExpanded ? (
+                        <ArrowUpSLineIcon />
+                      ) : (
+                        <ArrowDownSLineIcon />
+                      )
+                    ) : (
+                      void 0
+                    )
+                  }
                 />
               )}
             </div>

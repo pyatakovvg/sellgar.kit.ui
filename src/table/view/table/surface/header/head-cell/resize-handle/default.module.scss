@@ -24,11 +24,10 @@
 .indicator {
   width: var(--numbers-2);
   height: 100%;
-  background: var(--background-accent-blue-accent);
+  background: var(--icon-base-secondary);
   border-radius: var(--measurements-radius-full);
-  opacity: 0.4;
 
   &[data-available='true'] {
-    opacity: 1;
+    background: var(--icon-status-success);
   }
 }

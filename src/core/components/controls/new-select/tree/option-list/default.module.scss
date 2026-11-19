@@ -12,3 +12,22 @@
 .indent {
   flex: 0 0 calc(var(--numbers-32) - var(--numbers-6));
 }
+
+.disclosure {
+  display: flex;
+  align-items: center;
+  flex: 0 0 var(--numbers-32);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--numbers-32);
+  height: var(--numbers-32);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}

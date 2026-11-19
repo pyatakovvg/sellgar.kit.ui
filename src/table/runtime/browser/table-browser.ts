@@ -1,6 +1,13 @@
 import { TableRuntime } from '../table-runtime';
+import { elementScale } from './coordinate-space';
+import { HeaderScroll } from './header-scroll';
+import { LastRowObserver } from './last-row-observer';
+import { observePosition } from './position-observer';
+import { TablePresentation } from './table-presentation';
+import { ContentWidths } from './content-widths';
 
-import type { TableMeasurement } from '../types';
+import type { TableColumnGeometry, TableMeasurement } from '../types';
+import type { HeaderPlacement } from './table-presentation';
 
 const ANCHOR_LEASES = new WeakMap<HTMLElement, { count: number; previous: string }>();
 
@@ -27,6 +34,15 @@ const findScrollOwner = (root: HTMLElement, axis: 'X' | 'Y'): HTMLElement | Wind
   return window;
 };
 
+const innerRect = (element: HTMLElement) => {
+  const rect = element.getBoundingClientRect();
+  const scaleX = elementScale(element, 'X');
+  const scaleY = elementScale(element, 'Y');
+  const left = rect.left + element.clientLeft * scaleX;
+  const top = rect.top + element.clientTop * scaleY;
+  return { left, top, right: left + element.clientWidth * scaleX, bottom: top + element.clientHeight * scaleY, scaleX };
+};
+
 export class TableBrowser {
   private root?: HTMLElement;
   private surface?: HTMLElement;
@@ -35,12 +51,40 @@ export class TableBrowser {
   private scrollHost?: HTMLElement;
   private owner?: HTMLElement | Window;
   private header?: HTMLElement;
+  private fixedProbe?: HTMLElement;
   private parent?: TableBrowser;
   private readonly nested = new Map<string, { root: HTMLElement; minimum: number }>();
   private scale = 1;
-  private pointer?: { id: number; clientX: number };
+  private cssScale = 1;
+  private scaleY = 1;
+  private scrollerCssScale = 1;
+  private scrollerLeft = 0;
+  private headerSync?: {
+    header: HTMLElement;
+    source: HTMLElement;
+    total: number;
+    container: number;
+    width: number;
+    left: number;
+    scale: number;
+    sourceScale: number;
+    sourceLeft: number;
+    native: boolean;
+    cells: { element: Element; region: string | null }[];
+  };
+  private pointer?: { id: number; clientX: number; target: HTMLElement; pinned: boolean; grabOffset: number };
+  private resize?: { columnId: string; startWidth: number; changed: boolean; keyboard?: boolean };
+  private onResize?: (columnId: string, width: number) => void;
   private readonly pending = new Map<string, TableMeasurement>();
+  private readonly measurementReaders = new Map<HTMLElement, () => void>();
+  private measurementVersion = -1;
+  private readonly headerScroll = new HeaderScroll();
+  private readonly lastRowObserver = new LastRowObserver();
+  private readonly presentation = new TablePresentation();
+  private headerPlacement?: HeaderPlacement;
+  private presenting = false;
   private frame = 0;
+  private readonly contentWidths = new ContentWidths(() => this.schedule());
 
   constructor(private readonly runtime: TableRuntime) {}
 
@@ -57,11 +101,21 @@ export class TableBrowser {
       throw new Error('Table requires its own horizontal scroll viewport');
     this.parent = parent;
     this.root = root;
+    const fixedProbe = document.createElement('span');
+    fixedProbe.style.cssText =
+      'position:fixed;left:var(--numbers-0);top:var(--numbers-0);width:var(--numbers-100);height:var(--numbers-100);visibility:hidden;pointer-events:none';
+    fixedProbe.ariaHidden = 'true';
+    root.appendChild(fixedProbe);
+    this.fixedProbe = fixedProbe;
+
     this.surface = surface;
     this.probe = probe;
     this.scroller = scroller;
     this.scrollHost = scrollHost;
     this.owner = internal ? scroller : findScrollOwner(root, 'Y');
+    this.measurementVersion = -1;
+    const releaseContentWidths = this.contentWidths.attach(root);
+    const unsubscribe = this.runtime.subscribe(() => this.present(false));
     const scrollElement = this.owner instanceof HTMLElement ? this.owner : document.documentElement;
     const releaseAnchor = acquireAnchor(scrollElement);
     const releaseHorizontalAnchor = scroller === scrollElement ? undefined : acquireAnchor(scroller);
@@ -72,12 +126,52 @@ export class TableBrowser {
     observer.observe(scrollHost);
     observer.observe(surface);
     observer.observe(probe);
+    let ancestor = root.parentElement;
+    while (ancestor) {
+      observer.observe(ancestor);
+      ancestor = ancestor.parentElement;
+    }
+    const releasePosition = observePosition(surface, refresh);
+    const move = (event: PointerEvent) => {
+      if (event.pointerId !== this.pointer?.id) return;
+      if (!(event.buttons & 1)) this.endResize(false);
+      else {
+        this.pointer.clientX = event.clientX;
+        this.moveResize(this.pointerX(event.clientX));
+      }
+    };
+    const up = (event: PointerEvent) => {
+      if (event.pointerId === this.pointer?.id) this.endResize(false);
+    };
+    const cancel = (event: PointerEvent) => {
+      if (event.pointerId === this.pointer?.id) this.endResize(true);
+    };
+    root.addEventListener('pointermove', move);
+    root.addEventListener('pointerup', up);
+    root.addEventListener('pointercancel', cancel);
+    root.addEventListener('lostpointercapture', cancel);
+    const doubleClick = (event: MouseEvent) => this.resetFromDoubleClick(event);
+    root.addEventListener('dblclick', doubleClick);
+    const focus = (event: FocusEvent) => this.revealFocusedCell(event);
+    root.addEventListener('focusin', focus);
     window.addEventListener('scroll', refresh, true);
     window.addEventListener('resize', refresh);
     this.refresh();
     return () => {
       this.endResize(true);
+      this.lastRowObserver.clear();
+      this.headerScroll.clear();
+      this.headerSync = undefined;
+      releaseContentWidths();
+      unsubscribe();
       observer.disconnect();
+      releasePosition();
+      root.removeEventListener('pointermove', move);
+      root.removeEventListener('pointerup', up);
+      root.removeEventListener('pointercancel', cancel);
+      root.removeEventListener('lostpointercapture', cancel);
+      root.removeEventListener('dblclick', doubleClick);
+      root.removeEventListener('focusin', focus);
       window.removeEventListener('scroll', refresh, true);
       window.removeEventListener('resize', refresh);
       releaseAnchor();
@@ -85,6 +179,8 @@ export class TableBrowser {
       if (this.frame) cancelAnimationFrame(this.frame);
       this.frame = 0;
       this.pending.clear();
+      fixedProbe.remove();
+      this.fixedProbe = undefined;
       this.root = undefined;
       this.surface = undefined;
       this.probe = undefined;
@@ -93,6 +189,26 @@ export class TableBrowser {
       this.owner = undefined;
       this.parent = undefined;
     };
+  }
+
+  clearLastRow(): void {
+    this.lastRowObserver.clear();
+  }
+
+  observeLastRow(
+    element: HTMLElement,
+    rowId: string,
+    onVisible: () => void,
+    options: { readonly rootMargin?: number; readonly threshold?: number },
+  ): () => void {
+    const owner = this.scrollOwner();
+    return this.lastRowObserver.observe(
+      element,
+      rowId,
+      owner instanceof HTMLElement ? owner : null,
+      onVisible,
+      options,
+    );
   }
 
   observeNested(id: string, root: HTMLElement, runtime: TableRuntime): () => void {
@@ -116,24 +232,48 @@ export class TableBrowser {
     };
   }
 
+  attachHeaderPlacement(mount: HTMLElement, slot: HTMLElement, portal: HTMLElement): () => void {
+    const placement = { mount, slot, portal };
+    this.headerPlacement = placement;
+    this.present();
+    return () => {
+      if (this.headerPlacement === placement) this.headerPlacement = undefined;
+    };
+  }
+
+  present(reconcile = true): void {
+    if (reconcile) this.presentation.invalidate();
+    if (!this.root || !this.surface || this.presenting) return;
+    this.presenting = true;
+    try {
+      const moved = this.presentation.apply(
+        this.root,
+        this.surface,
+        this.runtime.getSnapshot(),
+        this.headerPlacement,
+        this.runtime,
+      );
+      if (moved) {
+        this.refresh();
+        this.presentation.apply(
+          this.root,
+          this.surface,
+          this.runtime.getSnapshot(),
+          this.headerPlacement,
+          this.runtime,
+        );
+      }
+      this.syncHeaderScroll();
+      if (this.measurementVersion !== this.runtime.getSnapshot().version) this.schedule();
+    } finally {
+      this.presenting = false;
+    }
+  }
+
   attachHeader(header: HTMLElement): () => void {
     this.header = header;
     const observer = new ResizeObserver(() => this.schedule());
     observer.observe(header);
-    const move = (event: PointerEvent) => {
-      if (event.pointerId !== this.pointer?.id) return;
-      if (!(event.buttons & 1)) this.endResize(false);
-      else {
-        this.pointer.clientX = event.clientX;
-        this.runtime.moveResize(this.pointerX(event.clientX));
-      }
-    };
-    const up = (event: PointerEvent) => {
-      if (event.pointerId === this.pointer?.id) this.endResize(false);
-    };
-    const cancel = (event: PointerEvent) => {
-      if (event.pointerId === this.pointer?.id) this.endResize(true);
-    };
     const blur = () => this.endResize(true);
     const key = (event: KeyboardEvent) => {
       if (event.key === 'Escape') this.endResize(true);
@@ -142,10 +282,6 @@ export class TableBrowser {
       if (document.hidden) this.endResize(true);
     };
     const wheel = (event: WheelEvent) => this.scrollFromHeader(event);
-    header.addEventListener('pointermove', move);
-    header.addEventListener('pointerup', up);
-    header.addEventListener('pointercancel', cancel);
-    header.addEventListener('lostpointercapture', cancel);
     header.addEventListener('wheel', wheel, { passive: false });
     window.addEventListener('blur', blur);
     window.addEventListener('keydown', key);
@@ -153,11 +289,9 @@ export class TableBrowser {
     this.refresh();
     return () => {
       this.endResize(true);
+      this.headerScroll.clear();
+      this.headerSync = undefined;
       observer.disconnect();
-      header.removeEventListener('pointermove', move);
-      header.removeEventListener('pointerup', up);
-      header.removeEventListener('pointercancel', cancel);
-      header.removeEventListener('lostpointercapture', cancel);
       header.removeEventListener('wheel', wheel);
       window.removeEventListener('blur', blur);
       window.removeEventListener('keydown', key);
@@ -166,99 +300,297 @@ export class TableBrowser {
     };
   }
 
-  beginResize(columnId: string, event: PointerEvent): void {
-    if (!event.isPrimary || event.button !== 0 || this.pointer || !this.header) return;
-    if (!this.runtime.beginResize(columnId, this.pointerX(event.clientX))) return;
-    event.preventDefault();
-    this.pointer = { id: event.pointerId, clientX: event.clientX };
-    this.header.setPointerCapture(event.pointerId);
+  syncHeaderScroll(): void {
+    const header = this.header;
+    const source = this.scroller;
+    if (!header || !source) return;
+    if (header.parentElement?.dataset.tableHeaderPosition !== 'portal') {
+      this.headerScroll.clear();
+      this.headerSync = undefined;
+      return;
+    }
+    const state = this.runtime.getSnapshot();
+    // Body row commits do not change horizontal header geometry. Keep native animations
+    // running instead of forcing layout again after presentation has written the DOM.
+    const previous = this.headerSync;
+    const children = header.children;
+    const native = typeof ScrollTimeline === 'function' && typeof header.animate === 'function';
+    if (
+      previous?.header === header &&
+      previous.source === source &&
+      previous.total === state.total &&
+      previous.container === state.viewport.container &&
+      previous.width === state.viewport.width &&
+      previous.left === state.viewport.left &&
+      previous.scale === this.scale &&
+      previous.sourceScale === this.scrollerCssScale &&
+      previous.sourceLeft === this.scrollerLeft &&
+      previous.native === native &&
+      previous.cells.length === children.length &&
+      previous.cells.every(
+        (cell, index) =>
+          cell.element === children[index] && cell.region === children[index].getAttribute('data-column-region'),
+      )
+    )
+      return;
+    this.headerScroll.sync(header, source, state.viewport.left, this.scrollerCssScale / this.scale);
+    this.headerSync = {
+      header,
+      source,
+      total: state.total,
+      container: state.viewport.container,
+      width: state.viewport.width,
+      left: state.viewport.left,
+      scale: this.scale,
+      sourceScale: this.scrollerCssScale,
+      sourceLeft: this.scrollerLeft,
+      native,
+      cells: Array.from(children, (element) => ({ element, region: element.getAttribute('data-column-region') })),
+    };
   }
 
-  observeCell(element: HTMLElement, rowId: string, columnId: string, version: number): () => void {
-    const observer = new ResizeObserver(() => {
+  setResizeHandler(handler: ((columnId: string, width: number) => void) | undefined): void {
+    this.onResize = handler;
+  }
+
+  beginResize(columnId: string, event: PointerEvent): void {
+    if (!event.isPrimary || event.button !== 0 || this.resize || !this.header || !this.root) return;
+    const column = this.runtime.getSnapshot().columns.find((item) => item.id === columnId);
+    if (!column) return;
+    const pinned = column.region !== 'center';
+    const startWidth = this.runtime.getColumnWidth(columnId);
+    if (startWidth === undefined || !this.beginColumnResize(column, this.pointerX(event.clientX, pinned))) return;
+    this.resize = { columnId, startWidth, changed: false };
+    event.preventDefault();
+    const viewport = this.runtime.getSnapshot().viewport;
+    const edge = column.displayOffset + (column.resizeEdge === 'right' ? column.width : 0);
+    this.pointer = {
+      id: event.pointerId,
+      clientX: event.clientX,
+      target: this.root,
+      pinned,
+      grabOffset: event.clientX / this.scale - viewport.screenLeft - edge,
+    };
+    this.root.setPointerCapture(event.pointerId);
+  }
+
+  resizeBy(columnId: string, delta: number): void {
+    this.resizeByKey(columnId, delta);
+    this.finishKeyResize(columnId);
+  }
+
+  resizeByKey(columnId: string, delta: number): void {
+    if (!Number.isFinite(delta) || this.pointer) return;
+    if (!this.resize) {
+      const column = this.runtime.getSnapshot().columns.find((item) => item.id === columnId);
+      const startWidth = this.runtime.getColumnWidth(columnId);
+      if (!column || startWidth === undefined || !this.beginColumnResize(column, 0)) return;
+      this.resize = { columnId, startWidth, changed: false, keyboard: true };
+    }
+    if (this.resize.columnId !== columnId || !this.resize.keyboard) return;
+    const geometry = this.runtime.getColumnGeometry(columnId);
+    if (!geometry) return;
+    const edge = geometry.displayOffset + (geometry.resizeEdge === 'right' ? geometry.width : 0);
+    const movement = Math.min(delta, Math.max(0, this.runtime.getSnapshot().viewport.width - edge));
+    this.runtime.rebaseResize(0);
+    this.moveResize(movement);
+  }
+
+  finishKeyResize(columnId: string, cancel = false): void {
+    if (this.resize?.columnId === columnId && this.resize.keyboard) this.endResize(cancel);
+  }
+
+  resetColumnWidth(columnId: string): void {
+    if (this.resize) return;
+    const before = this.runtime.getColumnWidth(columnId);
+    if (this.runtime.resetColumnWidth(columnId)) this.notifyResize(columnId, before);
+  }
+
+  private resetFromDoubleClick(event: MouseEvent): void {
+    const root = this.root;
+    if (!root) return;
+    // Pointer capture retargets native clicks to the stable table root.
+    const target =
+      event.target === root ? root.ownerDocument.elementFromPoint(event.clientX, event.clientY) : event.target;
+    const handle = target instanceof Element ? target.closest('[data-resize-column]') : null;
+    if (!handle || handle.closest('[data-table="geometry"]') !== root) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.resetColumnWidth(handle.getAttribute('data-resize-column')!);
+  }
+
+  observeCell(element: HTMLElement, rowId: string, columnId: string, measureContent = false): () => void {
+    const releaseContent = measureContent ? this.contentWidths.observe(element, columnId) : undefined;
+    const releaseHeight = this.observeMeasurement(element, JSON.stringify([rowId, columnId]), () => {
       const parent = element.parentElement;
       const style = parent ? getComputedStyle(parent) : undefined;
       const borders = style ? Number.parseFloat(style.borderTopWidth) + Number.parseFloat(style.borderBottomWidth) : 0;
-      const entry = {
+      return {
         rowId,
         columnId,
-        version,
-        height: (element.getBoundingClientRect().height + borders) / this.scale,
+        version: this.runtime.getSnapshot().version,
+        height:
+          (element.getBoundingClientRect().height + borders * (parent ? elementScale(parent, 'Y') : 1)) / this.scaleY,
       };
-      this.pending.set(JSON.stringify([rowId, columnId]), entry);
-      this.schedule();
     });
-    observer.observe(element);
-    return () => observer.disconnect();
+    return () => {
+      releaseContent?.();
+      releaseHeight();
+    };
   }
 
-  observeExpanded(element: HTMLElement, rowId: string, version: number): () => void {
+  observeHeaderContent(element: HTMLElement, columnId: string): () => void {
+    return this.contentWidths.observe(element, columnId);
+  }
+
+  observeExpanded(element: HTMLElement, rowId: string): () => void {
+    return this.observeMeasurement(element, JSON.stringify([rowId, 'expanded']), () => ({
+      kind: 'expanded',
+      rowId,
+      version: this.runtime.getSnapshot().version,
+      height: element.getBoundingClientRect().height / this.scaleY,
+    }));
+  }
+
+  observeEmpty(element: HTMLElement): () => void {
+    return this.observeMeasurement(element, 'empty', () => ({
+      kind: 'empty',
+      version: this.runtime.getSnapshot().version,
+      height: element.getBoundingClientRect().height / this.scaleY,
+    }));
+  }
+
+  private observeMeasurement(element: HTMLElement, key: string, read: () => TableMeasurement): () => void {
+    const measure = () => {
+      this.pending.set(key, read());
+    };
+    this.measurementReaders.set(element, measure);
     const observer = new ResizeObserver(() => {
-      this.pending.set(JSON.stringify([rowId, 'expanded']), {
-        kind: 'expanded',
-        rowId,
-        version,
-        height: element.getBoundingClientRect().height / this.scale,
-      });
+      measure();
       this.schedule();
     });
     observer.observe(element);
-    return () => observer.disconnect();
+    measure();
+    this.schedule();
+    return () => {
+      observer.disconnect();
+      this.measurementReaders.delete(element);
+      this.pending.delete(key);
+    };
+  }
+
+  correctScroll(correction: number): void {
+    const owner = this.scrollOwner();
+    if (!correction || !owner) return;
+    const ownerScale = owner instanceof HTMLElement ? elementScale(owner, 'Y') : 1;
+    owner.scrollBy({ top: (correction * this.scaleY) / ownerScale, behavior: 'instant' });
   }
 
   toggleExpanded(rowId: string): void {
     const correction = this.runtime.toggleExpanded(rowId);
-    if (correction) this.scrollOwner()?.scrollBy({ top: correction * this.scale });
+    this.correctScroll(correction);
+  }
+
+  toggleTree(rowId: string): void {
+    const correction = this.runtime.toggleTree(rowId);
+    this.correctScroll(correction);
   }
 
   refresh(): void {
     if (!this.root || !this.surface || !this.probe || !this.scroller || !this.owner) return;
-    this.scale = this.probe.getBoundingClientRect().width / 100 || 1;
+    const previous = this.runtime.getSnapshot().viewport;
+    const probeWidth = this.probe.getBoundingClientRect().width;
+    this.scale = probeWidth / 100 || 1;
+    this.cssScale = probeWidth / (Number.parseFloat(getComputedStyle(this.probe).width) || 100) || 1;
+    const themeUnit = (Number.parseFloat(getComputedStyle(this.probe).width) || 100) / 100;
+    const verticalCssScale = this.fixedProbe?.getBoundingClientRect().height
+      ? elementScale(this.fixedProbe, 'Y')
+      : elementScale(this.surface, 'Y');
+    this.scaleY = themeUnit * verticalCssScale || 1;
     const rootRect = this.surface.getBoundingClientRect();
     for (const [id, child] of this.nested) {
       const offset = (child.root.getBoundingClientRect().left - rootRect.left) / this.scale;
-      this.runtime.setNestedWidth(id, Math.max(0, offset) + child.minimum);
+      const style = getComputedStyle(child.root);
+      const borders =
+        ((Number.parseFloat(style.borderLeftWidth) + Number.parseFloat(style.borderRightWidth)) * this.cssScale) /
+        this.scale;
+      this.runtime.setNestedWidth(id, Math.max(0, offset) + borders + child.minimum);
     }
     const owner = this.scrollOwner()!;
-    const ownerRect = owner instanceof HTMLElement ? owner.getBoundingClientRect() : undefined;
-    let left = ownerRect && owner instanceof HTMLElement ? ownerRect.left + owner.clientLeft : 0;
-    let top = ownerRect && owner instanceof HTMLElement ? ownerRect.top + owner.clientTop : 0;
-    let right = left + (owner instanceof HTMLElement ? owner.clientWidth : document.documentElement.clientWidth);
-    let bottom = top + (owner instanceof HTMLElement ? owner.clientHeight : window.innerHeight);
+    const ownerRect = owner instanceof HTMLElement ? innerRect(owner) : undefined;
+    let left = ownerRect?.left ?? 0;
+    let top = ownerRect?.top ?? 0;
+    let right = ownerRect?.right ?? document.documentElement.clientWidth;
+    let bottom = ownerRect?.bottom ?? window.innerHeight;
     let parent = this.root.parentElement;
     while (parent && parent !== document.body && parent !== document.documentElement) {
       const style = getComputedStyle(parent);
-      const rect = parent.getBoundingClientRect();
+      const rect = innerRect(parent);
       if (/(auto|scroll|hidden|clip)/.test(style.overflowX)) {
-        left = Math.max(left, rect.left + parent.clientLeft);
-        right = Math.min(right, rect.left + parent.clientLeft + parent.clientWidth);
+        left = Math.max(left, rect.left);
+        right = Math.min(right, rect.right);
       }
       if (/(auto|scroll|hidden|clip)/.test(style.overflowY)) {
-        top = Math.max(top, rect.top + parent.clientTop);
-        bottom = Math.min(bottom, rect.top + parent.clientTop + parent.clientHeight);
+        top = Math.max(top, rect.top);
+        bottom = Math.min(bottom, rect.bottom);
       }
       parent = parent.parentElement;
     }
-    const scrollerRect = this.scroller.getBoundingClientRect();
-    const scrollerLeft = scrollerRect.left + this.scroller.clientLeft;
+    const scrollerRect = innerRect(this.scroller);
+    this.scrollerCssScale = scrollerRect.scaleX;
+    this.scrollerLeft = this.scroller.scrollLeft;
+    const scrollerLeft = scrollerRect.left;
     left = Math.max(0, left, rootRect.left, scrollerLeft);
-    right = Math.min(right, document.documentElement.clientWidth, scrollerLeft + this.scroller.clientWidth);
+    right = Math.min(right, document.documentElement.clientWidth, scrollerRect.right);
     top = Math.max(0, top) + this.probe.getBoundingClientRect().height;
     bottom = Math.min(bottom, window.innerHeight);
     this.clipHeader(left, top, right, bottom);
-    const previousLeft = this.runtime.getSnapshot().viewport.left;
+    const parentViewport = this.parent?.runtime.getSnapshot().viewport;
+    const parentLeft = this.parent?.surface?.getBoundingClientRect().left ?? rootRect.left;
+    const rightInset =
+      (this.root.getBoundingClientRect().right -
+        (this.scrollHost?.getBoundingClientRect().right ?? this.root.getBoundingClientRect().right)) /
+      this.scale;
+    const available = parentViewport
+      ? Math.max(
+          0,
+          (parentViewport.available ?? parentViewport.container) -
+            Math.max(0, (rootRect.left - parentLeft) / this.scale) -
+            rightInset,
+        )
+      : undefined;
+    const previousLeft = previous.left;
     const nextLeft = (left - rootRect.left) / this.scale;
-    this.runtime.updateViewport({
-      container: (this.parent ? this.root.clientWidth : this.scroller.clientWidth) / this.scale,
+    const viewport = {
+      container: ((this.parent ? this.root.clientWidth : this.scroller.clientWidth) * this.cssScale) / this.scale,
+      available,
       width: Math.max(0, right - left) / this.scale,
-      height: Math.max(0, bottom - top) / this.scale,
-      scroll: (top - rootRect.top) / this.scale,
+      height: Math.max(0, bottom - top) / this.scaleY,
+      scroll: (top - rootRect.top) / this.scaleY,
       left: nextLeft,
-      top: top / this.scale,
+      top: top / this.scaleY,
       screenLeft: left / this.scale,
+      originLeft: (this.fixedProbe?.getBoundingClientRect().left ?? 0) / this.scale,
+      originTop: (this.fixedProbe?.getBoundingClientRect().top ?? 0) / this.scaleY,
       scale: this.scale,
-    });
-    if (this.pointer && Math.abs(previousLeft - nextLeft) > 1e-7)
+      scaleY: this.scaleY,
+    };
+    this.runtime.updateViewport(viewport);
+    this.lastRowObserver.refresh(this.runtime.getSnapshot().rows);
+    this.syncHeaderScroll();
+    if (!this.pointer) return;
+    if (!this.runtime.getSnapshot().dragging) {
+      this.endResize(false);
+      return;
+    }
+    const environmentChanged =
+      previous.container !== viewport.container ||
+      previous.available !== viewport.available ||
+      previous.scale !== viewport.scale ||
+      (this.pointer.pinned && (previous.width !== viewport.width || previous.screenLeft !== viewport.screenLeft)) ||
+      (Math.abs(previousLeft - nextLeft) < 1e-7 && previous.screenLeft !== viewport.screenLeft);
+    if (environmentChanged) this.runtime.rebaseResize(this.pointerX(this.pointer.clientX));
+    else if (!this.pointer.pinned && Math.abs(previousLeft - nextLeft) > 1e-7)
       this.runtime.moveResize(this.pointerX(this.pointer.clientX));
   }
 
@@ -266,38 +598,124 @@ export class TableBrowser {
     return this.parent?.scrollOwner() ?? this.owner;
   }
 
-  private pointerX(clientX: number): number {
-    return (clientX - (this.surface?.getBoundingClientRect().left ?? 0)) / this.scale;
+  private beginColumnResize(column: TableColumnGeometry, x: number): boolean {
+    return column.region === 'center'
+      ? this.runtime.beginResize(column.id, x)
+      : this.runtime.beginPinResize(column.id, x, column.resizeEdge);
+  }
+
+  private pointerX(clientX: number, pinned = this.pointer?.pinned ?? false): number {
+    const viewport = this.runtime.getSnapshot().viewport;
+    const grabOffset = Math.min(0, this.pointer?.grabOffset ?? 0);
+    const limitedClientX = Math.min(clientX, (viewport.screenLeft + viewport.width + grabOffset) * this.scale);
+    if (pinned) return limitedClientX / this.scale - viewport.screenLeft;
+    return (limitedClientX - (this.surface?.getBoundingClientRect().left ?? 0)) / this.scale;
+  }
+
+  private revealFocusedCell(event: FocusEvent): void {
+    const target = event.target;
+    const state = this.runtime.getSnapshot();
+    if (
+      !(target instanceof HTMLElement) ||
+      !this.scroller ||
+      !state.regions ||
+      target.closest('[data-table="geometry"]') !== this.root ||
+      target.closest('[data-column-id]')?.getAttribute('data-column-region') !== 'center'
+    )
+      return;
+
+    const rect = target.getBoundingClientRect();
+    const start = rect.left / this.scale - state.viewport.screenLeft;
+    const end = rect.right / this.scale - state.viewport.screenLeft;
+    const region = state.regions.center;
+    const delta =
+      start < region.start
+        ? start - region.start
+        : end > region.end
+          ? Math.min(end - region.end, Math.max(0, start - region.start))
+          : 0;
+    if (delta !== 0) this.scroller.scrollBy({ left: (delta * this.scale) / this.cssScale });
   }
 
   private clipHeader(left: number, top: number, right: number, bottom: number): void {
     const layer = this.header?.parentElement;
-    if (!layer || !this.scrollHost) return;
+    if (!this.scrollHost || !this.root) return;
     const rect = this.scrollHost.getBoundingClientRect();
+    const topBorder = String(rect.top < top - 1e-7);
+    if (layer && layer.dataset.tableHeaderTopBorder !== topBorder) layer.dataset.tableHeaderTopBorder = topBorder;
     const radius = getComputedStyle(this.scrollHost).borderRadius;
     const insets = [rect.top - top, right - rect.right, bottom - rect.bottom, rect.left - left];
-    layer.style.setProperty(
-      '--table-header-clip',
-      `inset(${insets.map((value) => `${value}px`).join(' ')} round ${radius})`,
-    );
+    const cssScale = this.fixedProbe ? elementScale(this.fixedProbe, 'X') : 1;
+    const cssScaleY = this.fixedProbe ? elementScale(this.fixedProbe, 'Y') : 1;
+    const clip = `inset(${insets.map((value, index) => `${value / (index % 2 ? cssScale : cssScaleY)}px`).join(' ')} round ${radius})`;
+    layer?.style.setProperty('--table-header-clip', clip);
+    for (const loading of this.root.querySelectorAll<HTMLElement>('[data-table-loading-layer]')) {
+      if (loading.closest('[data-table="geometry"]') === this.root)
+        loading.style.setProperty('--table-header-clip', clip);
+    }
+  }
+
+  private moveResize(x: number): void {
+    const resize = this.resize;
+    if (!resize) return;
+    const before = this.runtime.getColumnWidth(resize.columnId);
+    this.runtime.moveResize(x);
+    if (this.runtime.getColumnWidth(resize.columnId) !== before) resize.changed = true;
   }
 
   private endResize(cancel: boolean): void {
+    const resize = this.resize;
     const pointer = this.pointer;
+    let active = this.runtime.getSnapshot().dragging;
+    this.resize = undefined;
     this.pointer = undefined;
+    if (!cancel && active && resize?.changed) {
+      this.refresh();
+      active = this.runtime.getSnapshot().dragging;
+      const column = this.runtime.getColumnGeometry(resize.columnId);
+      if (active && column) {
+        const edge = column.displayOffset + (column.resizeEdge === 'right' ? column.width : 0);
+        const excess = edge - this.runtime.getSnapshot().viewport.width;
+        if (excess > 1e-7) {
+          this.runtime.rebaseResize(0);
+          this.runtime.moveResize(-excess);
+        }
+      }
+    }
     if (cancel) this.runtime.cancelResize();
     else this.runtime.finishResize();
-    if (pointer && this.header?.hasPointerCapture(pointer.id)) this.header.releasePointerCapture(pointer.id);
+    if (pointer?.target.hasPointerCapture(pointer.id)) pointer.target.releasePointerCapture(pointer.id);
+    if (this.root) this.schedule();
+    if (resize?.changed && active && !cancel) this.notifyResize(resize.columnId, resize.startWidth);
+  }
+
+  private notifyResize(columnId: string, before: number | undefined): void {
+    const width = this.runtime.getColumnWidth(columnId);
+    if (before !== undefined && width !== undefined && Math.abs(width - before) > 1e-7)
+      this.onResize?.(columnId, width);
   }
 
   private flush(): void {
     this.frame = 0;
     this.refresh();
-    if (this.header) this.runtime.setHeaderHeight(this.header.getBoundingClientRect().height / this.scale);
+    if (this.header) this.runtime.setHeaderHeight(this.header.getBoundingClientRect().height / this.scaleY);
+    const state = this.runtime.getSnapshot();
+    if (!state.dragging) {
+      const widths = this.contentWidths.measure(
+        state.contentEpoch,
+        this.scale,
+        new Set(state.columns.filter((column) => column.measureContent).map((column) => column.id)),
+      );
+      if (widths.length) this.runtime.commitContentWidths(widths, state.contentEpoch);
+    }
+    if (this.measurementVersion !== this.runtime.getSnapshot().version) {
+      this.measurementVersion = this.runtime.getSnapshot().version;
+      this.measurementReaders.forEach((measure) => measure());
+    }
     const entries = [...this.pending.values()];
     this.pending.clear();
     const correction = this.runtime.commitMeasurements(entries);
-    if (correction) this.scrollOwner()?.scrollBy({ top: correction * this.scale });
+    this.correctScroll(correction);
     this.refresh();
   }
 

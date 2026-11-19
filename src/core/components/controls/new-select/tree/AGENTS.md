@@ -32,3 +32,12 @@ Stories: Kit/Controls/NewSelect/Tree. Проверять primitive/object resolv
 - Prop исключается перед native spread, selection-контракт не меняется.
 - Stories InitiallyExpanded/InitiallyCollapsed используют глубокое дерево;
   SelectedInCollapsedTree проверяет, что value не раскрывает предков.
+
+## Выбор ветвей
+
+- `selectBranches?: boolean` (по умолчанию false) разрешает выбирать любой доступный узел.
+- В этом режиме клик/Enter/Space на строке выбирает узел и закрывает popup; отдельная
+  кнопка стрелки раскрывает ветку. Left/Right сохраняют навигацию дерева.
+- В value допускается ветвь. Disabled-ветвь по-прежнему можно раскрыть, но нельзя выбрать.
+- Используется для родительской категории; имена категорий и фильтрация поддерева
+  принадлежат feature, не kit.

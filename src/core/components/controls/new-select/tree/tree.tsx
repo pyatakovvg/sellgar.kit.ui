@@ -28,6 +28,7 @@ interface IBaseProps<TOption> extends Omit<
   placeholder?: string;
   clearable?: boolean;
   defaultExpanded?: boolean;
+  selectBranches?: boolean;
   resolveValue(option: TOption): React.ReactNode;
   resolveChildren(option: TOption): readonly TOption[] | undefined;
   renderOption?: React.ComponentProps<typeof OptionList<TOption>>['renderOption'];
@@ -84,17 +85,18 @@ const mapInputProps = <TOption, TResult>({
   value: _value,
   onChange: _onChange,
   ...props
-}: Omit<IProps<TOption, TResult>, 'placeholder' | 'clearable' | 'defaultExpanded'>) => props;
+}: Omit<IProps<TOption, TResult>, 'placeholder' | 'clearable' | 'defaultExpanded' | 'selectBranches'>) => props;
 
 export const TreeSelect: IComponent = <TOption, TResult = TOption>({
   placeholder = 'Select...',
   clearable = false,
   defaultExpanded = true,
+  selectBranches = false,
   ...props
 }: IProps<TOption, TResult>): React.ReactElement => {
   const [open, setOpen] = React.useState(false);
   const tree = useTree(props.options, props.resolveChildren, defaultExpanded, props.isOptionDisabled);
-  const options = tree.entries.filter((entry) => entry.childrenIds.length === 0);
+  const options = selectBranches ? tree.entries : tree.entries.filter((entry) => entry.childrenIds.length === 0);
   const selectedOption =
     props.resolveKey === void 0
       ? findSelectedOption(options, props.value, resolveOption, props.isValueEqual)
@@ -161,7 +163,7 @@ export const TreeSelect: IComponent = <TOption, TResult = TOption>({
         scrollItemIntoView={{ block: 'center', inline: 'nearest' }}
         value={selectedOption?.id ?? -1}
         onItemSelect={({ item }) => {
-          if (item.childrenIds.length > 0) tree.toggle(item.id);
+          if (item.childrenIds.length > 0 && (!selectBranches || item.disabled)) tree.toggle(item.id);
           else {
             handleSelect(item.option);
             setOpen(false);
@@ -211,6 +213,8 @@ export const TreeSelect: IComponent = <TOption, TResult = TOption>({
                   onClose={() => setOpen(false)}
                 >
                   <OptionList
+                    selectBranches={selectBranches}
+                    onToggle={tree.toggle}
                     expandedIds={tree.expandedIds}
                     items={list.items}
                     renderOption={props.renderOption}

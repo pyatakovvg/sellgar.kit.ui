@@ -41,8 +41,4 @@ export const validateTableColumns = (columns: readonly TableColumnDefinition[]):
   if (visibleColumns.length === 0) {
     throw new Error('Table configuration must contain at least one visible Column.');
   }
-
-  if (visibleColumns.every((column) => typeof column.width === 'number')) {
-    throw new Error('Table configuration must retain at least one automatic visible Column.');
-  }
 };

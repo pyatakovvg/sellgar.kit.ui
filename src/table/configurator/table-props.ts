@@ -33,7 +33,7 @@ export interface TableSelectConfig<T> {
 
 export interface TableTreeConfig<T> {
   isUse: boolean;
-  accessor: keyof T;
+  accessor: (row: T) => readonly T[] | null | undefined;
   defaultExpanded?: boolean;
 }
 
@@ -61,13 +61,18 @@ export interface TableVirtualizationConfig {
 export type TableLayoutVirtualization = boolean | TableVirtualizationConfig;
 
 export interface TableLayoutConfig {
+  /** Defaults to external; internal scrolling must be enabled explicitly. */
   scroll?: TableLayoutScroll;
   stickyHeader?: boolean | TableStickyHeaderConfig;
   virtualization?: TableLayoutVirtualization;
+  /** Center viewport reserve in logical numbers units. Defaults to 50; accepts 0. */
+  pinning?: { reserve?: number };
 }
 
 export interface TableProps<T extends object> {
   data: TableData<T>;
+  /** Shows loading progress while true and completes the indicator when false. */
+  loading?: boolean;
   select?: TableSelectConfig<NoInfer<T>>;
   tree?: TableTreeConfig<NoInfer<T>>;
   row?: TableRowConfig<NoInfer<T>>;

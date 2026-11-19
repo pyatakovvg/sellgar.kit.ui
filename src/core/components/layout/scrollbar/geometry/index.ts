@@ -5,6 +5,7 @@ export {
   getScrollbarAncestors,
   INITIAL_SCROLLBAR_GEOMETRY,
   measureScrollbarLayout,
+  measureScrollbarTrack,
   placeScrollbarTrack,
   setHorizontalScrollPosition,
   updateScrollbarLayoutScroll,

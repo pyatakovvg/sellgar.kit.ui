@@ -46,7 +46,7 @@ describe('Table column geometry', () => {
     const returned = resize(expanded.columns, expanded.layout, 1000, 0, 600);
     expect(returned.columns[0].manual).toBeUndefined();
     expect(resizeDirections(returned.columns, returned.layout, 1000, 0)).toEqual({ left: false, right: true });
-    expect(resizeDirections(returned.columns, returned.layout, 1000, 1)).toEqual({ left: false, right: false });
+    expect(resizeDirections(returned.columns, returned.layout, 1000, 1)).toEqual({ left: false, right: true });
   });
 
   it('stops shrinking when right-side capacity and removable overflow are exhausted', () => {
@@ -99,4 +99,40 @@ describe('Table axes and header geometry', () => {
     for (const scroll of [120, 121, 750, 1120]) expect(headerViewportTop(scroll, 120, 48, 1048)).toBe(0);
     expect(headerViewportTop(1200, 120, 48, 1048)).toBe(-80);
   });
+});
+
+it('preserves fill, bounds, bases and the left prefix across seeded resize sequences', () => {
+  let seed = 314159;
+  const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296;
+  for (let scenario = 0; scenario < 250; scenario++) {
+    let columns: GeometryColumn[] = Array.from({ length: 2 + Math.floor(random() * 6) }, (_, index) => {
+      const floor = Math.floor(random() * 100);
+      const max = floor + Math.floor(random() * 1000);
+      return {
+        id: String(index),
+        mode: random() > 0.45 ? 'auto' : 'fixed',
+        width: floor + Math.floor(random() * (max - floor)),
+        floor,
+        max,
+        resizable: true,
+      };
+    });
+    columns[columns.length - 1].mode = 'auto';
+    columns[columns.length - 1].max = Infinity;
+    const container = 100 + Math.floor(random() * 2000);
+    let layout = automatic(columns, container);
+    for (let step = 0; step < 12; step++) {
+      const index = Math.floor(random() * (columns.length - 1));
+      const next = resize(columns, layout, container, index, Math.floor(random() * 2500));
+      expect(next.layout.total).toBeGreaterThanOrEqual(container - 1e-6);
+      next.layout.widths.forEach((width, i) => {
+        expect(width).toBeGreaterThanOrEqual(columns[i].floor - 1e-6);
+        expect(width).toBeLessThanOrEqual(columns[i].max + 1e-6);
+        expect(width).toBeGreaterThanOrEqual(next.layout.base[i] - 1e-6);
+        if (i < index) expect(width).toBe(layout.widths[i]);
+      });
+      columns = next.columns;
+      layout = next.layout;
+    }
+  }
 });

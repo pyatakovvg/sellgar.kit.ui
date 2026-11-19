@@ -1,4 +1,3 @@
-const TRACK_OFFSET = 6;
 const CLIPPING_OVERFLOW = /^(auto|scroll|hidden|clip|overlay)$/;
 
 export interface ScrollbarGeometry {
@@ -43,7 +42,19 @@ export interface ScrollbarPlacement {
   readonly bottom: number | 'auto';
   readonly top: number | 'auto';
   readonly width: number | 'auto';
+  readonly height: number;
 }
+
+export interface ScrollbarTrackMetrics {
+  /** Resolved source-root CSS units, measured before portal coordinate conversion. */
+  readonly offset: number;
+  readonly height: number;
+}
+
+export const measureScrollbarTrack = (verticalTrack: HTMLElement): ScrollbarTrackMetrics => {
+  const style = window.getComputedStyle(verticalTrack);
+  return { offset: Number.parseFloat(style.top) || 0, height: Number.parseFloat(style.width) || 0 };
+};
 
 export const getScrollbarAncestors = (root: HTMLElement): HTMLElement[] => {
   const ancestors: HTMLElement[] = [];
@@ -183,9 +194,13 @@ export const getAncestorHorizontalTracks = (layout: ScrollbarLayout): HTMLElemen
 export const placeScrollbarTrack = (
   root: HTMLElement,
   layout: ScrollbarLayout,
-  trackHeight: number,
+  metrics: ScrollbarTrackMetrics,
 ): ScrollbarPlacement => {
   const rootRect = root.getBoundingClientRect();
+  const rootScale = getElementScale(root);
+  const offsetX = metrics.offset * rootScale.x;
+  const offsetY = metrics.offset * rootScale.y;
+  const trackHeight = metrics.height * rootScale.y;
   let left = Math.max(rootRect.left, layout.visualViewport.left);
   let right = Math.min(rootRect.right, layout.visualViewport.right);
   let top = Math.max(rootRect.top, layout.visualViewport.top);
@@ -220,27 +235,21 @@ export const placeScrollbarTrack = (
     geometry: {
       available:
         root.isConnected &&
-        right - left > TRACK_OFFSET * 2 &&
-        Math.min(rootRect.bottom, bottom - lane) - top > TRACK_OFFSET * 2 + trackHeight,
+        right - left > offsetX * 2 &&
+        Math.min(rootRect.bottom, bottom - lane) - top > offsetY * 2 + trackHeight,
       floating: false,
     },
     host: null,
     position: 'absolute',
-    left: Math.max(
-      TRACK_OFFSET,
-      (left - rootRect.left) / (root.offsetWidth > 0 ? rootRect.width / root.offsetWidth : 1) -
-        root.clientLeft +
-        TRACK_OFFSET,
-    ),
+    left: Math.max(metrics.offset, (left - rootRect.left) / rootScale.x - root.clientLeft + metrics.offset),
     right: Math.max(
-      TRACK_OFFSET,
-      (rootRect.right - right) / (root.offsetWidth > 0 ? rootRect.width / root.offsetWidth : 1) -
-        (root.offsetWidth - root.clientWidth - root.clientLeft) +
-        TRACK_OFFSET,
+      metrics.offset,
+      (rootRect.right - right) / rootScale.x - (root.offsetWidth - root.clientWidth - root.clientLeft) + metrics.offset,
     ),
-    bottom: TRACK_OFFSET,
+    bottom: metrics.offset,
     top: 'auto',
     width: 'auto',
+    height: metrics.height,
   };
   if (!natural.geometry.available || rootRect.bottom <= bottom - lane + 1) return natural;
 
@@ -258,11 +267,12 @@ export const placeScrollbarTrack = (
       geometry: { available: natural.geometry.available, floating: true },
       host,
       position: 'absolute',
-      left: (left - hostLeft) / hostScale.x + TRACK_OFFSET,
+      left: (left - hostLeft + offsetX) / hostScale.x,
       right: 'auto',
-      width: (right - left) / hostScale.x - TRACK_OFFSET * 2,
-      bottom: (hostBox.bottom - bottom + lane) / hostScale.y - hostBox.borderBottom + TRACK_OFFSET,
+      width: (right - left - offsetX * 2) / hostScale.x,
+      bottom: (hostBox.bottom - bottom + lane + offsetY) / hostScale.y - hostBox.borderBottom,
       top: 'auto',
+      height: trackHeight / hostScale.y,
     };
   }
   const fixedBox = layout.boxes.find(
@@ -273,11 +283,12 @@ export const placeScrollbarTrack = (
     geometry: { available: natural.geometry.available, floating: true },
     host,
     position: 'fixed',
-    left: (left - (fixedBox?.left ?? 0)) / scale.x - (fixedBox?.clientLeft ?? 0) + TRACK_OFFSET,
+    left: (left - (fixedBox?.left ?? 0) + offsetX) / scale.x - (fixedBox?.clientLeft ?? 0),
     right: 'auto',
-    width: (right - left) / scale.x - TRACK_OFFSET * 2,
+    width: (right - left - offsetX * 2) / scale.x,
     bottom: 'auto',
-    top: (bottom - lane - (fixedBox?.top ?? 0)) / scale.y - (fixedBox?.clientTop ?? 0) - TRACK_OFFSET - trackHeight,
+    top: (bottom - lane - (fixedBox?.top ?? 0) - offsetY - trackHeight) / scale.y - (fixedBox?.clientTop ?? 0),
+    height: trackHeight / scale.y,
   };
 };
 

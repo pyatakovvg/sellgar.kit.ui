@@ -1,7 +1,9 @@
 import React from 'react';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
-import { Cell, Column, Empty, Expand, Head, compileTableConfiguration } from '@sellgar/kit/table';
+import { Table, Cell, Column, Empty, Expand, Head, ExpandTrigger, compileTableConfiguration } from '@sellgar/kit/table';
+
+import { createGeometryColumns } from '../../core/layout/create-columns';
 
 import type { TableCellRenderScope, TableConfigurationInput, TableExpandedRenderContext } from '@sellgar/kit/table';
 
@@ -26,11 +28,160 @@ const context: TableCellRenderScope<Product> = {
   cellId: 'cell-1',
   lineId: 'line-1',
   ExpandTrigger: () => null,
+  TreeTrigger: () => null,
 };
 
 const automaticColumn = <Column key={'automatic'}>{({ Cell }) => <Cell />}</Column>;
 
 describe('Table configuration compiler', () => {
+  it('accepts an optional onResize callback without passing it into geometry or calling it during compilation', () => {
+    const onResize = vi.fn<(width: number) => void>();
+    const configuration = compileTableConfiguration({
+      data,
+      children: (
+        <>
+          <Column width="var(--numbers-100)" resizable onResize={onResize}>
+            <Cell />
+          </Column>
+          {automaticColumn}
+        </>
+      ),
+    });
+    expect(configuration.columns[0].onResize).toBe(onResize);
+    expect(configuration.columns[1].onResize).toBeUndefined();
+    expect(createGeometryColumns(configuration.columns)[0]).not.toHaveProperty('onResize');
+    expect(onResize).not.toHaveBeenCalled();
+  });
+
+  it.each([0, 24])('keeps content measurement when minWidth is explicitly %s', (minimum) => {
+    const configuration = compileTableConfiguration({
+      data,
+      children: (
+        <Column minWidth={minimum}>
+          <Cell />
+        </Column>
+      ),
+    });
+    expect(createGeometryColumns(configuration.columns)[0]).toMatchObject({ floor: minimum });
+    expect(createGeometryColumns(configuration.columns)[0].measureContent).toBe(true);
+    const automatic = compileTableConfiguration({ data, children: automaticColumn });
+    expect(createGeometryColumns(automatic.columns)[0].measureContent).toBe(true);
+  });
+
+  it('accepts the compatible compound API with the same typed declaration identities', () => {
+    const configuration = compileTableConfiguration({
+      data,
+      children: (
+        <Table.Column<Product>>
+          {({ Cell }) => (
+            <>
+              <Table.Head label={'Товар'} />
+              <Cell render={({ row }) => row.name} />
+            </>
+          )}
+        </Table.Column>
+      ),
+    });
+    expect(configuration.renderers.columns.get(configuration.columns[0].columnId)?.cell(context)).toBe(product.name);
+    expect(Table.Cell).toBe(Cell);
+    expect(Table.Empty).toBe(Empty);
+    expect(Table.Expand).toBe(Expand);
+    expect(Table.ExpandTrigger).toBe(ExpandTrigger);
+  });
+
+  it('compiles numbers tokens into the same fixed/auto geometry as numeric declarations', () => {
+    const compile = (tokens: boolean) =>
+      compileTableConfiguration({
+        data,
+        children: (
+          <>
+            <Column
+              key={'status'}
+              width={tokens ? 'var(--numbers-24)' : 24}
+              minWidth={tokens ? 'var(--numbers-24)' : 24}
+              pinLeft
+            >
+              <Cell />
+            </Column>
+            <Column
+              key={'name'}
+              minWidth={tokens ? 'var(--numbers-120)' : 120}
+              maxWidth={tokens ? 'var(--numbers-600)' : 600}
+            >
+              <Cell />
+            </Column>
+          </>
+        ),
+      });
+    const numeric = compile(false);
+    const tokens = compile(true);
+    expect(tokens.columns).toEqual(numeric.columns);
+    expect(createGeometryColumns(tokens.columns)).toEqual(createGeometryColumns(numeric.columns));
+    expect(createGeometryColumns(tokens.columns).map((column) => column.mode)).toEqual(['fixed', 'auto']);
+  });
+
+  it.each([
+    ['var(--numbers-0)', 0],
+    ['var(--numbers-0_5)', 0.5],
+    ['var(--numbers-1_6)', 1.6],
+    ['var(--numbers-3000)', 3000],
+  ] as const)('accepts existing boundary and fractional token %s', (token, expected) => {
+    const configuration = compileTableConfiguration({
+      data,
+      children: (
+        <>
+          <Column width={token}>
+            <Cell />
+          </Column>
+          {automaticColumn}
+        </>
+      ),
+    });
+    expect(configuration.columns[0].width).toBe(expected);
+  });
+
+  it('accepts fixed-only declarations and checks min/max after resolving tokens', () => {
+    expect(() =>
+      compileTableConfiguration({
+        data,
+        children: (
+          <Column width={'var(--numbers-24)'}>
+            <Cell />
+          </Column>
+        ),
+      }),
+    ).not.toThrow();
+    expect(() =>
+      compileTableConfiguration({
+        data,
+        children: (
+          <Column minWidth={'var(--numbers-300)'} maxWidth={'var(--numbers-200)'}>
+            <Cell />
+          </Column>
+        ),
+      }),
+    ).toThrow(/minWidth must not exceed/);
+  });
+
+  it.each(['var(--numbers-3001)', 'var(--numbers-0_4)', 'var(--numbers--24)', 'var(--numbers-bad)'])(
+    'rejects nonexistent or malformed numbers token %s',
+    (token) => {
+      expect(() =>
+        compileTableConfiguration({
+          data,
+          children: (
+            <>
+              <Column width={token}>
+                <Cell />
+              </Column>
+              {automaticColumn}
+            </>
+          ),
+        }),
+      ).toThrow(/numbers token/);
+    },
+  );
+
   it('requires explicit resize permission for each column', () => {
     const configuration = compileTableConfiguration({
       data,
@@ -125,7 +276,7 @@ describe('Table configuration compiler', () => {
 
     expect(cellRender).not.toHaveBeenCalled();
     expect(expandedRender).not.toHaveBeenCalled();
-    expect(configuration.renderers.columns.get('column:0')?.cell(context)).toBe(product.name);
+    expect(configuration.renderers.columns.get(configuration.columns[0].columnId)?.cell(context)).toBe(product.name);
     expect(configuration.renderers.expanded?.(context)).toBe(1);
     expect(configuration.surface).toBe('embedded');
     expect(configuration.row?.handlers?.doubleClick).toBeTypeOf('function');
@@ -134,7 +285,8 @@ describe('Table configuration compiler', () => {
   it('сохраняет tree categories и остальные root options, не исполняя callbacks', () => {
     const onSelect = vi.fn();
     const onLastRowVisible = vi.fn();
-    const tree = { isUse: true, accessor: 'children', defaultExpanded: false } satisfies NonNullable<
+    const accessor = vi.fn((row: Product) => row.children);
+    const tree = { isUse: true, accessor, defaultExpanded: false } satisfies NonNullable<
       TableConfigurationInput<Product>['tree']
     >;
     const layout = { scroll: 'external', virtualization: { enabled: true, rowHeight: 32, overscan: 4 } } as const;
@@ -148,6 +300,7 @@ describe('Table configuration compiler', () => {
     });
 
     expect(configuration.tree).toBe(tree);
+    expect(accessor).not.toHaveBeenCalled();
     expect(configuration.layout).toBe(layout);
     expect(onSelect).not.toHaveBeenCalled();
     expect(onLastRowVisible).not.toHaveBeenCalled();
@@ -253,7 +406,7 @@ describe('Table configuration compiler', () => {
       ),
     });
 
-    const action = configuration.renderers.columns.get('column:0')?.actions[0];
+    const action = configuration.renderers.columns.get(configuration.columns[0].columnId)?.actions[0];
 
     expect(actionRender).not.toHaveBeenCalled();
     expect(onAction).not.toHaveBeenCalled();
@@ -261,6 +414,40 @@ describe('Table configuration compiler', () => {
     expect(action?.render()).toBe('Включено');
     action?.onAction();
     expect(onAction).toHaveBeenCalledOnce();
+  });
+
+  it('retains explicit action identities across reorder and rejects duplicates', () => {
+    const compile = (reversed = false, duplicate = false) =>
+      compileTableConfiguration({
+        data,
+        children: ({ Column }) => (
+          <Column>
+            {({ Cell, Actions }) => (
+              <>
+                <Cell />
+                <Actions>
+                  {({ Action }) => {
+                    const first = (
+                      <Action key="a" state={1} onAction={() => {}}>
+                        {({ state }) => state}
+                      </Action>
+                    );
+                    const second = (
+                      <Action key={duplicate ? 'a' : 'b'} state={2} onAction={() => {}}>
+                        {({ state }) => state}
+                      </Action>
+                    );
+                    return reversed ? [second, first] : [first, second];
+                  }}
+                </Actions>
+              </>
+            )}
+          </Column>
+        ),
+      }).renderers.columns.get('column:0')!.actions;
+    expect(compile().map((action) => action.id)).toEqual(['key:a', 'key:b']);
+    expect(compile(true).map((action) => action.id)).toEqual(['key:b', 'key:a']);
+    expect(() => compile(false, true)).toThrow(/Duplicate Table action id/);
   });
 
   it.each([
@@ -298,25 +485,6 @@ describe('Table configuration compiler', () => {
     { children: [automaticColumn, automaticColumn], message: 'Duplicate Table column id' },
     { children: [automaticColumn, <Empty />, <Empty />], message: 'duplicate Empty' },
     { children: [automaticColumn, <Expand />, <Expand />], message: 'duplicate Expand' },
-    {
-      children: (
-        <Column width={100}>
-          <Cell />
-        </Column>
-      ),
-      message: 'automatic visible Column',
-    },
-    {
-      children: [
-        <Column key={'fixed'} width={100}>
-          <Cell />
-        </Column>,
-        <Column key={'hidden-auto'} visible={false}>
-          <Cell />
-        </Column>,
-      ],
-      message: 'automatic visible Column',
-    },
     {
       children: (
         <Column visible={false}>
@@ -388,6 +556,14 @@ describe('Table configuration compiler', () => {
 // These functions are checked by tsc; they are deliberately never executed.
 const verifyTypeErrors = (): void => {
   compileTableConfiguration({
+    data: {
+      nodes: [product],
+      // @ts-expect-error Table owns row identity; callers cannot override it.
+      getRowId: (row: Product) => row.uuid,
+    },
+  });
+
+  compileTableConfiguration({
     data,
     children: ({ Column }) => (
       <Column>
@@ -405,8 +581,31 @@ const verifyTypeErrors = (): void => {
 
   compileTableConfiguration({
     data,
-    // @ts-expect-error Tree accessor must be a key of Product.
-    tree: { isUse: true, accessor: 'missingField' },
+    // @ts-expect-error Tree accessor must be a function, not a field name.
+    tree: { isUse: true, accessor: 'children' },
+  });
+
+  compileTableConfiguration({
+    data,
+    tree: {
+      isUse: true,
+      accessor: (row) => {
+        expectTypeOf(row).toEqualTypeOf<Product>();
+        // @ts-expect-error Accessors cannot widen the inferred row type.
+        return row.missingField;
+      },
+    },
+  });
+
+  compileTableConfiguration({
+    data,
+    // @ts-expect-error Children must have the same type as the rows, not offers.
+    tree: { isUse: true, accessor: (row) => row.offers },
+  });
+
+  compileTableConfiguration({
+    data,
+    tree: { isUse: true, accessor: (row): readonly Product[] | null | undefined => row.children },
   });
 
   compileTableConfiguration({

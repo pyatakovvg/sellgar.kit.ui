@@ -1,0 +1,21 @@
+.wrapper {
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-inline-start: var(--numbers-4);
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--numbers-20);
+  height: var(--numbers-20);
+  color: var(--icon-base-secondary);
+  font-size: var(--numbers-16);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  width: var(--numbers-240);
+}

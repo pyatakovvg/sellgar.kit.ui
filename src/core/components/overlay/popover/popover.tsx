@@ -113,6 +113,7 @@ const PopoverWrapper: React.FC<React.PropsWithChildren<IProps>> = ({ children, .
 interface ITriggerProps {
   icon?: React.ReactNode;
   ariaLabel?: string;
+  role?: 'button';
   tabIndex?: number;
   onFocus?(event: React.FocusEvent<HTMLDivElement>): void;
   onBlur?(event: React.FocusEvent<HTMLDivElement>): void;
@@ -123,6 +124,7 @@ interface ITriggerProps {
 const Trigger: React.FC<ITriggerProps> = ({
   icon = <More2FillIcon />,
   ariaLabel,
+  role,
   tabIndex,
   onFocus,
   onBlur,
@@ -147,7 +149,12 @@ const Trigger: React.FC<ITriggerProps> = ({
   return (
     <div
       className={s.wrapper}
-      {...popover.interactions.getReferenceProps({ onFocus, onBlur, onKeyDown: handleKeyDown })}
+      {...popover.interactions.getReferenceProps({
+        onFocus,
+        onBlur,
+        onKeyDown: handleKeyDown,
+        ...(role ? { role } : {}),
+      })}
       aria-label={ariaLabel}
       tabIndex={tabIndex}
       ref={popover.floating.refs.setReference}

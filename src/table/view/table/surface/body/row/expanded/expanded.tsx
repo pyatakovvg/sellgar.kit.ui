@@ -1,18 +1,17 @@
 import React from 'react';
 
-import { ExpandedTableContext, useTableEnvironment, useTableSnapshot } from '../../../../context/table-context';
+import { ExpandedTableContext, useTableEnvironment } from '../../../../context/table-context';
 import { useTableRow } from '../context/row-context';
 
 import s from './default.module.scss';
 
 export const Expanded: React.FC = () => {
   const environment = useTableEnvironment();
-  const state = useTableSnapshot();
   const row = useTableRow();
   const root = React.useRef<HTMLDivElement>(null);
   React.useLayoutEffect(
-    () => (root.current ? environment.browser.observeExpanded(root.current, row.id, state.version) : undefined),
-    [environment.browser, row.id, state.version],
+    () => (root.current ? environment.browser.observeExpanded(root.current, row.id) : undefined),
+    [environment.browser, row.id],
   );
 
   return (
