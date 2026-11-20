@@ -50,7 +50,7 @@
 - Локальный export: `export { ButtonGroup } from './button-group.tsx'`.
 - Consumer import: `import { ButtonGroup } from '@sellgar/kit'`.
 - Public component props:
-  - `size?: 'sm' | 'md' | 'lg'`;
+  - `size?: 'xs' | 'sm' | 'md' | 'lg'`;
   - `fill?: 'contain' | 'auto'`;
   - `shape?: 'rounded' | 'pill'`;
   - `disabled?: boolean`;
@@ -79,6 +79,7 @@
 - Компонент stateless: нет локального state, effects, context или refs.
 - `ButtonGroup` не валидирует тип children runtime-ом; невалидные children вернутся как есть.
 - `ButtonGroup` клонирует только `React.isValidElement(child)`.
+- `xs` задаёт высоту сегментов `--numbers-24`, иконки `--numbers-14` и типографику `caption-m`.
 - `fill="auto"` оставляет grid columns как `max-content`.
 - `fill="contain"` делает все сегменты равными по ширине через `grid-auto-columns: 1fr`.
 - `ButtonGroup.Button` рендерит native `<button>` с текстом, optional lead/tail icons и optional badge.
@@ -139,7 +140,7 @@ yarn build
 - Storybook scenario: `clients/storybook/src/kit/symbols/button-group/button-group.stories.tsx`.
 - Вручную проверить:
   - `fill="auto"` и `fill="contain"`;
-  - размеры `sm`, `md`, `lg`;
+  - размеры `xs`, `sm`, `md`, `lg`;
   - формы `rounded`, `pill`;
   - disabled state;
   - смешанные `ButtonGroup.Button` и `ButtonGroup.Icon`;

@@ -5,7 +5,7 @@ import s from './icon.module.scss';
 
 export interface IProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'style'> {
   isActive?: boolean;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   shape?: 'rounded' | 'pill';
   leadIcon?: React.ReactNode;
 }
@@ -22,6 +22,7 @@ export const Icon: React.FC<IProps> = ({ isActive = false, size = 'lg', shape = 
           [s['size--large']]: size === 'lg',
           [s['size--medium']]: size === 'md',
           [s['size--small']]: size === 'sm',
+          [s['size--extra-small']]: size === 'xs',
         },
         {
           [s['shape--rounded']]: shape === 'rounded',

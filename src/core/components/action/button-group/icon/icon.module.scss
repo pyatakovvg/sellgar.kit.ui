@@ -1,5 +1,6 @@
 .wrapper {
   position: relative;
+  min-width: 100%;
   display: inline-flex;
   flex-direction: row;
   flex: 0 0 auto;
@@ -105,6 +106,19 @@
       height: var(--numbers-16);
     }
   }
+  &--extra-small {
+    width: var(--numbers-24);
+    height: var(--numbers-24);
+    padding: var(--numbers-4);
+    font-size: var(--typography-size-caption-m);
+    line-height: var(--typography-line-height-caption-m);
+    letter-spacing: var(--typography-letter-spacing-caption-m);
+
+    .lead-icon {
+      width: var(--numbers-14);
+      height: var(--numbers-14);
+    }
+  }
 }
 
 .shape {
@@ -139,6 +153,15 @@
           border-radius: 0 var(--measurements-radius-lg) var(--measurements-radius-lg) 0;
         }
       }
+      &--extra-small {
+        &:first-child {
+          border-radius: var(--measurements-radius-md) 0 0 var(--measurements-radius-md);
+        }
+
+        &:last-child {
+          border-radius: 0 var(--measurements-radius-md) var(--measurements-radius-md) 0;
+        }
+      }
     }
   }
 
@@ -170,6 +193,13 @@
         &:first-child,
         &:last-child {
           width: var(--numbers-36);
+        }
+      }
+
+      &--extra-small {
+        &:first-child,
+        &:last-child {
+          width: var(--numbers-28);
         }
       }
     }

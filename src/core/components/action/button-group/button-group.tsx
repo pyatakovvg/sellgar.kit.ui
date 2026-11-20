@@ -7,7 +7,7 @@ import { Button } from './button';
 import s from './button-group.module.scss';
 
 interface IProps {
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   fill?: 'contain' | 'auto';
   shape?: 'rounded' | 'pill';
   disabled?: boolean;

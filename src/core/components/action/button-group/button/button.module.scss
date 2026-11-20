@@ -191,6 +191,28 @@
       height: var(--numbers-16);
     }
   }
+  &--extra-small {
+    height: var(--numbers-24);
+    padding: var(--numbers-2) var(--numbers-6);
+    font-size: var(--typography-size-caption-m);
+    line-height: var(--typography-line-height-caption-m);
+    letter-spacing: var(--typography-letter-spacing-caption-m);
+
+    .lead-icon,
+    .tail-icon {
+      width: var(--numbers-14);
+      height: var(--numbers-14);
+    }
+
+    .text {
+      padding: 0 var(--numbers-2);
+    }
+
+    .badge {
+      padding: 0 var(--numbers-2);
+      border-radius: var(--measurements-radius-sm);
+    }
+  }
 }
 
 .shape {
@@ -223,6 +245,15 @@
 
         &:last-child {
           border-radius: 0 var(--measurements-radius-lg) var(--measurements-radius-lg) 0;
+        }
+      }
+      &--extra-small {
+        &:first-child {
+          border-radius: var(--measurements-radius-md) 0 0 var(--measurements-radius-md);
+        }
+
+        &:last-child {
+          border-radius: 0 var(--measurements-radius-md) var(--measurements-radius-md) 0;
         }
       }
     }

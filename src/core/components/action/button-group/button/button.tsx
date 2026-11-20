@@ -9,7 +9,7 @@ type TBadgeProps = React.ComponentProps<typeof Badge>;
 
 export interface IProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'style'> {
   isActive?: boolean;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   shape?: 'rounded' | 'pill';
   leadIcon?: React.ReactNode;
   tailIcon?: React.ReactNode;
@@ -19,6 +19,8 @@ export interface IProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElemen
 const useBadgeSize = (size: IProps['size']): TBadgeProps['size'] => {
   return React.useMemo(() => {
     switch (size) {
+      case 'xs':
+        return 'xs';
       case 'lg':
         return 'md';
       case 'md':
@@ -48,6 +50,7 @@ export const Button: React.FC<IProps> = ({
           [s['size--large']]: size === 'lg',
           [s['size--medium']]: size === 'md',
           [s['size--small']]: size === 'sm',
+          [s['size--extra-small']]: size === 'xs',
         },
         {
           [s['shape--rounded']]: shape === 'rounded',
