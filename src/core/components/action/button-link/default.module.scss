@@ -184,6 +184,14 @@
   }
 }
 
+.lead-icon-sizing {
+  &--content {
+    .lead-icon {
+      width: auto;
+    }
+  }
+}
+
 .target {
   &--destructive {
     .text {

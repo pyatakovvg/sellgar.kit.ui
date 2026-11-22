@@ -10,6 +10,7 @@ export interface IProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElemen
   size?: 'md' | 'sm' | 'xs';
   target?: 'default' | 'destructive' | 'success' | 'info';
   leadIcon?: React.ReactNode;
+  leadIconSizing?: 'fixed' | 'content';
   tailIcon?: React.ReactNode;
   badge?: React.ReactNode;
 }
@@ -47,6 +48,7 @@ export const ButtonLink: React.FC<IProps> = ({
   size = 'md',
   target = 'default',
   leadIcon,
+  leadIconSizing = 'fixed',
   tailIcon,
   badge,
   ...props
@@ -59,6 +61,7 @@ export const ButtonLink: React.FC<IProps> = ({
           [s['size--md']]: size === 'md',
           [s['size--sm']]: size === 'sm',
           [s['size--xs']]: size === 'xs',
+          [s['lead-icon-sizing--content']]: leadIconSizing === 'content',
         },
         {
           [s['target--info']]: target === 'info',
@@ -66,7 +69,7 @@ export const ButtonLink: React.FC<IProps> = ({
           [s['target--destructive']]: target === 'destructive',
         },
       ),
-    [size, target],
+    [size, target, leadIconSizing],
   );
 
   const badgeSize = useBadgeSize(size);

@@ -36,14 +36,14 @@ Action primitive, который визуально ведет себя как �
 - `export { ButtonLink } from './button-link.tsx';`
 - Consumer import: `import { ButtonLink } from '@sellgar/kit'` или compound API ближайшего public-компонента.
 - Exported/source names: `ButtonLink`, `IProps`.
-- Props из `IProps`: `size`, `target`, `leadIcon`, `tailIcon`, `badge`.
+- Props из `IProps`: `size`, `target`, `leadIcon`, `leadIconSizing`, `tailIcon`, `badge`.
 - Локальных parts нет.
 
 ## Контракт изменения
 
 - Не менять локальные exports (`export { ButtonLink } from './button-link.tsx';`) без оценки public API.
 - Так как узел достижим через barrel chain `@sellgar/kit`, изменение имени компонента, props или exported types может быть breaking change.
-- Props contract: `size`, `target`, `leadIcon`, `tailIcon`, `badge`. Новые/изменённые props нужно отражать в story и документации.
+- Props contract: `size`, `target`, `leadIcon`, `leadIconSizing`, `tailIcon`, `badge`. Новые/изменённые props нужно отражать в story и документации.
 - При `cloneElement` явно сохранять порядок приоритета props родителя и ребёнка.
 - Native `<button>` нельзя заменять на другой element без пересмотра disabled, click и form behavior.
 
@@ -83,3 +83,8 @@ Action primitive, который визуально ведет себя как �
 - Для изменений public exports, props contract или сборки: `yarn build` в `library/kit`.
 - Storybook scenario: `../../clients/storybook/src/kit/symbols/button-link/button-link.stories.tsx`.
 - Для визуальных изменений проверить размеры, disabled/active states, DOM order, keyboard/focus behavior и responsive layout, если они применимы к компоненту.
+
+## Размер ведущего изображения
+
+- `leadIconSizing` по умолчанию `fixed`: существующая квадратная область иконки сохраняется.
+- `leadIconSizing="content"` сохраняет высоту слота выбранного размера, а ширину получает из содержимого. Это позволяет показывать изображения разных пропорций без переопределения внутренних CSS-классов. Ограничение размеров изображения задаёт consumer.
