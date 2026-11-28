@@ -20,6 +20,7 @@ interface IProps<T extends Record<K, string | number>, K extends keyof T> extend
   value: T | null;
   debounce?: number;
   loading?: boolean;
+  loadingMore?: boolean;
   error?: string;
   placeholder?: string;
   searchPlaceholder?: string;
@@ -27,6 +28,7 @@ interface IProps<T extends Record<K, string | number>, K extends keyof T> extend
   templateOption?(option: T): React.ReactNode;
   onChange(value: T | null): void;
   onSearch(value: string): void;
+  onEndReached?(): void;
   onFocus?(): void;
   onBlur?(): void;
 }
@@ -38,6 +40,7 @@ export const InputSelect = <T extends Record<K, string | number>, K extends keyo
   value,
   debounce = 600,
   loading = false,
+  loadingMore = false,
   error,
   placeholder = 'Выберите значение',
   searchPlaceholder = 'Поиск',
@@ -45,6 +48,7 @@ export const InputSelect = <T extends Record<K, string | number>, K extends keyo
   templateOption,
   onChange,
   onSearch,
+  onEndReached,
   onFocus,
   onBlur,
   disabled,
@@ -129,6 +133,7 @@ export const InputSelect = <T extends Record<K, string | number>, K extends keyo
               search={search.search}
               pending={search.pending}
               loading={loading}
+              loadingMore={loadingMore}
               error={error}
               searchPlaceholder={searchPlaceholder}
               surfaceProps={surfaceProps}
@@ -136,6 +141,7 @@ export const InputSelect = <T extends Record<K, string | number>, K extends keyo
               value={value?.[optionKey]}
               onChange={onChange}
               onSearch={search.change}
+              onEndReached={onEndReached}
               onClose={() => handleOpen(false)}
               renderSurface={({ children, listProps, search: searchNode, surfaceProps: nextSurfaceProps }) => (
                 <Surface

@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { Status } from '../status';
+import { useEndReached } from '../hooks/use-end-reached.hook';
 import { Option } from '../option';
 import { Input } from '../../input';
 import { Floating } from '../../../../systems/floating';
@@ -9,6 +10,7 @@ import { Loader4FillIcon } from '../../../../../icons';
 
 import cn from 'classnames';
 import s from './default.module.scss';
+import pagination from './pagination.module.css';
 
 import type { TFloatingListElementProps } from '../../../../systems/floating';
 
@@ -26,6 +28,7 @@ interface IProps<T extends Record<K, string | number>, K extends keyof T> {
   search: string;
   pending: boolean;
   loading: boolean;
+  loadingMore: boolean;
   error?: string;
   searchPlaceholder: string;
   surfaceProps: TFloatingListElementProps;
@@ -33,6 +36,7 @@ interface IProps<T extends Record<K, string | number>, K extends keyof T> {
   value: T[K] | undefined;
   onChange(option: T): void;
   onSearch(value: string): void;
+  onEndReached?(): void;
   onClose(): void;
   renderSurface(options: IRenderSurfaceOptions): React.ReactElement;
 }
@@ -41,6 +45,7 @@ export const OptionList = <T extends Record<K, string | number>, K extends keyof
   const listId = React.useId();
   const searchRef = React.useRef<HTMLInputElement>(null);
   const busy = props.pending || props.loading;
+  const endRef = useEndReached(props.options.length, busy || props.loadingMore || !!props.error, props.onEndReached);
 
   return (
     <Floating.Select
@@ -57,7 +62,7 @@ export const OptionList = <T extends Record<K, string | number>, K extends keyof
           <Input
             ref={searchRef}
             aria-activedescendant={activeOptionId}
-            aria-busy={busy}
+            aria-busy={busy || props.loadingMore}
             aria-controls={listId}
             aria-expanded={true}
             aria-haspopup={'listbox'}
@@ -68,7 +73,7 @@ export const OptionList = <T extends Record<K, string | number>, K extends keyof
             role={'combobox'}
             size={'xs'}
             tailIcon={
-              props.loading ? (
+              props.loading || props.loadingMore ? (
                 <Animate.Spin>
                   <Loader4FillIcon />
                 </Animate.Spin>
@@ -128,6 +133,9 @@ export const OptionList = <T extends Record<K, string | number>, K extends keyof
                   </div>
                 );
               })
+            )}
+            {selectState.items.length > 0 && props.onEndReached && (
+              <div ref={endRef} className={pagination.end} aria-hidden={true} />
             )}
           </div>
         );
